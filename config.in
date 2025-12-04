@@ -1,0 +1,53 @@
+#Monsoon Onset Metrics Package (MOMP) configuration n parameters
+
+=======  MOMP structure and dimension setting =======
+json_structure = ("REF", "RESULTS",)  # frozen with MOMP version
+layout = ("model", "ensemble", "window", "bins?",)  # frozen with MOMP version
+
+model_list = ("AIFS", "NGCM",)
+ensemble_list = (1,2,3,4,5,)
+window_list = (1,16,)  
+
+
+====== onset definition =====
+wet_theshold = 1 #the first wet day rainfall threshold (mm)
+wet_spell = 5 #wet spell duration
+dry_threshold = 5 #accumulated rainfall (mm) 
+dry_spell = 10 #dry spell duration followed by wet spell
+dry_window = 30 #dry spell searching window after wet spell
+
+
+====== evaluation period =====
+year_start = 2019
+year_end  = 2024
+season_start = "04-01" #MM-DD
+season_end = "10-31" #MM-DD
+mok = "06-02" #MM-DD
+
+
+====== evaluation setting =====
+tolerance_days =  3 #Tolerance in days for onset prediction 
+verification_window = 1 #Days after initialization to start validation window
+forecast_days = 15 #Length of forecast window in days 
+
+ 
+====== metrics ======
+------ deterministic -----
+FAR = True
+MAE = True
+MR = True
+CSI = False
+
+------ probabilistic -----
+probabilistic = False
+BSS = False #SBrier skill score 
+AUC = False #Area under curve 
+Reliability = False #Reliability diagrams
+RPSS = False #Ranked probability skill score 
+
+
+====== data and region mask ======
+
+====== graphics =====
+
+
