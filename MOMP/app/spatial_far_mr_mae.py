@@ -1,21 +1,28 @@
+import os
+import xarray as xr
+from dataclasses import asdict
+from itertools import product
+
 from MOMP.metrics.error import create_spatial_far_mr_mae
 from MOMP.stats.benchmark import compute_metrics_multiple_years
 from MOMP.lib.control import iter_list, make_case
 from MOMP.lib.convention import Case
 from MOMP.lib.loader import cfg,setting
-from MOMP.graphics.map import plot_spatial_metrics
+from MOMP.graphics.maps import plot_spatial_metrics
 #from MOMP.io.output import file_path
-import os
-import xarray as xr
 
 
 
-def spatial_far_mr_mae_map(dic=cfg, setting=setting):#, **kwargs):
+def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
 
-    layout_pool = iter_list(dic)
+    # only executed for deterministic forecasts
+    if cfg.get('probabilistic'):
+        return
+
+    layout_pool = iter_list(cfg)
 
     for combi in product(*layout_pool):
-        case = make_case(Case, combi, dic)
+        case = make_case(Case, combi, cfg)
 
         print(f"processing model onset evaluation for {case.case_name}")
 
@@ -38,8 +45,9 @@ def spatial_far_mr_mae_map(dic=cfg, setting=setting):#, **kwargs):
 
             # Add global attributes
             ds.attrs['title'] = 'Monsoon Onset MAE, FAR, MR Analysis'
-            ds.attrs['description'] = 'Spatial maps of Mean Absolute Error, False Alarm Rate, and Miss Rate 
-                                        for monsoon onset predictions'
+            ds.attrs['description'] = ('Spatial maps of Mean Absolute Error, False Alarm Rate, and Miss Rate '
+                                        'for monsoon onset predictions'
+                                       )
             ds.attrs['model'] = case.model
             ds.attrs['years'] = str(case_cfg['years'])
             ds.attrs['tolerance_days'] = case_cfg['tolerance_days']
@@ -52,6 +60,10 @@ def spatial_far_mr_mae_map(dic=cfg, setting=setting):#, **kwargs):
             print(f"\nSpatial metrics saved to: {fout}")
 
 
-        if plot_spatial_far_mr_mae:
+        if case_cfg['plot_spatial_far_mr_mae']:
 
-            plot_sptial_metrics(spatial_metrics, **case_cfg)
+            plot_spatial_metrics(spatial_metrics, **case_cfg)
+
+
+
+

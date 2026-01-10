@@ -13,6 +13,7 @@ class Case:
 
     model: str = field(default=None)
     model_var: str = field(default=None)
+    model_dir: str = field(default="data")
 
     obs: str = field(default=None)
     obs_var: str = field(default=None)
@@ -72,7 +73,7 @@ class Setting:
     end_year_clim: int = field(default=2000)
     fallback_date: Optional[tuple[int, int]] = field(default=(4,1))
 
-    init_days: tuple = field(defalt=(0,3))
+    init_days: tuple = field(default=(0,3))
     date_filter_year: int = field(default=2024)
 
     MAE: bool = field(default=False)
@@ -81,21 +82,19 @@ class Setting:
     CSI: bool = field(default=False)
 
     probabilistic: bool = field(default=False)
-    climatology: bool = field(default=False)
 
     members: Optional[tuple[int, ...]] = field(default=None)
 
-    BSS: bool = field(default=False)
-    RPSS: bool = field(default=False)
+    BS: bool = field(default=False)
+    RPS: bool = field(default=False)
     AUC: bool = field(default=False)
 
     skill_score: bool = field(default=False)
 
-    model_dir: str = field(default="data")
     obs_dir: str = field(default="data")
     ref_model_dir: str = field(default="data")
 
-    shpfile: str = field(default="data")
+    shpfile_dir: str = field(default="data")
 
     obs_file_pattern: str = field(default="{}.nc")
     ref_model_file_pattern: str = field(default="{}.nc")
@@ -111,6 +110,7 @@ class Setting:
 
     save_nc_spatial_far_mr_mae: bool = field(default=False)
     save_csv_score: bool = field(default=False)
+    save_nc_climatology: bool = field(default=False)
 
     polygon: bool = field(default=False)
 

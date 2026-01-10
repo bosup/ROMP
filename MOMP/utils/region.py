@@ -1,5 +1,6 @@
 import xcdat as xc
 import xarray as xr
+import numpy as np
 from MOMP.params.region_def import domain
 
 #def domain(region, **kwargs):
@@ -65,7 +66,7 @@ def lat_swap(ds_tag):
 
 def coords_fmt(ds_tag, *, region, **kwargs):
     #ds_tag = time_swap(ds_tag)
-    lats, latn, lonw, lone, ds_tag = lon_swap(ds_tag, region, **kwargs)
+    lats, latn, lonw, lone, ds_tag = lon_swap(ds_tag, region=region, **kwargs)
     ds_tag = lat_swap(ds_tag)
 
     return lats, latn, lonw, lone, ds_tag
@@ -73,7 +74,7 @@ def coords_fmt(ds_tag, *, region, **kwargs):
 
 def region_select(ds, *, region, **kwargs):
 
-    lats, latn, lonw, lone, ds = coords_fmt(ds, region)
+    lats, latn, lonw, lone, ds = coords_fmt(ds, region=region)
 
     ds_reg = ds.sel(lat=slice(lats, latn), lon=slice(lonw, lone))
 

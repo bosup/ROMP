@@ -3,8 +3,12 @@ from MOMP.io.input import get_forecast_probabilistic_twice_weekly, get_forecast_
 from MOMP.io.input import load_imd_rainfall
 from MOMP.stats.detect import detect_observed_onset, compute_onset_for_deterministic_model, compute_onset_for_all_members
 from MOMP.stats.climatology import compute_climatological_onset, compute_climatology_as_forecast
+from MOMP.utils.practical import restore_args
+from MOMP.utils.printing import tuple_to_str_range
 
+import numpy as np
 import pandas as pd
+import os
 
 
 def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification_window, **kwargs):
@@ -26,8 +30,8 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
     for idx, (_, row) in enumerate(unique_locations.iterrows()):
         lat, lon = row['lat'], row['lon']
 
-        if idx % 10 == 0:
-            print(f"Processing grid point {idx+1}/{len(unique_locations)}: lat={lat:.2f}, lon={lon:.2f}")
+        #if idx % 10 == 0:
+        #    print(f"Processing grid point {idx+1}/{len(unique_locations)}: lat={lat:.2f}, lon={lon:.2f}")
 
         grid_data = onset_df[(onset_df['lat'] == lat) & (onset_df['lon'] == lon)].copy()
 
@@ -153,13 +157,13 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
 
 
 
-def compute_metrics_multiple_years(years, *, obs_dir, obs_file_pattern, obs_var, 
+def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var, 
                                    thresh_file, thresh_var, wet_threshold, 
                                    wet_init, wet_spell, dry_spell, dry_threshold, dry_extent, 
                                    start_date, end_date, fallback_date, mok, years, years_clim,
-                                   model_dir, model_var, date_filter_year, init_days, 
+                                   model_dir, model_var, ref_model, date_filter_year, init_days, 
                                    unit_cvt, file_pattern, tolerance_days, verification_window, max_forecast_day, 
-                                   mok, members,  onset_percentage_threshold, climatology, probabilistic, **kwargs):
+                                   members,  onset_percentage_threshold, probabilistic, save_nc_climatology, **kwargs):
 
     """Compute onset metrics for multiple years."""
 #
@@ -181,42 +185,58 @@ def compute_metrics_multiple_years(years, *, obs_dir, obs_file_pattern, obs_var,
     #forecast_bin_start = verification_window[0]
     #forecast_bin_end = verification_window[1]
 
+    kwargs = restore_args(compute_metrics_multiple_years, kwargs, locals())
 
     metrics_df_dict = {}
     onset_da_dict = {}
-#
-    # depend on if thresh is a 2-D array or scalar
+
+    # load onset precip threshold, 2-D or scalar
     thresh_da = load_thresh_file(**kwargs)
 
-    if climatology:
+    ref_clim = (ref_model == 'climatology')
+
+    # calculate obs climatology onset 
+    if ref_clim:
         climatological_onset_doy = compute_climatological_onset(**kwargs)
+
+        # climatological onset as "obs" for climatology baseline metrics
+        onset_da_dict = {year: climatological_onset_doy for year in years}
+
+        # save climatological onset to netcdf
+        if save_nc_climatology:
+            fout = os.path.join(kwargs['dir_out'], "climatology_onset_doy_{}.nc")
+            fout = fout.format(tuple_to_str_range(years_clim))
+            climatological_onset_doy.to_netcdf(fout)
+
 
     for year in years:
         print(f"\n{'='*50}")
         print(f"Processing year {year}")
         print(f"{'='*50}")
 
+        # obs onset
         imd = load_imd_rainfall(year, **kwargs)
-
         onset_da = detect_observed_onset(imd, thresh_da, year, **kwargs)
 
+        # extract forecast at approporiate init dates
         if probabilistic:
             p_model = get_forecast_probabilistic_twice_weekly(year, **kwargs)
-        elif not climatology:
+        elif not ref_clim:
             p_model = get_forecast_deterministic_twice_weekly(year, **kwargs)
 
 
-        if probabilistic:
+        # detect onset dates
+        if probabilistic: # emsemble forecast onset
             _, onset_df = compute_onset_for_all_members(
                 p_model, thresh_da, onset_da, **kwargs
             )
 
-        elif not climatology:
+        elif not ref_clim: # deterministic model onset
             onset_df = compute_onset_for_deterministic_model(
                 p_model, thresh_da, onset_da, **kwargs
             )
 
-        elif climatology:
+        elif ref_clim: # climatology onset
             init_dates = get_initialization_dates(year, **kwargs)
             onset_df = compute_climatology_as_forecast(
                 climatological_onset_doy, year, init_dates, onset_da,
@@ -224,14 +244,16 @@ def compute_metrics_multiple_years(years, *, obs_dir, obs_file_pattern, obs_var,
             )
 
 
+        # onset-obs metrics TP,TN,FP,FN for all locations and init times
         metrics_df, summary_stats = compute_onset_metrics_with_windows(
             onset_df, **kwargs
         )
 
         metrics_df_dict[year] = metrics_df
 
-        if not climatology:
+        if not ref_clim:
             onset_da_dict[year] = onset_da
+
 
         print(f"Year {year} completed. Grid points processed: {len(metrics_df)}")
         print(f"Summary stats: TP={summary_stats['overall_true_positive']}, "
@@ -239,8 +261,6 @@ def compute_metrics_multiple_years(years, *, obs_dir, obs_file_pattern, obs_var,
               f"FN={summary_stats['overall_false_negative']}, "
               f"TN={summary_stats['overall_true_negative']}")
 
-    if climatology:
-        onset_da_dict = {year: climatological_onset_doy for year in years}
 
     return metrics_df_dict, onset_da_dict
 

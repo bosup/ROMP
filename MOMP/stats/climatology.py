@@ -1,5 +1,6 @@
 from MOMP.io.input import load_imd_rainfall, load_thresh_file, get_initialization_dates
 from MOMP.stats.detect import detect_observed_onset
+from MOMP.utils.practical import restore_args
 #from MOMP.stats.benchmark import compute_onset_metrics_with_windows
 
 import numpy as np
@@ -30,7 +31,9 @@ def compute_climatological_onset(*, obs_dir, obs_file_pattern, obs_var, thresh_f
     climatological_onset_doy: xarray DataArray with climatological onset day of year
     """
     
-    thresh_da = load_thresh_file(thresh_file, **kwargs)
+    kwargs = restore_args(compute_climatological_onset, kwargs, locals())
+
+    thresh_da = load_thresh_file(**kwargs)
     
     print(f"Computing climatological onset from {len(years_clim)} years_clim: {min(years_clim)}-{max(years_clim)}")
     
@@ -217,9 +220,9 @@ def compute_climatology_as_forecast(climatological_onset_doy, year, init_dates, 
 ###=========  for bin climatology ============
 
 ## This function computes onset dates for all available years in IMD folder and creates a climatological onset dataset
-def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, thresh_file, thresh_var, wet_threshold,
-                                  wet_init, wet_spell, dry_spell, dry_threshold, dry_extent, start_date,
-                                 fallback_date, mok, years_clim, **kwargs)
+def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, thresh_file, thresh_var, wet_threshold, 
+                                         wet_init, wet_spell, dry_spell, dry_threshold, dry_extent, start_date,
+                                         fallback_date, mok, years_clim, **kwargs):
     """
     Compute onset dates for all available years in IMD folder and create a climatological dataset.
 
@@ -240,10 +243,12 @@ def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, 
         3D array with dimensions [year, lat, lon] containing onset dates
     """
 
+    kwargs = restore_args(compute_climatological_onset_dataset, kwargs, locals())
+
     #years = kwargs['years']
     #years = years_clim
 
-    thresh_slice = load_thresh_file(thresh_file, **kwargs)
+    thresh_slice = load_thresh_file(**kwargs)
 
     print(f"Computing climatological onset from {len(years_clim)} years_clim: {min(years_clim)}-{max(years_clim)}")
 
@@ -285,6 +290,9 @@ def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, 
     # Stack all onset arrays into a 3D array
     onset_3d = np.stack(onset_arrays, axis=0)
 
+#    print("\n onset_3d = ", onset_3d)
+#    print("\n thresh_slice = ", thresh_slice)
+#    print("\n onset_da = ", onset_da)
     # Create the final DataArray
     climatological_onset_da = xr.DataArray(
         onset_3d,

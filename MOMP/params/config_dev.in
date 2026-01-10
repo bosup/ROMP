@@ -2,64 +2,62 @@
 
 #=======  MOMP structure and dimension setting =======
 layout = ("model", "verification_window",)  # frozen with MOMP version
-#model_list = ("NGCM", "IFS")
-model_list = ("AIFS",)
+model_list = ("AIFS", "NGCM",)
 
 #====== input data and region mask ======
 obs = "IMD"
-obs_dir = '/Users/bodong/Code/dev_tmp/4x4/obs'
+obs_dir = 'data'
 obs_file_pattern = ("{}.nc", "data_{}.nc")
 obs_var = "RAINFALL"
 obs_unit_cvt = None
 
 ref_model = "climatology"
-ref_model_dir = '/Users/bodong/Code/dev_tmp/4x4/obs' # reference forecast model if not climatology
+ref_model_dir = 'data/ref' # reference forecast model if not climatology
 ref_model_file_pattern = ("{}.nc", "data_{}.nc")
 ref_model_var = "RAINFALL"
 ref_model_unit_cvt = None
 
-thresh_file = "data/mwset4x4.nc4" # set to None if using scalar threshold
+thresh_file = "data/mwset2x2.nc4 " # set to None if using scalar threshold
 thresh_var = "MWmean"
 
-#model_dir_list = ('/Users/bodong/Code/dev_tmp/4x4/ngcm', '/Users/bodong/Code/dev_tmp/4x4/ifs')
-model_dir_list = ('/Users/bodong/Code/dev_tmp/4x4/aifs',)
-model_var_list = ("tp","tp")
-unit_cvt_list = (None, None)
+model_dir_list = ('data', '/scratch/model')
+model_var_list = ("total_precipitation_24hr","tp")
+unit_cvt_list = (None, 1000)
 file_pattern_list = ("{}.nc", "{}.nc")
 
-region = "India"
+region = "Ethiopia"
 
 #====== onset definition =====
 wet_init = 1 #the first wet day rainfall threshold (mm)
-wet_threshold = 10 #set only when using scalar threshold 
+wet_threshold = None #set only when using scalar threshold 
 wet_spell = 5 #wet spell duration -> to replace window in the code
 dry_threshold = 5 #accumulated rainfall (mm) 
 dry_spell = 10 #dry spell duration followed by wet spell
-dry_extent = 0 #dry spell searching window after wet spell, must >=dry_spell
+dry_extent = 30 #dry spell searching window after wet spell, must >=dry_spell
 
 onset_percentage_threshold = 0.5 #for probabilistic forecast
 
 #====== evaluation period =====
 
-start_date = (2013, 5, 1)
-end_date = (2015, 10, 31)
+start_date = (2019, 5, 1)
+end_date = (2024, 10, 31)
 
-start_year_clim = 2013 # cliamotology period for observation data
-end_year_clim  = 2015
+start_year_clim = 1980 # cliamotology period for observation data
+end_year_clim  = 2000
 
 fallback_date = (4,1) # adjust obs start_date if onset earlier than start_date
 
 mok = (6,2) # (month, day)
 
-years = (2013,2014,2015) # years to included in forecast model, set to "All" if using year_start
-years_clim = (2013,2014,2015) # years to calculate climatology, set to "All" if using year_start_clim
+years = (2019,2020,2021,2022,2023,2024) # years to included in forecast model, set to "All" if using year_start
+years_clim = (2019,2020,2021,2022,2023,2024) # years to calculate climatology, set to "All" if using year_start_clim
 
 init_days = (0, 3,) #keep the trailing comma if more than one initialization days
 date_filter_year = 2024
 
 #====== evaluation setting =====
 
-verification_window_list = ((1,15),) #Days after initialization to start validation window
+verification_window_list = ((1,15),(16,30),) #Days after initialization to start validation window
 
 tolerance_days_list =  (3, 5,) #Tolerance in days for onset prediction 
 
@@ -77,42 +75,42 @@ MR = True
 
 #------ probabilistic -----
 probabilistic = False
+climatology = True
 
-members = [1,2,3,4,5]
+members = (1,2,3,4,5)
 
-BS = True #Brier skill score 
-RPS = True #Ranked probability skill score 
-AUC = True #Area under curve 
+BSS = False #Brier skill score 
+RPSS = False #Ranked probability skill score 
+AUC = False #Area under curve 
 
-Reliability = True #Reliability diagrams
+Reliability = False #Reliability diagrams
 
 skill_score = True
 
 
 #====== output ======
 dir_out = "output"
-dir_fig = "figure"
+dir_fig = "figures"
 
 #fout_spatial_far_mr_mae = "spatial_metrics_{}.nc"
 
 save_fig = True
 
-save_nc_spatial_far_mr_mae = True
-save_csv_score = True
-save_nc_climatology = True
+save_nc_spatial_far_mr_mae = False
+save_csv_score = False
 
 
 
 #====== graphics =====
 
-shpfile_dir = "/Users/bodong/Code/dev_tmp/shpfile"
+shpfile = "data/india_shapefile.shp"
 
-polygon = True
+polygon = False
 
-plot_spatial_far_mr_mae = True
-plot_heatmap = True
-plot_reliability = True
-#plot_portrait = True
+plot_spatial_far_mr_mae = False
+plot_heatmap = False
+plot_reliability = False
+plot_portrait = False
 
 
 

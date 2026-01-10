@@ -1,25 +1,31 @@
-import importlib.resources
+#import importlib.resources
+import os
+from datetime import datetime
 import pandas as pd
 import xarray as xr
 from MOMP.utils.standard import dim_fmt, dim_fmt_model, dim_fmt_model_ensemble
 from MOMP.utils.region import region_select
+#from MOMP.lib.control import restore_args
+from MOMP.utils.practical import restore_args
 
-def set_dir(folder):
-    """
-    set absolute directory path for a specific folder in MOMP
-    """
-    package = "MOMP"
-    base_dir = importlib.resources.files(package)
-    target_dir = (base_dir / folder).resolve()
+#def set_dir(folder):
+#    """
+#    set absolute directory path for a specific folder in MOMP
+#    """
+#    package = "MOMP"
+#    base_dir = importlib.resources.files(package)
+#    target_dir = (base_dir / folder).resolve()
+#
+#    return target_dir
 
-    return target_dir
 
-
-def load_thresh_file(*, thresh_file, thresh_var, wet_threshold, **kwargs):
+def load_thresh_file(*, thresh_file, thresh_var, wet_threshold, region, **kwargs):
     if thresh_file:
         thresh_ds = xr.open_dataset(thresh_file)
         #thresh_da = thresh_ds[kwargs["thresh_var"]]
         thresh_da = thresh_ds[thresh_var]
+
+        thresh_da = region_select(thresh_da, region=region,  **kwargs)
 
     #elif np.isscalar(thresh_file):
     else:
@@ -82,7 +88,7 @@ def load_imd_rainfall(year, *, obs_dir, obs_file_pattern, obs_var, obs_unit_cvt,
     # Standardize dimension names
     ds = dim_fmt(ds)
 
-    ds = region_select(ds, **kwargs)
+    ds = region_select(ds, region=region, **kwargs)
 
     rainfall = ds[obs_var]
 
@@ -107,6 +113,8 @@ def get_forecast_deterministic_twice_weekly(year, *, model_dir, model_var, date_
     Returns:
     p_model: ndarray, precipitation data
     """
+
+    kwargs = restore_args(get_forecast_deterministic_twice_weekly, kwargs, locals())
 
     fname = file_pattern.format(year)
     file_path = os.path.join(model_dir, fname)
@@ -159,19 +167,25 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     Loads model precip data for twice-weekly initializations from May to July.
     """
 
+    kwargs = restore_args(get_forecast_probabilistic_twice_weekly, kwargs, locals())
+
     fname = file_pattern.format(year)
     file_path = os.path.join(model_dir, fname)
 
+#    print("AAAAA", file_path)
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
 
     filtered_dates_yr = get_initialization_dates(year, **kwargs)
+#    print("BBBBB")
 
     # Load data using xarray
     ds = xr.open_dataset(file_path)
 
+#    print("XXXX", ds)
     ds = dim_fmt_model_ensemble(ds)
 
+#    print("YYYY", ds)
     # Find common dates between desired dates and available dates
     # redundant
     available_init_times = pd.to_datetime(ds.init_time.values)
@@ -183,6 +197,7 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     # Select only the matching initialization times
     ds = ds.sel(init_time=matching_times)
 
+#    print("ZZZZZ", ds)
 #    if "total_precipitation_24hr" in ds.data_vars:
 #        ds = ds.rename({"total_precipitation_24hr": "tp"}) # For the quantile-mapped variable change the var name from total_precipitation_24hr to tp
 #        ds = ds[['tp']]*1000  # Convert from m to mm
@@ -205,10 +220,10 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     if unit_cvt:
         p_model *= unit_cvt
 
-    init_times = p_model.init_time.values
+    #init_times = p_model.init_time.values
 
     ds.close()
 
-    return p_model, init_times
+    return p_model#, init_times
 
 

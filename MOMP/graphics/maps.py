@@ -6,7 +6,7 @@ from MOMP.params.region_def import polygon_boundary
 from MOMP.utils.land_mask import get_india_outline
 
 
-def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile, polygon, dir_fig, figsize=(18, 6), **kwargs):
+def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, figsize=(18, 6), **kwargs):
     """
     Plot spatial maps of Mean MAE, False Alarm Rate, and Miss Rate in a 1x3 subplot
     with India outline, CMZ polygon, grid values displayed, and CMZ averages.
@@ -31,8 +31,12 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile, polygon, dir_fi
     if polygon:
         polygon1_lat, polygon1_lon = polygon_boundary(mean_mae)
 
-    if polygon1_lat and polygon1_lon:
-        polygon_defiened = True
+        print("\nXXXXX polygon1_lat, ", polygon1_lat)
+        print("\nXXXXX polygon1_lon, ", polygon1_lon)
+
+    #if polygon1_lat and polygon1_lon:
+    if len(polygon1_lat) > 0 and len(polygon1_lon) > 0:
+        polygon_defined = True
 
 
     def calculate_cmz_averages(data_array, lons, lats, polygon_lon, polygon_lat):
@@ -132,8 +136,8 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile, polygon, dir_fi
                              cmap='OrRd', vmin=0, vmax=15, shading='flat')
     
     # Add India outline
-    if shpfile:
-        india_boundaries = get_india_outline(shpfile)
+    if shpfile_dir:
+        india_boundaries = get_india_outline(shpfile_dir)
         for boundary in india_boundaries:
             india_lon, india_lat = boundary
             axes[0].plot(india_lon, india_lat, color='black', linewidth=map_lw)
@@ -298,6 +302,8 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile, polygon, dir_fi
         print(f"CMZ Miss Rate: {cmz_mr:.1f} %")
     else:
         print(f"\nNote: CMZ averages not calculated (resolution {lat_diff:.1f}° not supported)")
+
+    plt.show()
     
     return fig, axes
 

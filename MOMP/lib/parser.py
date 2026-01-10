@@ -21,28 +21,28 @@ def create_parser(config):
         help=f"Model list (default: {config['model_list']})"
     )
 
-    parser.add_argument(
-        "--ensemble_list",
-        nargs="+",
-        type=int,
-        default=config["ensemble_list"],
-        help=f"Ensemble list (default: {config['ensemble_list']})"
-    )
-
-    parser.add_argument(
-        "--season_start",
-        type=str,
-        default=config["season_start"],
-        help=f"Season start (default: {config['season_start']})"
-    )
-
-    # Boolean argument with dynamic default
-    parser.add_argument(
-        "--MAE",
-        type=bool,
-        default=config["MAE"],
-        help=f"Use MAE (default: {config['MAE']})"
-    )
+#    parser.add_argument(
+#        "--ensemble_list",
+#        nargs="+",
+#        type=int,
+#        default=config["ensemble_list"],
+#        help=f"Ensemble list (default: {config['ensemble_list']})"
+#    )
+#
+#    parser.add_argument(
+#        "--season_start",
+#        type=str,
+#        default=config["season_start"],
+#        help=f"Season start (default: {config['season_start']})"
+#    )
+#
+#    # Boolean argument with dynamic default
+#    parser.add_argument(
+#        "--MAE",
+#        type=bool,
+#        default=config["MAE"],
+#        help=f"Use MAE (default: {config['MAE']})"
+#    )
 
 
     args = parser.parse_args()
@@ -52,8 +52,8 @@ def create_parser(config):
     if isinstance(args.model_list, list):
         args.model_list = tuple(args.model_list)
 
-    if isinstance(args.ensemble_list, list):
-        args.ensemble_list = tuple(args.ensemble_list)
+#    if isinstance(args.ensemble_list, list):
+#        args.ensemble_list = tuple(args.ensemble_list)
 
 #    return parser
     return args

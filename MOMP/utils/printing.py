@@ -16,3 +16,14 @@ def combi_to_str(combi, sep="_", tuple_sep="-", suffix=""):
 
 def tuple_to_str(item):
     return "-".join(map(str, item))
+
+
+def tuple_to_str_range(item):
+    """ ignore all middle elements and only join the first and last items of a tuple """
+    if len(item) == 0:
+        return ""
+    elif len(item) == 1:
+        return str(item[0])
+    else:
+        return f"{item[0]}-{item[-1]}"
+

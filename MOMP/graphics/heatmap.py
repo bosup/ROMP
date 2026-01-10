@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 
 from MOMP.stats.bins import get_target_bins
@@ -10,8 +11,8 @@ def create_heatmap(score_results, *, model, max_forecast_day, dir_fig, **kwargs)
 
     auc_forecast =score_results['AUC']
     auc_climatology = score_results['AUC_ref']
-    brier_forecast =score_results['BSS']
-    brier_climatology = score_results['BSS_ref']
+    brier_forecast =score_results['BS']
+    brier_climatology = score_results['BS_ref']
     skill_results = score_results['skill_results']
 
     target_bins = get_target_bins(brier_forecast, brier_climatology)

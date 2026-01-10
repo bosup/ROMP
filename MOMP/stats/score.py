@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import warnings
+from scipy import stats
 from MOMP.stats.bins import extract_day_range
 
 
@@ -458,7 +460,12 @@ def calculate_skill_scores(brier_forecast, rps_forecast,
     print("="*60)
     
     # Fair Brier Skill Score (1-15 day overall)
-    fair_bss_overall = 1 - (brier_forecast['fair_brier_score'] / brier_climatology['fair_brier_score'])
+    if brier_climatology == 0:
+        fair_bss_bin = float("nan")
+        warnings.warn("\n brier_climatology is zero → fair BSS set to NaN \n")
+    else:
+        fair_bss_overall = 1 - (brier_forecast['fair_brier_score'] / brier_climatology['fair_brier_score'])
+
     skill_scores['fair_brier_skill_score'] = fair_bss_overall
     
     print(f"Fair Brier Skill Score (1-15 day): {fair_bss_overall:.4f}")

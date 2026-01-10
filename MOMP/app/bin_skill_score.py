@@ -1,3 +1,6 @@
+from dataclasses import asdict
+from itertools import product
+
 from MOMP.metrics.skill import create_score_results
 from MOMP.graphics.heatmap import create_heatmap
 from MOMP.graphics.reliability import plot_reliability_diagram
@@ -15,6 +18,10 @@ from MOMP.lib.loader import cfg, setting
 
 def skill_score_in_bins(cfg=cfg, setting=setting):
 
+    # only execute for ensemble forecasts
+    if not cfg.get('probabilistic'):
+        return
+
     layout_pool = iter_list(cfg)
 
     for combi in product(*layout_pool):
@@ -24,20 +31,23 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
 
         case_cfg = {**asdict(setting), **asdict(case)}
 
+#        from pprint import pprint
+#        pprint(case_cfg)
+
         # Create bin skill score metrics
         score_results = create_score_results(**case_cfg)
         
         # save score results as csv file
-        if save_csv_score:
+        if case_cfg['save_csv_score']:
             #save_score_results(score_results, model, **case_cfg)
             save_score_results(score_results, **case_cfg)
         
         # heatmap plot
-        if plot_heatmap:
-            create_heatmap(score_results, **case_cfg):
+        if case_cfg['plot_heatmap']:
+            create_heatmap(score_results, **case_cfg)
 
         # reliability plot
-        if plot_reliability:
-            plot_reliability_diagram(score_results["forecast_obs_df"], **case_cfg):
+        if case_cfg['plot_reliability']:
+            plot_reliability_diagram(score_results["forecast_obs_df"], **case_cfg)
 
 

@@ -4,8 +4,10 @@ from MOMP.stats.bins import multi_year_forecast_obs_pairs, multi_year_climatolog
 from MOMP.stats.score import calculate_brier_score, calculate_auc, calculate_rps, calculate_brier_score_climatology, calculate_auc_climatology, calculate_skill_scores
 from MOMP.utils.printing import tuple_to_str
 from MOMP.io.output import save_ref_score_results, load_ref_score_results
+#from MOMP.lib.control import restore_args
+from MOMP.utils.practical import restore_args
 
-def create_score_results(*, BSS, RPS, AUC, skill_score, 
+def create_score_results(*, BS, RPS, AUC, skill_score, 
                          ref_model, ref_model_dir, ref_model_var, ref_model_file_pattern, ref_model_unit_cvt,
                          years, years_clim, obs_dir, obs_file_pattern, obs_var,
                          thresh_file, thresh_var, wet_threshold,
@@ -24,20 +26,24 @@ def create_score_results(*, BSS, RPS, AUC, skill_score,
 #    print(f"MOK filter: {mok}")
 #    print("="*60)
 
+    kwargs = restore_args(create_score_results, kwargs, locals())
+#    from pprint import pprint
+#    print(kwargs)
+
     results = {}
 
     print("\n1. Processing forecast model...")
     forecast_obs_df = multi_year_forecast_obs_pairs(**kwargs)
     results["forecast_obs_df"] = forecast_obs_df
 
-    results["BSS"] = calculate_brier_score(forecast_obs_df) if BSS else None
+    results["BS"] = calculate_brier_score(forecast_obs_df) if BS else None
     results["RPS"] = calculate_rps(forecast_obs_df) if RPS else None
     results["AUC"] = calculate_auc(forecast_obs_df) if AUC else None
 
 
-    print("\n1. Processing reference model...")
+    print("\n2. Processing reference model...")
 
-    results["BSS_ref"], results["RPS_ref"], results["AUC_ref"] = None, None, None
+    results["BS_ref"], results["RPS_ref"], results["AUC_ref"] = None, None, None
     results['skill_score'] = None
 
     # check if ref_results exist
@@ -52,8 +58,8 @@ def create_score_results(*, BSS, RPS, AUC, skill_score,
     #    results = load_ref_score_results(filename, results)
     #    if skill_score:
     #        skill_results = calculate_skill_scores(
-    #        results["BSS"], results["RPS"],
-    #        results["BSS_ref"], results["RPS_ref"]
+    #        results["BS"], results["RPS"],
+    #        results["BS_ref"], results["RPS_ref"]
     #        )
     #        results["skill_results"] = skill_results
     #    return results
@@ -64,11 +70,11 @@ def create_score_results(*, BSS, RPS, AUC, skill_score,
         climatology_obs_df = multi_year_climatological_forecast_obs_pairs(clim_onset, **kwargs)
         results["climatology_obs_df"] = climatology_obs_df
         
-        if BSS:
+        if BS:
             brier_ref = calculate_brier_score_climatology(climatology_obs_df)
-            results["BSS_ref"] = brier_ref
+            results["BS_ref"] = brier_ref
         else:
-            results["BSS_ref"] = None
+            results["BS_ref"] = None
         
         if RPS:
             rps_ref = calculate_rps(climatology_obs_df)
@@ -95,11 +101,11 @@ def create_score_results(*, BSS, RPS, AUC, skill_score,
 
         ref_obs_df = multi_year_forecast_obs_pairs(**kwargs_ref)
 
-        if BSS:
+        if BS:
             brier_ref = calculate_brier_score(ref_obs_df)
-            results["BSS_ref"] = brier_ref
+            results["BS_ref"] = brier_ref
         else:
-            results["BSS_ref"] = None
+            results["BS_ref"] = None
         
         if RPS:
             rps_ref = calculate_rps(ref_obs_df)
@@ -117,11 +123,15 @@ def create_score_results(*, BSS, RPS, AUC, skill_score,
     #save_ref_score_results(results, filename)
 
 
+    print("results[BS]  =  ", results["BS"])
+    print("results[BS_ref]  =  ", results["BS_ref"])
+    print("results[RPS]  =  ", results["RPS"])
+    print("results[RPS_ref]  =  ", results["RPS_ref"])
     if skill_score:
 
         skill_results = calculate_skill_scores(
-        results["BSS"], results["RPS"],
-        results["BSS_ref"], results["RPS_ref"]
+        results["BS"], results["RPS"],
+        results["BS_ref"], results["RPS_ref"]
         )
 
         results["skill_results"] = skill_results

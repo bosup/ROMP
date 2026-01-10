@@ -1,16 +1,38 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
+from datetime import datetime
+from MOMP.utils.practical import restore_args
+
+
+#def find_first_true(arr):
+#    """
+#    Find first occurrence of onset condition for each grid point
+#    """
+#    if arr.any():
+#        return int(np.argmax(arr))
+#    else:
+#        return -1
+
 
 
 def find_first_true(arr):
     """
-    Find first occurrence of onset condition for each grid point
+    Find first occurrence of onset condition for each grid point.
+
+    Works if arr contains floats, integers, or NaNs.
+    Returns the index of the first True value, or -1 if none.
     """
-    if arr.any():
-        return int(np.argmax(arr))
+    # Convert to boolean, treat NaN as False
+    arr_bool = np.asarray(arr, dtype=float)  # ensure numeric
+    arr_bool = np.nan_to_num(arr_bool, nan=0.0)  # NaN -> 0
+    arr_bool = arr_bool.astype(bool)  # convert to boolean
+
+    if arr_bool.any():
+        return int(np.argmax(arr_bool))  # first True index
     else:
         return -1
+
 
 
 def detect_onset(day, forecast_series, thresh, *, wet_init, wet_spell, dry_spell, dry_threshold, dry_extent, **kwargs):
@@ -72,7 +94,7 @@ def detect_observed_onset(rain_slice, thresh_slice, year, *, wet_init, wet_spell
     #start_MMDD = kwargs["start_date"][1:]
     #fallback_MMDD = kwargs["fallback_date"]
 
-    start_MMDD = start_date[[1:]
+    start_MMDD = start_date[1:]
     fallback_MMDD = fallback_date
 
     # Set start date based on mok flag
@@ -115,12 +137,12 @@ def detect_observed_onset(rain_slice, thresh_slice, year, *, wet_init, wet_spell
 
         dry_search_window = dry_extent - dry_spell + 1  # 30 - 10 + 1 = 21
         dry_in_extent = dry_rolling_after_onset.rolling(time=dry_search_window, min_periods=1).reduce(np.any)
-        no_dry_after = ~dry_in_extent
+        no_dry_after = (~dry_in_extent.astype(bool))
+        #no_dry_after = ~dry_in_extent
         onset_condition = first_day_condition & sum_condition & no_dry_after
 
     else:
         onset_condition = first_day_condition & sum_condition
-
 
 
     onset_indices = xr.apply_ufunc(
@@ -157,6 +179,9 @@ def detect_observed_onset(rain_slice, thresh_slice, year, *, wet_init, wet_spell
 def compute_onset_for_deterministic_model(p_model, thresh_slice, onset_da, *,
                                           wet_init, wet_spell, dry_spell, dry_threshold, dry_extent,
                                           max_forecast_day, mok, **kwargs):
+
+    kwargs = restore_args(compute_onset_for_deterministic_model, kwargs, locals())
+
     #if t_idx % 5 == 0:
     """Compute onset dates for deterministic model forecast."""
     #window = 5 # well spell
@@ -239,7 +264,7 @@ def compute_onset_for_deterministic_model(p_model, thresh_slice, onset_da, *,
                         lat=i,
                         lon=j,
                     #).sel(step=slice(forecast_bin_start, forecast_bin_start + max_steps_needed)).values
-                    ).sel(step=slice(1, max_steps_needed)).values
+                    ).sel(step=slice(1, max_steps_needed + 1)).values
 
                     if len(forecast_series) < max_steps_needed:
                         onset_day = None
@@ -304,6 +329,9 @@ def compute_onset_for_deterministic_model(p_model, thresh_slice, onset_da, *,
 def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, wet_spell, 
                                   dry_spell, dry_threshold, dry_extent, members, onset_percentage_threshold, 
                                   max_forecast_day, mok, **kwargs):
+
+    kwargs = restore_args(compute_onset_for_all_members, kwargs, locals())
+
     """Compute onset dates for each ensemble member, initialization time, and grid point."""
     #window = 5
     #mok = kwargs["mok"]
@@ -346,7 +374,7 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
 
     # Track statistics
     total_potential_forecasts = 0
-    valid_init = 0
+    valid_inits = 0
     valid_forecasts = 0
     skipped_no_obs = 0
     skipped_late_init = 0
@@ -386,7 +414,7 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
                 skipped_late_init += len(members)
                 continue
 
-            valid_init +=1
+            valid_inits +=1
 
             # Get threshold for this location
             if not np.isscalar(thresh_slice):
@@ -394,6 +422,7 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
             else:
                 thresh = thresh_slice
 
+#            print("QQQQQ  thresh = ", thresh)
             # Collect onset days for all members at this init/location
             member_onset_days = []
 
@@ -409,13 +438,17 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
                         lon=loc_idx,
                         member=m_idx,
                         #step=slice(forecast_bin_start, forecast_bin_start + max_steps_needed)
-                        step=slice(1, max_steps_needed)
+                        step=slice(1, max_steps_needed + 1)
                     ).values
 
+#                    print("max_steps_needed = ", max_steps_needed)
+#                    print("len(forecast_series) = ", len(forecast_series))
+#                    print("forecast_series = ", forecast_series)
                     if len(forecast_series) < max_steps_needed:
                         member_onset_days.append(None)
                         continue
 
+#                    print("zzzz forecast_series = ", forecast_series)
                     # Check for onset on each possible day
                     onset_day = None
 
@@ -427,6 +460,8 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
                         #isonset = detect_onset(day, forecast_series, thresh, wet_init, wet_spell,
                         #                       dry_spell, dry_threshold, dry_extent)
                         isonset = detect_onset(day, forecast_series, thresh, **kwargs)
+
+#                        print("day = ", day, "  isonset = ", isonset)
 
                         if isonset:
                             # Calculate the actual date this forecast day represents
@@ -556,6 +591,7 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
     onset_df = pd.DataFrame(results_list)
     onset_mean_df = pd.DataFrame(results_mean_list)
 
+    print("\n WWWWWWWWW", onset_df)
     print(f"\nProcessing Summary:")
     print(f"Total potential forecasts: {total_potential_forecasts}")
     print(f"Skipped (no observed onset): {skipped_no_obs}")

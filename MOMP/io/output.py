@@ -1,5 +1,6 @@
 #from pathlib import Path
 import os
+import numpy as np
 import pandas as pd
 import pickle
 from MOMP.stats.bins import get_target_bins
@@ -18,7 +19,7 @@ def save_score_results(score_results, *, model, max_forecast_day, dir_out, **kwa
         'Metric': ['AUC', 'Fair Brier Score', 'Fair Brier Skill Score', 'Fair RPS', 'Fair RPS Skill Score'],
         'Score': [
             score_results['AUC']['auc'],
-            score_results['BSS']['fair_brier_score'],
+            score_results['BS']['fair_brier_score'],
             score_results['skill_results']['fair_brier_skill_score'],
             score_results['RPS']['fair_rps'],
             score_results['skill_results']['fair_rps_skill_score']
@@ -34,15 +35,15 @@ def save_score_results(score_results, *, model, max_forecast_day, dir_out, **kwa
     print(overall_df)
 
     # Get target bins
-    target_bins = get_target_bins(score_results['BSS'], score_results['BSS_ref'])
+    target_bins = get_target_bins(score_results['BS'], score_results['BS_ref'])
 
     # Save binned scores
     binned_data = {
         'Bin': target_bins,
         'Fair_Brier_Skill_Score': [score_results['skill_results']['bin_fair_brier_skill_scores'].get(bin_name, np.nan) for bin_name in target_bins],
         'AUC': [score_results['AUC']['bin_auc_scores'].get(bin_name, np.nan) for bin_name in target_bins],
-        'Fair_Brier_Score_Forecast': [score_results['BSS']['bin_fair_brier_scores'].get(bin_name, np.nan) for bin_name in target_bins],
-        'Fair_Brier_Score_Climatology': [score_results['BSS_ref']['bin_fair_brier_scores'].get(bin_name, np.nan) for bin_name in target_bins]
+        'Fair_Brier_Score_Forecast': [score_results['BS']['bin_fair_brier_scores'].get(bin_name, np.nan) for bin_name in target_bins],
+        'Fair_Brier_Score_Climatology': [score_results['BS_ref']['bin_fair_brier_scores'].get(bin_name, np.nan) for bin_name in target_bins]
     }
 
     binned_df = pd.DataFrame(binned_data)
@@ -59,7 +60,7 @@ def save_ref_score_results(results, filename):
 
     to_save = {
     "climatology_obs_df": results["climatology_obs_df"],
-    "brier_ref": results["BSS_ref"],
+    "brier_ref": results["BS_ref"],
     "rps_ref": results["RPS_ref"],
     "auc_ref": results["AUC_ref"],
     }

@@ -1,7 +1,11 @@
+import pandas as pd
+import numpy as np
 from MOMP.io.input import load_thresh_file, get_initialization_dates
 from MOMP.io.input import get_forecast_probabilistic_twice_weekly
 from MOMP.io.input import load_imd_rainfall
 from MOMP.stats.detect import detect_observed_onset, compute_onset_for_all_members
+#from MOMP.lib.control import restore_args
+from MOMP.utils.practical import restore_args
 #from MOMP.stats.climatology import compute_climatological_onset_dataset
 
 
@@ -60,21 +64,28 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
     forecast_groups = onset_all_members.groupby(['init_time', 'lat', 'lon'])
 
     # Add the "after max_forecast_day" bin
-    extended_bins = day_bins + [(max_forecast_day + 1, float('inf'))]
+    extended_bins = day_bins + ((max_forecast_day + 1, float('inf')),)
 
     print(f"Processing {len(forecast_groups)} forecast cases with day bins: {day_bins}")
     print(f"Including 'after day {max_forecast_day}' bin for members without onset in forecast window")
 
     for (init_time, lat, lon), group in forecast_groups:
 
+#        print("init_time, lat, lon = ", init_time, lat, lon)
         # Get observed onset for this location
         try:
+#            print("onset_da.lat.values = ", onset_da.lat.values)
+#            print("lat = ,", lat)
+#            print("np.abs(onset_da.lat.values - lat) = ", np.abs(onset_da.lat.values - lat))
             lat_idx = np.where(np.abs(onset_da.lat.values - lat) < 0.01)[0][0]
             lon_idx = np.where(np.abs(onset_da.lon.values - lon) < 0.01)[0][0]
+#            print("lat_idx = ", lat_idx, "  lon_idx = ", lon_idx)
+#            print("onset_da = ", onset_da)
             obs_date = onset_da.isel(lat=lat_idx, lon=lon_idx).values
         except:
             continue
 
+#        print("AAAAAA")
         # Skip if no observed onset
         if pd.isna(obs_date):
             continue
@@ -86,7 +97,8 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
         # Double-check: Only use forecasts initialized before the observed onset
         if init_date >= obs_date_dt:
             continue
-
+        
+#        print("BBBBBB")
         # For each day bin (including the "after max_forecast_day" bin)
         for bin_idx, (bin_start, bin_end) in enumerate(extended_bins):
 
@@ -153,6 +165,8 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
 
     # Convert to DataFrame
     forecast_obs_df = pd.DataFrame(results_list)
+#    print("result_list = ", results_list)
+#    print("forecast_obs_df = ", forecast_obs_df)
 
     print(f"Generated {len(forecast_obs_df)} forecast-observation pairs")
     print(f"Total bins per forecast: {len(extended_bins)}")
@@ -213,7 +227,7 @@ def create_climatological_forecast_obs_pairs(clim_onset, target_year, init_dates
     ensemble_onset_da = clim_onset.sel(year=ensemble_years)
 
     # Create extended bins including "before initialization" and "after max_forecast_day" bins
-    extended_bins = [(-float('inf'), 0)] + day_bins + [(max_forecast_day + 1, float('inf'))]
+    extended_bins = ((-float('inf'), 0),) + day_bins + ((max_forecast_day + 1, float('inf')),)
 
     print(f"Creating climatological forecasts for target year {target_year}")
     print(f"Using {len(ensemble_years)} years as ensemble members: {ensemble_years}")
@@ -434,6 +448,8 @@ def multi_year_forecast_obs_pairs(*, years, obs_dir, obs_file_pattern, obs_var,
                                   members, onset_percentage_threshold, max_forecast_day, day_bins, **kwargs):
     """Main function to perform multi-year reliability analysis."""
 
+    kwargs = restore_args(multi_year_forecast_obs_pairs, kwargs, locals())
+
     #members = kwargs['members']
     #probabilistic = kwargs['probabilistic']
 
@@ -461,7 +477,8 @@ def multi_year_forecast_obs_pairs(*, years, obs_dir, obs_file_pattern, obs_var,
         try:            
             # Load model and observation data
             print("Loading S2S model data...")
-            p_model,_ = get_forecast_probabilistic_twice_weekly(year, **kwargs)
+            #p_model,_ = get_forecast_probabilistic_twice_weekly(year, **kwargs)
+            p_model = get_forecast_probabilistic_twice_weekly(year, **kwargs)
 #            p_model_slice = p_model.sel(lat=inside_lats, lon=inside_lons)
             p_model_slice = p_model # !!!!! region subset
                     
@@ -478,9 +495,12 @@ def multi_year_forecast_obs_pairs(*, years, obs_dir, obs_file_pattern, obs_var,
             onset_all_members, _ = compute_onset_for_all_members(p_model_slice, thresh_slice, onset_da, **kwargs)
             print(f"Found onset in {onset_all_members['onset_day'].notna().sum()} member cases")
     
+#            print("onset_all_members = ", onset_all_members)
+#            print("onset_da = ", onset_da)
             print("Creating forecast-observation pairs...")
             forecast_obs_pairs = create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, **kwargs)
 
+#            print("DONE!!!")
             # Add to master list
             all_forecast_obs_pairs.append(forecast_obs_pairs)
 
@@ -528,6 +548,8 @@ def multi_year_climatological_forecast_obs_pairs(clim_onset, *, years_clim, day_
     --------
     DataFrame with combined forecast-observation pairs from all target years
     """
+
+    kwargs = restore_args(multi_year_climatological_forecast_obs_pairs, kwargs, locals())
 
     clim_onset_slice = clim_onset #!!!!! region subset
 

@@ -2,7 +2,8 @@ import importlib.resources
 import os
 from pathlib import Path
 
-from MOMP.io.input import set_dir
+#from MOMP.io.input import set_dir
+from MOMP.utils.practical import set_dir
 from MOMP.lib.control import init_dataclass
 from MOMP.lib.convention import Setting
 
@@ -52,13 +53,16 @@ if not Path(globals()["dir_out"]).is_absolute():
 if not Path(globals()["dir_fig"]).is_absolute():
     dir_fig = set_dir(globals()["dir_fig"])
 
+if not Path(globals()["obs_dir"]).is_absolute():
+    obs_dir = set_dir(globals()["obs_dir"])
+
 if globals().get("thresh_file") is not None:
     if not Path(globals()["thresh_file"]).is_absolute():
         thresh_file = set_dir(globals()["thresh_file"])
 
-if globals().get("shpfile_path") is not None:
-    if not Path(globals()["shpfile_path"]).is_absolute():
-        shpfile_path = set_dir(globals()["shpfile_path"])
+if globals().get("shpfile_dir") is not None:
+    if not Path(globals()["shpfile_dir"]).is_absolute():
+        shpfile_dir = set_dir(globals()["shpfile_dir"])
 
 
 # print("dir_in = ",dir_in)

@@ -1,11 +1,13 @@
 import os
+#import inspect
 from dataclasses import fields
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 from pathlib import Path
 
 from MOMP.lib.convention import Case, Setting
 from MOMP.utils.printing import combi_to_str
-from MOMP.io.input import set_dir
+#from MOMP.io.input import set_dir
+from MOMP.utils.practical import set_dir
 
 
 def init_dataclass(dc, dic):
@@ -58,25 +60,43 @@ def years_tuple_model(start_date: tuple[int,int,int], end_date: tuple[int,int,in
 
 
 def take_ensemble_members(
-    members: Union[Tuple[int, ...], str]
-) -> tuple[int, ...]:
+    members: Union[List[int], str]
+) -> List[int]:
     """
-    Normalize members into a tuple of ints.
+    Normalize members into a list of ints.
 
     Accepts:
-    - tuple of ints → returned as-is
-    - string 'start-end' → expanded to tuple
+    - list of ints → returned as-is
+    - string 'start-end' → expanded to list
     """
-    # Case 1: already a tuple of ints
-    if isinstance(members, tuple):
-        return tuple(members)
+    # Case 1: already a list of ints
+    if isinstance(members, list):
+        return list(members)  # return a copy
 
     # Case 2: string range "1-5"
     if isinstance(members, str) and "-" in members:
         start, end = map(int, members.split("-"))
-        return tuple(range(start, end + 1))
+        return list(range(start, end + 1))
 
-    raise TypeError("members must be tuple[int], range, or 'start-end' string")
+    raise TypeError("members must be list[int] or 'start-end' string")
+
+
+#def restore_args(func, kwargs, bound_args):
+#    """
+#    Restore keyword-only parameters of `func` back into kwargs.
+#    """
+#    sig = inspect.signature(func)
+#    new_kwargs = dict(kwargs)
+#
+#    for name, param in sig.parameters.items():
+#        if (
+#            param.kind is param.KEYWORD_ONLY
+#            and name in bound_args
+#            and name not in new_kwargs
+#        ):
+#            new_kwargs[name] = bound_args[name]
+#
+#    return new_kwargs
 
 
 def make_case(dataclass, combi, dic):
@@ -94,8 +114,8 @@ def make_case(dataclass, combi, dic):
     dic_list_keys = [
         item for item in dic_list_keys if item not in list(layout_dict.keys())
     ]
-
     list_keys = list(set(case_keys).intersection(set(dic_list_keys)))
+    list_keys.remove("tolerance_days") # tolerance_days is paired with verification_window
 
 
     case = init_dataclass(dataclass, dic)
@@ -108,7 +128,7 @@ def make_case(dataclass, combi, dic):
 
         if key == "model_dir":
             if not Path(value).is_absolute():
-                value = = set_dir(value)
+                value = set_dir(value)
 
         value_list.append(value)
 
@@ -132,6 +152,8 @@ def make_case(dataclass, combi, dic):
     value_dic = dict(zip(list_keys, value_list))
     case.update(value_dic)
 
+    case.tolerance_days = case_across_list(case.verification_window, 
+                                           dic["verification_window_list"], dic["tolerance_days_list"])
 
     return case
 
