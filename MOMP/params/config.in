@@ -97,7 +97,7 @@ dry_threshold = 5
 dry_spell = 10
 
 # Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
-# set to 0 if dry spell is not part of the searching algorithm
+# set to 0 if monsoon cessation is not part of the search algorithm
 dry_extent = 0
 
 # Probability threshold (0.0 - 1.0) for determining onset in ensemble members.
@@ -126,7 +126,7 @@ years_clim = (2013, 2014, 2015)
 # Date buffer to search for onset if it occurs before the start_date.
 fallback_date = (4, 1)
 
-# List of forecast initialization days (relative to start).
+# List of forecast initialization days (day of the week, 0->Monday).
 init_days = (0, 3)
 
 # Year used for filtering or standardizing date formats.

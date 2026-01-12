@@ -162,7 +162,7 @@ MOMP: Monsoon Onset Metrics Package, Authors, 2026
 
 ## Contact
 Author: bosup
-Email: bodong@uchicago.com
+Email: bodong@uchicago.edu
 
 
 
