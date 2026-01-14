@@ -131,7 +131,10 @@ def get_forecast_deterministic_twice_weekly(year, *, model_dir, model_var, date_
 
     ds = dim_fmt_model(ds)
 
-    ds = ds.sel(init_time=filtered_dates_yr)
+    #print("filtered_dates_yr = ", filtered_dates_yr )
+    #print("init_time  = ", ds.init_time.values)
+
+    #ds = ds.sel(init_time=filtered_dates_yr)
 
     # Find common dates between desired dates and available dates
     # redundant, len(ds.init_time) or ds.sizes['init_time'] is same as len(matching_times)

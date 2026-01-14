@@ -32,18 +32,28 @@ These steps are **not interchangeable** and must be done in this order.
 #### Option A (recommended) — Python virtual environment (pip-only)
 This option is a lightweight setup which isolates project dependencies assuming the underlying operating system provides the necessary heavy lifting (doesn't duplicate system-level files).
 
+For **Windows** users, follow the steps below to set up Python environment  
+
 1. `python -m venv .venv-momp`
    Creates a new virtual environment directory named `.venv-mpop` in the current folder.
 
-2. `source .venv-momp/bin/activate`
+2. `.venv-momp/Scripts/activate`
    Activates the virtual environment so that the terminal uses the local Python instance.
 
-3. `pip install -U pip`
+3. `python -m pip install -U pip`
    Upgrades the `pip` package manager to the latest version to ensure compatibility.
 
 4. `pip install .`
    Installs the package with all project dependencies. Python is isolated at this point  
 
+
+For **Linux/Mac** users, follow steps below:  
+```bash
+python -m venv .venv-momp
+source .venv-momp/bin/activate
+pip install -U pip
+pip install .
+```
 
 #### Option B — Set up Conda environment
 
@@ -97,7 +107,7 @@ Region boundaries are defined in:
 `params/region_def.py`
 
 ## Run MOMP
-With user-defined `config.in`, the main benchmarking workflow is executed via command line:  
+With user-defined `config.in`, the main benchmarking workflow is executed via shell command line:  
 
 `momp-run`
 
@@ -108,6 +118,7 @@ Typical steps performed:
 4. Evaluate model against reference data 
 5. Generate benchmarking metrics
 6. Save NetCDF outputs and figures
+7. Make metric plots
 
 ## Python Requirements
 - Python ≥ 3.10  
@@ -116,10 +127,12 @@ Runtime dependencies include:
 - NumPy
 - Pandas
 - Xarray
+- NetCDF4
 - Matplotlib
 - Scipy
 - geopandas
 - seaborn
+- regionmask
 
 ## Package Organization (high level)
 - driver.py — main package workflow entry point

@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import pandas as pd
+import xarray as xr
 import pickle
 from MOMP.stats.bins import get_target_bins
 #from MOMP.utils.printing import tuple_to_str
@@ -83,3 +84,114 @@ def load_ref_score_results(ref_score_file, results_dict):
 
     return results_dict
     
+
+
+def save_metrics_to_netcdf(spatial_metrics, attrs_dict, desc_dict=None, fname='spatial_metrics',
+                           allowed_attrs = ['model', 'years', 'tolerance_days', 'verification_window', 
+                                            'max_forecast_day', 'mok']):
+    """
+    Create an xarray Dataset from spatial_metrics, attach global attributes,
+    and save to a NetCDF file.
+
+    Parameters
+    ----------
+    spatial_metrics : dict
+        Dictionary of data variables for xr.Dataset
+    attrs_dict : dict
+        Global attributes (values may be str, int, float, bool, list, tuple)
+    fout : str
+        Output NetCDF file path
+    """
+
+    ds = xr.Dataset(spatial_metrics)
+
+    fout = os.path.join(attrs_dict['dir_out'], "{}_{}.nc")
+    fout = fout.format(fname, attrs_dict.get('case_name', 'missing case name'))
+
+    #allowed_attrs = ['model', 'years', 'tolerance_days', 'verification_window', 'max_forecast_day', 'mok']
+
+    # Normalize attributes for NetCDF compatibility
+    clean_attrs = {}
+
+    #for key, val in attrs_dict.items():
+    for key in allowed_attrs:
+
+        try:
+            val = attrs_dict.get(key, None)
+        except:
+            val = attrs_dict.get(key, "")
+
+        if isinstance(val, (list, tuple)):
+            clean_attrs[key] = ','.join(map(str, val))
+        elif isinstance(val, bool):
+            clean_attrs[key] = int(val)
+        else:
+            clean_attrs[key] = val
+
+    ds.attrs.update(clean_attrs)
+
+    if desc_dict is not None:
+        ds.attrs.update(desc_dict)
+
+    ds.to_netcdf(fout)
+
+    print(f"{fname} saved to: {fout}")
+
+
+
+def set_nested(result_dict, keys, value):
+    """build nested dictionaries on the fly based on combi, dynamic-nesting"""
+    d = result_dict
+    for key in keys[:-1]:
+        d = d.setdefault(key, {})
+    d[keys[-1]] = value
+    return result_dict
+
+
+
+def analyze_nested_dict(d):
+    """ inquire number of dimension and dimension names of a nested dict"""
+    depth = dict_depth(d)
+    dims = dict_dims(d)
+    return depth, dims
+
+
+def nested_dict_to_array(nested_dict, metric_key):
+    """
+    Convert a 2-level nested dict to a 2D NumPy array based on the first two levels.
+
+    Parameters
+    ----------
+    nested_dict : dict
+        Nested dictionary with at least two levels.
+        Example: results[model][window]['mae']
+    metric_key : str
+        The key at the leaf level to extract (e.g., 'mae').
+
+    Returns
+    -------
+    arr : np.ndarray
+        2D array with shape (num_top_keys, num_second_keys)
+    row_labels : list
+        List of top-level keys (rows)
+    col_labels : list
+        List of second-level keys (columns)
+    """
+    # Top-level keys → rows
+    row_labels = list(nested_dict.keys())
+
+    # Second-level keys → columns (assume all rows share same keys)
+    first_row = nested_dict[row_labels[0]]
+    col_labels = list(first_row.keys())
+
+    # Initialize array
+    arr = np.full((len(row_labels), len(col_labels)), np.nan)
+
+    # Fill array with metric values
+    for i, rkey in enumerate(row_labels):
+        for j, ckey in enumerate(col_labels):
+            # Safely get the value (default to np.nan if missing)
+            arr[i, j] = nested_dict.get(rkey, {}).get(ckey, {}).get(metric_key, np.nan)
+
+    return arr, row_labels, col_labels
+

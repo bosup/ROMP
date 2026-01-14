@@ -3,7 +3,25 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from MOMP.params.region_def import polygon_boundary
-from MOMP.utils.land_mask import get_india_outline
+from MOMP.utils.land_mask import get_india_outline#, polygon_mask
+
+
+def calculate_cmz_averages(data_array, lons, lats, polygon_lon, polygon_lat):
+    """Calculate spatial average within the CMZ polygon"""
+    from matplotlib.path import Path
+    polygon_path = Path(list(zip(polygon_lon, polygon_lat)))
+    
+    lon_grid, lat_grid = np.meshgrid(lons, lats)
+    
+    points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
+    inside_polygon = polygon_path.contains_points(points).reshape(lon_grid.shape)
+    
+    values_inside = data_array.values[inside_polygon]
+    
+    if len(values_inside) > 0:
+        return np.nanmean(values_inside)
+    else:
+        return np.nan
 
 
 def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, figsize=(18, 6), **kwargs):
@@ -35,23 +53,6 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
     if len(polygon1_lat) > 0 and len(polygon1_lon) > 0:
         polygon_defined = True
 
-
-    def calculate_cmz_averages(data_array, lons, lats, polygon_lon, polygon_lat):
-        """Calculate spatial average within the CMZ polygon"""
-        from matplotlib.path import Path
-        polygon_path = Path(list(zip(polygon_lon, polygon_lat)))
-        
-        lon_grid, lat_grid = np.meshgrid(lons, lats)
-        
-        points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
-        inside_polygon = polygon_path.contains_points(points).reshape(lon_grid.shape)
-        
-        values_inside = data_array.values[inside_polygon]
-        
-        if len(values_inside) > 0:
-            return np.nanmean(values_inside)
-        else:
-            return np.nan
     
     def calculate_mae_stats_across_years(spatial_metrics, lons, lats, polygon_lon, polygon_lat):
         """Calculate MAE statistics: spatial average for each year, then mean ± SE across years"""

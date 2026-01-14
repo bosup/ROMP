@@ -2,6 +2,7 @@
 import xarray as xr
 import numpy as np
 from MOMP.params.region_def import domain
+from MOMP.utils.land_mask import polygon_mask, mask_land
 
 #def domain(region, **kwargs):
 #    # swap = False
@@ -141,13 +142,32 @@ def coords_fmt(ds_tag, *, region, **kwargs):
     return lats, latn, lonw, lone, ds_tag
 
 
-def region_select(ds, *, region, **kwargs):
+
+def region_select(ds, *, region, land_only=True, **kwargs):
 
     lats, latn, lonw, lone, ds = coords_fmt(ds, region=region)
 
     ds_reg = ds.sel(lat=slice(lats, latn), lon=slice(lonw, lone))
 
+    if land_only:
+        ds_reg = mask_land(ds_reg)
+
     return ds_reg
 
 
 
+def domain_average(da, polygon=False, weighted=False, **kwargs):
+    
+    if polygon:
+        da_slice = polygon_mask(da)
+    else:
+        da_slice = da
+
+    if weighted:
+        weights = np.cos(np.deg2rad(da_slice.lat))
+        weights.name = "weights"
+        domain_avg = da_slice.weighted(weights).mean(dim=("lat", "lon"), skipna=True)
+    else:
+        domain_avg = da_slice.mean(dim=("lat", "lon"), skipna=True)
+
+    return domain_avg

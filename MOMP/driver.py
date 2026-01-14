@@ -1,17 +1,79 @@
-#from MOMP.io.input import 
+"""
+MOMP Main Entry Script
+----------------------
+This script serves as the primary execution point for the Monsoon Onset
+Metrics Package (MOMP). It orchestrates the calculation of skill scores
+or the generation of spatial performance maps.
+
+Usage:
+    momp-run
+    or
+    python -m MOMP.driver
+"""
+
+import logging
+import sys
+import traceback
+
+# Local Package Imports
 from MOMP.lib.loader import cfg, setting
 from MOMP.app.bin_skill_score import skill_score_in_bins
 from MOMP.app.spatial_far_mr_mae import spatial_far_mr_mae_map
+from MOMP.utils.printing import print_momp_banner
 
-def run_MOMP(cfg=cfg, setting=setting):
+# Create a logs directory if it doesn't exist
+log_dir = "logs"
+#os.makedirs(log_dir, exist_ok=True)
 
-    skill_score_in_bins()
+# Configure logging for professional status updates
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        #logging.FileHandler(f"{log_dir}/momp_run.log"), # Saves to file
+        logging.StreamHandler()                        # Prints to terminal
+    ]
+)
 
-    spatial_far_mr_mae_map()
+logger = logging.getLogger(__name__)
 
-# --------------------------
+
+def run_momp(cfg=cfg, setting=setting):
+    """
+    Executes the standard MOMP evaluation workflow.
+
+    This function triggers the bin-based skill score calculations
+    or generates spatial maps for False Alarm Ratio (FAR),
+    Miss Rate (MR), and Mean Absolute Error (MAE).
+
+    Args:
+        cfg: The loaded configuration dictionary/object.
+        setting: The environment and directory settings.
+    """
+
+    print_momp_banner(cfg)
+
+    logger.info("Starting MOMP Workflow...")
+
+    try:
+        # 1. Calculate and save Skill Scores in defined day bins
+        #logger.info("Calculating skill scores in bins...")
+        skill_score_in_bins()
+
+        # 2. Generate spatial metrics and maps
+        #logger.info("Generating spatial metric maps (FAR, MR, MAE)...")
+        spatial_far_mr_mae_map()
+
+        logger.info("MOMP Workflow completed successfully!")
+
+    except Exception as e:
+        logger.error(f"MOMP failed during execution: {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
+# ------------------------------------------------------------------------------
+# EXECUTION BLOCK
+# ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    # print_momp()
-    print("Job starts!")
-    run_MOMP()
-
+    run_momp()

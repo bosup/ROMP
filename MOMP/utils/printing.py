@@ -1,3 +1,5 @@
+from importlib.metadata import version as pkg_version
+
 def combi_to_str(combi, sep="_", tuple_sep="-", suffix=""):
     """
     Convert a tuple like ('a', (1,15), 'X') into a string tag:
@@ -26,4 +28,32 @@ def tuple_to_str_range(item):
         return str(item[0])
     else:
         return f"{item[0]}-{item[-1]}"
+
+
+
+def print_momp_banner(cfg):
+
+    version = pkg_version("momp")
+    project_name = cfg.get("project_name")
+
+    banner = f"""
+================================================================================
+  __  __   ___   __  __   ____
+ |  \/  | / _ \ |  \/  | |  _ \\
+ | |\/| || | | || |\/| | | |_) |
+ | |  | || |_| || |  | | |  __/
+ |_|  |_| \___/ |_|  |_| |_|
+
+ Monsoon Onset Metrics Package (MOMP)
+ Version : {version}
+
+--------------------------------------------------------------------------------
+ Project    : {project_name}
+ Start Time : {__import__('datetime').datetime.now().isoformat(timespec='seconds')}
+--------------------------------------------------------------------------------
+
+ Initializing analysis pipeline...
+================================================================================
+"""
+    print(banner)
 

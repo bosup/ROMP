@@ -51,3 +51,6 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
             plot_reliability_diagram(score_results["forecast_obs_df"], **case_cfg)
 
 
+# ------------------------------------------------------------------------------
+if __name__ == "__main__":
+    skill_score_in_bins()

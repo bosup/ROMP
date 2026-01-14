@@ -118,8 +118,10 @@ class Setting:
     plot_heatmap: bool = field(default=False)
     plot_reliability: bool = field(default=False)
     plot_portrait: bool = field(default=False)
+    plot_climatology_onset: bool = field(default=False)
 
     debug: bool = field(default=False)
+    project_name: str = field(default="MOMP application project")
 
     def update(self, updates):
         for key, value in updates.items():

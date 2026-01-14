@@ -23,6 +23,7 @@ dependencies = [
   "netcdf4",
   "scipy",
   "seaborn",
+  "regionmask",
 ]
 
 [project.optional-dependencies]
@@ -36,5 +37,5 @@ dev = [
 ]
 
 [project.scripts]
-momp-run = "MOMP.driver:run_MOMP"
+momp-run = "MOMP.driver:run_momp"
 

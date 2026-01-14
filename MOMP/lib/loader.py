@@ -82,6 +82,10 @@ dic = {
     and var not in excluded_vars and var != "excluded_vars"
 }
 
+#if dic["ref_model"] == "climatology" and dic["model_list"][0] != "climatology":
+#    print("\n NOTE 'climatology' is not specified in 'model_list' ")
+#    dic["model_list"] = ("climatology",) + dic["model_list"]
+
 # print("\ndic= ", dic)
 # print(json.dumps(dic, indent=4))
 

@@ -193,7 +193,8 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
     # load onset precip threshold, 2-D or scalar
     thresh_da = load_thresh_file(**kwargs)
 
-    ref_clim = (ref_model == 'climatology')
+    #ref_clim = (ref_model == 'climatology')
+    ref_clim = (kwargs['model'] == 'climatology')
 
     # calculate obs climatology onset 
     if ref_clim:
@@ -202,11 +203,11 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
         # climatological onset as "obs" for climatology baseline metrics
         onset_da_dict = {year: climatological_onset_doy for year in years}
 
-        # save climatological onset to netcdf
-        if save_nc_climatology:
-            fout = os.path.join(kwargs['dir_out'], "climatology_onset_doy_{}.nc")
-            fout = fout.format(tuple_to_str_range(years_clim))
-            climatological_onset_doy.to_netcdf(fout)
+#        # save climatological onset to netcdf
+#        if save_nc_climatology:
+#            fout = os.path.join(kwargs['dir_out'], "climatology_onset_doy_{}.nc")
+#            fout = fout.format(tuple_to_str_range(years_clim))
+#            climatological_onset_doy.to_netcdf(fout)
 
 
     for year in years:
@@ -236,7 +237,7 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
                 p_model, thresh_da, onset_da, **kwargs
             )
 
-        elif ref_clim: # climatology onset
+        elif ref_clim: # climatology as forecast
             init_dates = get_initialization_dates(year, **kwargs)
             onset_df = compute_climatology_as_forecast(
                 climatological_onset_doy, year, init_dates, onset_da,

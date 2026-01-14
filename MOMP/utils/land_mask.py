@@ -1,5 +1,8 @@
 import numpy as np
 from pathlib import Path
+from typing import Union
+import regionmask
+import xarray as xr
 from MOMP.params.region_def import polygon_boundary
 
 
@@ -21,6 +24,7 @@ def points_inside_polygon(polygon_lon, polygon_lat, grid_lons, grid_lats):
     """
 
     # Create polygon path
+    #polygon_path = Path(list(zip(polygon_lon, polygon_lat)))
     polygon_vertices = np.column_stack((polygon_lon, polygon_lat))
     polygon_path = Path(polygon_vertices)
 
@@ -45,13 +49,13 @@ def points_inside_polygon(polygon_lon, polygon_lat, grid_lons, grid_lats):
 
 
 
-def polygon_mask(da_ref, da_model):
+def polygon_mask(da_model):
     """mask data based on polygon boundary"""
 
-    orig_lat = da_ref.lat.values
-    orig_lon = da_ref.lon.values
+    orig_lat = da_model.lat.values
+    orig_lon = da_model.lon.values
 
-    polygon1_lat, polygon1_lon = polygon_boundary(da_ref)
+    polygon1_lat, polygon1_lon = polygon_boundary(da_model)
 
     inside_mask, inside_lons, inside_lats = points_inside_polygon(polygon1_lon, polygon1_lat, orig_lon, orig_lat)
 
@@ -63,7 +67,7 @@ def polygon_mask(da_ref, da_model):
 
 def get_india_outline(shpfile_path):
     """
-    Get India outline coordinates from shapefile.
+    Get region outline coordinates from shapefile.
     """
     import geopandas as gpd
     # Update this path to your India shapefile
@@ -84,4 +88,76 @@ def get_india_outline(shpfile_path):
                     lat_coords = [coord[1] for coord in coords]
                     boundaries.append((lon_coords, lat_coords))
     return boundaries
+
+
+
+def create_land_sea_mask(
+    obj: Union[xr.Dataset, xr.DataArray],
+    as_boolean: bool = False,
+) -> xr.DataArray:
+    """Generate a land-sea mask (1 for land, 0 for sea) for a given xarray Dataset or DataArray.
+    stemed from pcmdi_metrics.utils.land_sea_mask 
+
+    Parameters
+    ----------
+    obj : Union[xr.Dataset, xr.DataArray]
+        The Dataset or DataArray object.
+    as_boolean : bool, optional
+        Set mask value to True (land) or False (ocean), by default False, thus 1 (land) and 0 (ocean).
+
+    Returns
+    -------
+    xr.DataArray
+        A DataArray of land-sea mask (1 or 0 for land or sea, or True or False for land or sea).
+
+    Examples
+    --------
+    >>> mask = create_land_sea_mask(ds)  #  Generate land-sea mask (land: 1, sea: 0)
+    >>> mask = create_land_sea_mask(ds, as_boolean=True)  # Generate land-sea mask (land: True, sea: False)
+    """
+
+    # Use regionmask
+    land_mask = regionmask.defined_regions.natural_earth_v5_0_0.land_110
+
+    lon = obj["lon"]
+    lat = obj["lat"]
+
+    # Mask the land-sea mask to match the dataset's coordinates
+    land_sea_mask = land_mask.mask(lon, lat=lat)
+
+    if as_boolean:
+        # Convert the 0 (land) & nan (ocean) land-sea mask to a boolean mask
+        land_sea_mask = xr.where(land_sea_mask, False, True)
+    else:
+        # Convert the boolean land-sea mask to a 1/0 mask
+        land_sea_mask = xr.where(land_sea_mask, 0, 1)
+
+    return land_sea_mask
+
+
+def mask_land(da, land=True):
+    """
+    Mask a DataArray to select either land or sea areas.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        Input DataArray to be masked.
+    land : bool, optional
+        If True, keep land areas (default). If False, keep sea areas.
+
+    Returns
+    -------
+    xarray.DataArray
+        Masked DataArray with values retained for land or sea, NaNs elsewhere.
+    """
+
+    land_sea_mask = create_land_sea_mask(da)
+
+    if land:
+        da_masked = da.where(land_sea_mask == 1)
+    else:
+        da_masked = da.where(land_sea_mask == 0)
+
+    return da_masked
 

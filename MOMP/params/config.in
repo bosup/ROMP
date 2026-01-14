@@ -1,18 +1,21 @@
 # ==============================================================================
 # Monsoon Onset Metrics Package (MOMP) Configuration
 # Version: 0.0.1
-# Description: Workflow configuration for evaluating monsoon onset forecast performance.
+# Description: Workflow configuration for evaluating monsoon onset forecast 
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
 # 1. CORE STRUCTURE & DIMENSIONS
 # ------------------------------------------------------------------------------
+project_name = "test MOMP run with sample data"
+
 # Internal data layout (e.g., dimensions in the processed case).
 # Frozen with major MOMP version
 layout = ("model", "verification_window")
 
 # List of models to process (e.g., "AIFS", "IFS", "NGCM").
 # Must be models from the same category, e.g., all probabilistic models
+# for all parameter lists in config.in, keep the trailing comma if only one item
 model_list = ("AIFS",)
 
 # ------------------------------------------------------------------------------
@@ -126,7 +129,7 @@ years_clim = (2013, 2014, 2015)
 # Date buffer to search for onset if it occurs before the start_date.
 fallback_date = (4, 1)
 
-# List of forecast initialization days (day of the week, 0->Monday).
+# List of forecast initialization days (day of week, 0->Monday).
 init_days = (0, 3)
 
 # Year used for filtering or standardizing date formats.
@@ -168,11 +171,11 @@ skill_score = True  # Generic Skill Score calculation
 # ------------------------------------------------------------------------------
 # 10. OUTPUT & GRAPHICS SETTINGS
 # ------------------------------------------------------------------------------
-# Folders for data and plots.
+# Folders for output data and plots
 dir_out = "output"
 dir_fig = "figure"
 
-# Save options
+# Save file and figure options
 save_fig = True                   # Generate and save PNG/PDF figures
 save_nc_spatial_far_mr_mae = True # Save spatial metrics as NetCDF
 save_csv_score = True             # Save skill scores as CSV
@@ -184,3 +187,6 @@ polygon = True                                     # Mask/Plot by region polygon
 plot_spatial_far_mr_mae = True                     # Generate spatial maps of metrics
 plot_heatmap = True                                # Generate performance heatmaps
 plot_reliability = True                            # Generate reliability curve plots
+plot_climatology_onset = True                      # Spatial map of climatology onset
+plot_panel_heatmap_error = True                    # panel heatmap of mae,mr,far 
+plot_panel_heatmap_skill = True                    # panel heatmap skill score 
