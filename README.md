@@ -1,7 +1,6 @@
 # MOMP — Monsoon Onset Metrics Package
 
-**MOMP** is a Python package for detecting and benchmarking **monsoon onset** in observational and forecast datasets.  
-It provides tools for onset detection, ensemble forecast statistics, binned and spatial metrics, and visualization workflows commonly used in climate research.
+**MOMP** is a Python package for detecting and benchmarking **monsoon onset** in observational and forecast datasets. It provides tools for onset detection, ensemble forecast statistics, binned and spatial metrics, and visualization workflows commonly used in climate research.
 
 
 ## Key Capabilities
@@ -19,13 +18,12 @@ It provides tools for onset detection, ensemble forecast statistics, binned and 
 
 MOMP is intended for **local installation from source** (GitHub or local checkout). Installation from conda-forge chanel will be available in it's future versions.  
 
-Installing MOMP consists of **two mandatory steps**:
+Installing MOMP consists of **two steps**:
 
 1. **Create and activate a Python environment**
 2. **Install the MOMP source code into that environment**
 
-These steps are **not interchangeable** and must be done in this order.
-
+<br>
 
 ### Step 1 — Set up a Python environment
 
@@ -40,24 +38,16 @@ For **Windows** users, follow the steps below to set up Python environment
 2. `.venv-momp/Scripts/activate.bat`
    Activates the virtual environment so that the terminal uses the local Python instance.
 
-3. `python -m pip install -U pip`
-   Upgrades the `pip` package manager to the latest version to ensure compatibility.
-
-4. `pip install .`
-   Installs the package with all project dependencies. Python is isolated at this point  
-
 
 For **Linux/Mac** users, follow steps below:  
 ```bash
 python -m venv .venv-momp
 source .venv-momp/bin/activate
-pip install -U pip
-pip install .
 ```
 
 #### Option B — Set up Conda environment
 
-This option is good if you work with **NetCDF, HDF5, or other system-level scientific libraries**,and if your workload is not heavy. 
+This option is good if you work with **NetCDF, HDF5, or other system-level scientific libraries**  
 
 1. `conda create -n momp "python>=3.10"`
 Create a New Conda Environment
@@ -65,25 +55,30 @@ Create a New Conda Environment
 2. `conda activate momp`
 Activate the environment:
 
-3. `pip install poetry`
-Install Poetry for dependency management
-
-4. Install all project dependencies
-```
-poetry config virtualenvs.create false
-poetry install
-```
-
+<br>
 
 ### Step 2 — Install the package from source
 
 #### Clone from GitHub and install
 
-Use this if you want the **source code** and plan to modify or inspect it.
+with python or conda env activate from step 1, clone the source code from package repository    
 
 ```bash
 git clone https://github.com/bosup/MOMP.git
 cd MOMP
+```
+
+For **Windows** users,  
+
+
+`python -m pip install -U pip` Upgrades the `pip` package manager to the latest version to ensure compatibility.  
+
+`pip install .` Installs the package with all project dependencies. Python is isolated at this point.   
+
+For **Mac/Linux** users,  
+
+```
+pip install -U pip
 pip install .
 ```
 
