@@ -37,7 +37,7 @@ For **Windows** users, follow the steps below to set up Python environment
 1. `python -m venv .venv-momp`
    Creates a new virtual environment directory named `.venv-mpop` in the current folder.
 
-2. `.venv-momp/Scripts/activate`
+2. `.venv-momp/Scripts/activate.bat`
    Activates the virtual environment so that the terminal uses the local Python instance.
 
 3. `python -m pip install -U pip`
