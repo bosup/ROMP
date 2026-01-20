@@ -1,3 +1,5 @@
+import pandas as pd
+
 def dim_fmt(ds):
     """Standardize dimension names"""
     coord_list = list(ds.coords.keys())
