@@ -1,16 +1,16 @@
 from dataclasses import asdict
 from itertools import product
 
-from MOMP.metrics.skill import create_score_results
-from MOMP.graphics.heatmap import create_heatmap
-from MOMP.graphics.reliability import plot_reliability_diagram
-from MOMP.graphics.panel_portrait_skill import panel_portrait_bss_auc
-from MOMP.io.output import save_score_results
-from MOMP.lib.control import iter_list, make_case
-from MOMP.lib.convention import Case
-#from MOMP.lib.loader import cfg, setting
-from MOMP.lib.loader import get_cfg, get_setting
-#from MOMP.io.output import set_nested
+from momp.metrics.skill import create_score_results
+from momp.graphics.heatmap import create_heatmap
+from momp.graphics.reliability import plot_reliability_diagram
+from momp.graphics.panel_portrait_skill import panel_portrait_bss_auc
+from momp.io.output import save_score_results
+from momp.lib.control import iter_list, make_case
+from momp.lib.convention import Case
+#from momp.lib.loader import cfg, setting
+from momp.lib.loader import get_cfg, get_setting
+#from momp.io.output import set_nested
 
 
 #def bin_skill_score(BSS, RPS, AUC, skill_score, ref_model, ref_model_dir,

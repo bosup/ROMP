@@ -4,10 +4,10 @@ from dataclasses import fields
 from typing import Union, Tuple, List
 from pathlib import Path
 
-from MOMP.lib.convention import Case, Setting
-from MOMP.utils.printing import combi_to_str
-#from MOMP.io.input import set_dir
-from MOMP.utils.practical import set_dir
+from momp.lib.convention import Case, Setting
+from momp.utils.printing import combi_to_str
+#from momp.io.input import set_dir
+from momp.utils.practical import set_dir
 
 
 def init_dataclass(dc, dic):

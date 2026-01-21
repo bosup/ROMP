@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Union
 import regionmask
 import xarray as xr
-from MOMP.params.region_def import polygon_boundary
+from momp.params.region_def import polygon_boundary
 
 
 # Function to find grid points inside a polygon (For core-monsoon zone analysis)

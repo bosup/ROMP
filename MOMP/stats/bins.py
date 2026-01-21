@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
-from MOMP.io.input import load_thresh_file, get_initialization_dates
-from MOMP.io.input import get_forecast_probabilistic_twice_weekly
-from MOMP.io.input import load_imd_rainfall
-from MOMP.stats.detect import detect_observed_onset, compute_onset_for_all_members
-#from MOMP.lib.control import restore_args
-from MOMP.utils.practical import restore_args
-#from MOMP.stats.climatology import compute_climatological_onset_dataset
+from momp.io.input import load_thresh_file, get_initialization_dates
+from momp.io.input import get_forecast_probabilistic_twice_weekly
+from momp.io.input import load_imd_rainfall
+from momp.stats.detect import detect_observed_onset, compute_onset_for_all_members
+#from momp.lib.control import restore_args
+from momp.utils.practical import restore_args
+#from momp.stats.climatology import compute_climatological_onset_dataset
 
 
 def extract_day_range(bin_label):

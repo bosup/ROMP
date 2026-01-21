@@ -1,10 +1,10 @@
 import os
-from MOMP.io.input import load_imd_rainfall, load_thresh_file
-from MOMP.stats.detect import detect_observed_onset
-#from MOMP.lib.loader import cfg,setting
-from MOMP.lib.loader import get_cfg, get_setting
-from MOMP.graphics.rainfall_time_series import plot_rainfall_timeseries_with_onset_and_wetspell
-from MOMP.utils.practical import restore_args
+from momp.io.input import load_imd_rainfall, load_thresh_file
+from momp.stats.detect import detect_observed_onset
+#from momp.lib.loader import cfg,setting
+from momp.lib.loader import get_cfg, get_setting
+from momp.graphics.rainfall_time_series import plot_rainfall_timeseries_with_onset_and_wetspell
+from momp.utils.practical import restore_args
 
 
 cfg, setting = get_cfg(), get_setting()

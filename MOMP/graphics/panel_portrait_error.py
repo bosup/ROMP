@@ -3,9 +3,9 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from MOMP.lib.loader import get_cfg, get_setting
-from MOMP.io.output import nested_dict_to_array, analyze_nested_dict
-from MOMP.utils.visual import portrait_plot
+from momp.lib.loader import get_cfg, get_setting
+from momp.io.output import nested_dict_to_array, analyze_nested_dict
+from momp.utils.visual import portrait_plot
 
 
 def panel_portrait_mae_far_mr(results, *, dir_fig, **kwargs):
@@ -51,8 +51,8 @@ def panel_portrait_mae_far_mr(results, *, dir_fig, **kwargs):
 if __name__ == "__main__":
 
     from itertools import product
-    from MOMP.lib.control import iter_list, make_case
-    from MOMP.utils.printing import tuple_to_str
+    from momp.lib.control import iter_list, make_case
+    from momp.utils.printing import tuple_to_str
     import xarray as xr
 
     cfg, setting = get_cfg(), get_setting()

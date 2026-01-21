@@ -3,19 +3,19 @@ import xarray as xr
 from dataclasses import asdict
 from itertools import product
 
-from MOMP.metrics.error import create_spatial_far_mr_mae
-from MOMP.stats.benchmark import compute_metrics_multiple_years
-from MOMP.lib.control import iter_list, make_case
-from MOMP.lib.convention import Case
-#from MOMP.lib.loader import cfg,setting
-from MOMP.lib.loader import get_cfg, get_setting
-from MOMP.graphics.maps import plot_spatial_metrics
-from MOMP.graphics.onset_map import plot_spatial_climatology_onset
-from MOMP.graphics.panel_portrait_error import panel_portrait_mae_far_mr
-from MOMP.io.output import save_metrics_to_netcdf
-#from MOMP.io.output import file_path
-from MOMP.io.output import set_nested
-from MOMP.utils.printing import tuple_to_str_range
+from momp.metrics.error import create_spatial_far_mr_mae
+from momp.stats.benchmark import compute_metrics_multiple_years
+from momp.lib.control import iter_list, make_case
+from momp.lib.convention import Case
+#from momp.lib.loader import cfg,setting
+from momp.lib.loader import get_cfg, get_setting
+from momp.graphics.maps import plot_spatial_metrics
+from momp.graphics.onset_map import plot_spatial_climatology_onset
+from momp.graphics.panel_portrait_error import panel_portrait_mae_far_mr
+from momp.io.output import save_metrics_to_netcdf
+#from momp.io.output import file_path
+from momp.io.output import set_nested
+from momp.utils.printing import tuple_to_str_range
 
 
 cfg, setting = get_cfg(), get_setting()

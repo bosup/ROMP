@@ -1,7 +1,7 @@
-from MOMP.io.input import load_imd_rainfall, load_thresh_file, get_initialization_dates
-from MOMP.stats.detect import detect_observed_onset
-from MOMP.utils.practical import restore_args
-#from MOMP.stats.benchmark import compute_onset_metrics_with_windows
+from momp.io.input import load_imd_rainfall, load_thresh_file, get_initialization_dates
+from momp.stats.detect import detect_observed_onset
+from momp.utils.practical import restore_args
+#from momp.stats.benchmark import compute_onset_metrics_with_windows
 
 import numpy as np
 import xarray as xr

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-from MOMP.stats.bins import get_target_bins
+from momp.stats.bins import get_target_bins
 
 
 def create_heatmap(score_results, *, model, max_forecast_day, dir_fig, **kwargs):

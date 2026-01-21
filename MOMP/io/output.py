@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import pickle
-from MOMP.stats.bins import get_target_bins
-#from MOMP.utils.printing import tuple_to_str
+from momp.stats.bins import get_target_bins
+#from momp.utils.printing import tuple_to_str
 
 #def file_path(directory, filename):
 #    """Join directory and filename into a full path."""

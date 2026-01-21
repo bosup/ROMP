@@ -11,3 +11,7 @@
 
 # 'plot_panel_heatmap_skill' <---  veri window list must be single item
 # 'plot_bar_bss_rpss_auc' <---  veri window list must be single item
+
+#Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
+
+# check trailing comma in _list

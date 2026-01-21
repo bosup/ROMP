@@ -3,10 +3,10 @@ import os
 from datetime import datetime
 import pandas as pd
 import xarray as xr
-from MOMP.utils.standard import dim_fmt, dim_fmt_model, dim_fmt_model_ensemble
-from MOMP.utils.region import region_select
-#from MOMP.lib.control import restore_args
-from MOMP.utils.practical import restore_args
+from momp.utils.standard import dim_fmt, dim_fmt_model, dim_fmt_model_ensemble
+from momp.utils.region import region_select
+#from momp.lib.control import restore_args
+from momp.utils.practical import restore_args
 
 #def set_dir(folder):
 #    """

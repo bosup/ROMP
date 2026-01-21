@@ -1,10 +1,10 @@
-from MOMP.io.input import load_thresh_file, get_initialization_dates
-from MOMP.io.input import get_forecast_probabilistic_twice_weekly, get_forecast_deterministic_twice_weekly
-from MOMP.io.input import load_imd_rainfall
-from MOMP.stats.detect import detect_observed_onset, compute_onset_for_deterministic_model, compute_onset_for_all_members
-from MOMP.stats.climatology import compute_climatological_onset, compute_climatology_as_forecast
-from MOMP.utils.practical import restore_args
-from MOMP.utils.printing import tuple_to_str_range
+from momp.io.input import load_thresh_file, get_initialization_dates
+from momp.io.input import get_forecast_probabilistic_twice_weekly, get_forecast_deterministic_twice_weekly
+from momp.io.input import load_imd_rainfall
+from momp.stats.detect import detect_observed_onset, compute_onset_for_deterministic_model, compute_onset_for_all_members
+from momp.stats.climatology import compute_climatological_onset, compute_climatology_as_forecast
+from momp.utils.practical import restore_args
+from momp.utils.printing import tuple_to_str_range
 
 import numpy as np
 import pandas as pd

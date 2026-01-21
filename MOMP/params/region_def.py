@@ -49,7 +49,7 @@ def polygon_boundary(da):
 
 def add_polygon(ax, da, polygon, return_polygon=False):
     from matplotlib.patches import Polygon
-    from MOMP.params.region_def import polygon_boundary
+    from momp.params.region_def import polygon_boundary
 
     if polygon:
         polygon1_lat, polygon1_lon = polygon_boundary(da)

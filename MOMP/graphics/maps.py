@@ -2,8 +2,8 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
-from MOMP.params.region_def import polygon_boundary
-from MOMP.utils.land_mask import get_india_outline, shp_outline#, polygon_mask
+from momp.params.region_def import polygon_boundary
+from momp.utils.land_mask import get_india_outline, shp_outline#, polygon_mask
 
 
 def calculate_cmz_averages(da, polygon_lon, polygon_lat):

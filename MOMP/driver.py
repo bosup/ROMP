@@ -16,11 +16,11 @@ import sys
 import traceback
 
 # Local Package Imports
-#from MOMP.lib.loader import cfg, setting
-from MOMP.lib.loader import get_cfg, get_setting
-from MOMP.app.bin_skill_score import skill_score_in_bins
-from MOMP.app.spatial_far_mr_mae import spatial_far_mr_mae_map
-from MOMP.utils.printing import print_momp_banner
+#from momp.lib.loader import cfg, setting
+from momp.lib.loader import get_cfg, get_setting
+from momp.app.bin_skill_score import skill_score_in_bins
+from momp.app.spatial_far_mr_mae import spatial_far_mr_mae_map
+from momp.utils.printing import print_momp_banner
 
 # Create a logs directory if it doesn't exist
 log_dir = "logs"

@@ -23,7 +23,6 @@ Installing MOMP consists of **two steps**:
 1. **Create and activate a Python environment**
 2. **Install the MOMP source code into that environment**
 
-<br>
 
 ### Step 1 — Set up a Python environment
 
@@ -55,7 +54,6 @@ Create a New Conda Environment
 2. `conda activate momp`
 Activate the environment:
 
-<br>
 
 ### Step 2 — Install the package from source
 
@@ -128,6 +126,10 @@ Runtime dependencies include:
 - geopandas
 - seaborn
 - regionmask
+- gcsfs
+- zarr
+- cartopy
+
 
 ## Package Organization (high level)
 - driver.py — main package workflow entry point
@@ -166,10 +168,10 @@ MIT License
 
 ## Citation
 If you use MOMP in your research, please cite:
-MOMP: Monsoon Onset Metrics Package, Authors, 2026
+MOMP: Monsoon Onset Metrics Package, UChicago HCWF Authors, 2026
 
 ## Contact
-Author: bosup
+Author: bosup  
 Email: bodong@uchicago.edu
 
 

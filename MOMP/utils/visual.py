@@ -49,8 +49,8 @@ def cbar_season():
 
 
 def set_basemap(ax, region, shpfile_dir, polygon, **kwargs):
-    from MOMP.utils.land_mask import shp_outline, get_india_outline
-    from MOMP.params.region_def import domain
+    from momp.utils.land_mask import shp_outline, get_india_outline
+    from momp.params.region_def import domain
     import cartopy.crs as ccrs
 
     # Add Ethiopia boundary

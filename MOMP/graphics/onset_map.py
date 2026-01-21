@@ -3,15 +3,15 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
-from MOMP.params.region_def import polygon_boundary, add_polygon
-from MOMP.utils.land_mask import get_india_outline
-from MOMP.graphics.maps import calculate_cmz_averages
-from MOMP.utils.printing import tuple_to_str_range
+from momp.params.region_def import polygon_boundary, add_polygon
+from momp.utils.land_mask import get_india_outline
+from momp.graphics.maps import calculate_cmz_averages
+from momp.utils.printing import tuple_to_str_range
 import cartopy.crs as ccrs
 from matplotlib import colors as mcolors
 
-from MOMP.utils.visual import cbar_season, set_basemap
-from MOMP.utils.land_mask import shp_outline, shp_mask
+from momp.utils.visual import cbar_season, set_basemap
+from momp.utils.land_mask import shp_outline, shp_mask
 
 def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, polygon, dir_fig, 
                                    region, figsize=(18, 6), cbar_ssn=False, domain_mask=False, **kwargs):
@@ -169,12 +169,12 @@ def doy_to_mmm_dd(doy, date_filter_year=2024):
 
 if __name__ == "__main__":
     from itertools import product
-    from MOMP.stats.benchmark import compute_metrics_multiple_years
-    from MOMP.lib.control import iter_list, make_case
-    from MOMP.lib.convention import Case
-    from MOMP.lib.loader import get_cfg, get_setting
+    from momp.stats.benchmark import compute_metrics_multiple_years
+    from momp.lib.control import iter_list, make_case
+    from momp.lib.convention import Case
+    from momp.lib.loader import get_cfg, get_setting
     from dataclasses import asdict
-    #from MOMP.graphics.onset_map import plot_spatial_climatology_onset
+    #from momp.graphics.onset_map import plot_spatial_climatology_onset
 
     cfg, setting = get_cfg(), get_setting()
     

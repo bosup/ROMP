@@ -16,7 +16,7 @@ def set_dir(path_str):
         return p
 
     # 3. Priority 2: Look inside the package resources
-    package = "MOMP"
+    package = "momp"
     # Use joinpath(*p.parts) to navigate the package structure correctly
     resource_target = resources.files(package).joinpath(*p.parts)
     
@@ -30,7 +30,7 @@ def set_dir3(path):
     Return a real filesystem Path for a resource inside the MOMP package.
     Accepts POSIX or Windows-style paths (e.g. 'data/input', 'data\\input').
     """
-    package = "MOMP"
+    package = "momp"
     base_dir = resources.files(package)
 
     # Normalize path into components (OS-independent)
@@ -50,7 +50,7 @@ def set_dir2(folder):
     original
     set absolute directory path for a specific folder in MOMP
     """
-    package = "MOMP"
+    package = "momp"
     base_dir = resources.files(package)
     target_dir = (base_dir / folder).resolve()
 
@@ -71,7 +71,7 @@ def set_dir_safe(path: str) -> Path:
     import shutil
     import atexit
 
-    package = "MOMP"
+    package = "momp"
 
     # Normalize path into parts
     parts = PurePosixPath(path.replace("\\", "/")).parts
@@ -89,7 +89,7 @@ def set_dir_safe(path: str) -> Path:
         pass  # Not a real filesystem path
 
     # Otherwise extract to a persistent temp directory
-    temp_dir = tempfile.mkdtemp(prefix="MOMP_")
+    temp_dir = tempfile.mkdtemp(prefix="momp_")
     _TEMP_DIRS.append(temp_dir)
 
     extracted_path = Path(temp_dir) / parts[-1]

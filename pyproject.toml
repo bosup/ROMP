@@ -26,7 +26,8 @@ dependencies = [
   "regionmask",
   "gcsfs",
   "zarr",
-  "cartopy"
+  "cartopy",
+  "fsspec==2025.3.2.*"
 ]
 
 [project.optional-dependencies]
@@ -41,5 +42,5 @@ dev = [
 ]
 
 [project.scripts]
-momp-run = "MOMP.driver:run_momp"
+momp-run = "momp.driver:run_momp"
 

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from datetime import datetime
-from MOMP.utils.practical import restore_args
+from momp.utils.practical import restore_args
 
 
 #def find_first_true(arr):

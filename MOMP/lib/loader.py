@@ -3,16 +3,16 @@ import os
 from pathlib import Path
 import argparse
 
-#from MOMP.io.input import set_dir
-from MOMP.utils.practical import set_dir
-from MOMP.lib.control import init_dataclass
-from MOMP.lib.convention import Setting
+#from momp.io.input import set_dir
+from momp.utils.practical import set_dir
+from momp.lib.control import init_dataclass
+from momp.lib.convention import Setting
 
 from .parser import create_parser
 #from .parser import find_param_file
 
 
-package = "MOMP"
+package = "momp"
 base_dir = importlib.resources.files(package)
 print(f"package base dir {base_dir}")
 

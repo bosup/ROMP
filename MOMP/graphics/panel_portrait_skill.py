@@ -2,10 +2,10 @@ import os
 #import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from MOMP.lib.loader import get_cfg, get_setting
-#from MOMP.io.output import nested_dict_to_array, analyze_nested_dict
-from MOMP.utils.visual import portrait_plot
-from MOMP.io.dict import extract_binned_dict #, extract_overall_dict
+from momp.lib.loader import get_cfg, get_setting
+#from momp.io.output import nested_dict_to_array, analyze_nested_dict
+from momp.utils.visual import portrait_plot
+from momp.io.dict import extract_binned_dict #, extract_overall_dict
 
 
 def panel_portrait_bss_auc(result_binned, *, dir_fig, **kwargs):

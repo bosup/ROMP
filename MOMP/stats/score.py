@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import warnings
 from scipy import stats
-from MOMP.stats.bins import extract_day_range
+from momp.stats.bins import extract_day_range
 
 
 # Function to calculate Brier Score and Fair Brier Score for the model forecasts (both overall and bin-wise)

@@ -2,10 +2,10 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
-from MOMP.params.region_def import polygon_boundary
-from MOMP.utils.land_mask import get_india_outline
-from MOMP.graphics.maps import calculate_cmz_averages
-from MOMP.utils.printing import tuple_to_str_range
+from momp.params.region_def import polygon_boundary
+from momp.utils.land_mask import get_india_outline
+from momp.graphics.maps import calculate_cmz_averages
+from momp.utils.printing import tuple_to_str_range
 
 def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, polygon, dir_fig, figsize=(18, 6), **kwargs):
     """

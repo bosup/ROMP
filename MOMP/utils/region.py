@@ -1,8 +1,8 @@
 #import xcdat as xc
 import xarray as xr
 import numpy as np
-from MOMP.params.region_def import domain
-from MOMP.utils.land_mask import polygon_mask, mask_land
+from momp.params.region_def import domain
+from momp.utils.land_mask import polygon_mask, mask_land
 
 #def domain(region, **kwargs):
 #    # swap = False
