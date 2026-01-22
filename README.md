@@ -62,7 +62,7 @@ Activate the environment:
 with python or conda env activate from step 1, clone the source code from package repository    
 
 ```bash
-git clone https://github.com/bosup/MOMP.git
+git clone https://github.com/bosup/ROMP.git
 cd momp
 ```
 
