@@ -23,6 +23,15 @@ def create_parser(config, cli_args=None):
     )
 
     parser.add_argument(
+        "--verification_window_list",
+        nargs=2,
+        type=int,
+        action="append",
+        metavar=("START", "END"),
+        help="Verification window as start end day (efault: {config['verification_window_list']})"
+    )
+
+    parser.add_argument(
         "--wet_threshold",
         type=float,
         default=10,

@@ -100,6 +100,8 @@ if globals().get("shpfile_dir") is not None:
     if not Path(globals()["shpfile_dir"]).is_absolute():
         shpfile_dir = set_dir(globals()["shpfile_dir"])
 
+os.makedirs(dir_fig, exist_ok=True)
+os.makedirs(dir_out, exist_ok=True)
 
 # print("dir_in = ",dir_in)
 

@@ -36,7 +36,7 @@ def print_momp_banner(cfg):
     version = pkg_version("momp")
     project_name = cfg.get("project_name")
 
-    banner = f"""
+    banner = fr"""
 ================================================================================
   __  __   ___   __  __   ____
  |  \/  | / _ \ |  \/  | |  _ \\
@@ -57,3 +57,55 @@ def print_momp_banner(cfg):
 """
     print(banner)
 
+
+#def print_cfg(config, key_pattern):
+#    for key, value in config.items():
+#        if key.endswith(key_pattern) or key_pattern in key:
+#            print(f"{key}: {value}")
+
+
+def print_cfg(config, key_patterns):
+    """
+    Print key-value pairs from config where the key matches one or more patterns.
+
+    Parameters:
+        config (dict): Dictionary of configuration.
+        key_patterns (str or list/tuple of str): Pattern(s) to match in keys.
+    """
+    # Ensure key_patterns is a list/tuple
+    if isinstance(key_patterns, str):
+        key_patterns = [key_patterns]
+
+    for key, value in config.items():
+        # Check if any pattern matches (endswith or contained)
+        if any(key.endswith(p) or p in key for p in key_patterns):
+            print(f"{key}: {value}")
+
+
+def print_data_info(data_dir, pattern="*.nc"):
+    import xarray as xr
+
+    # List all .nc files
+    nc_files = list(data_dir.glob(pattern))
+    if not nc_files:
+        raise FileNotFoundError(f"No .nc files found in {shp_dir}")
+    
+    # Pick the first file
+    first_file = nc_files[0]
+    
+    # Open with xarray
+    ds = xr.open_dataset(first_file)
+    
+    # Nicely print information
+    print(f"\nFile: {first_file.name}")
+    print("\nDimensions:")
+    #for dim, size in ds.dims.items():
+    for dim, size in ds.sizes.items():
+        print(f"  {dim}: {size}")
+    
+    print("\nVariables:")
+    for var in ds.data_vars:
+        print(f"  {var}")
+    
+    # Optional: close dataset if you don't need it open
+    ds.close()
