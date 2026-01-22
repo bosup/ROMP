@@ -1,6 +1,6 @@
-# MOMP — Monsoon Onset Metrics Package
+# ROMP — Monsoon Onset Metrics Package
 
-**MOMP** is a Python package for detecting and benchmarking **monsoon onset** in observational and forecast datasets. It provides tools for onset detection, ensemble forecast statistics, binned and spatial metrics, and visualization workflows commonly used in climate research.
+**ROMP** is a Python package for detecting and benchmarking **monsoon onset** in observational and forecast datasets. It provides tools for onset detection, ensemble forecast statistics, binned and spatial metrics, and visualization workflows commonly used in climate research.
 
 
 ## Key Capabilities
@@ -16,12 +16,12 @@
 
 ## Installation
 
-MOMP is intended for **local installation from source** (GitHub or local checkout). Installation from conda-forge chanel will be available in it's future versions.  
+ROMP is intended for **local installation from source** (GitHub or local checkout). Installation from conda-forge chanel will be available in it's future versions.  
 
-Installing MOMP consists of **two steps**:
+Installing ROMP consists of **two steps**:
 
 1. **Create and activate a Python environment**
-2. **Install the MOMP source code into that environment**
+2. **Install the ROMP source code into that environment**
 
 
 ### Step 1 — Set up a Python environment
@@ -63,7 +63,7 @@ with python or conda env activate from step 1, clone the source code from packag
 
 ```bash
 git clone https://github.com/bosup/MOMP.git
-cd MOMP
+cd momp
 ```
 
 For **Windows** users,  
@@ -81,7 +81,7 @@ pip install .
 ```
 
 ## Verify installation
-`python -c "import MOMP; print(MOMP.__file__)"`
+`python -c "import momp; print(momp.__file__)"`
 
 You should see a path pointing to your **source directory**
 
@@ -99,7 +99,7 @@ This file defines:
 Region boundaries are defined in:  
 `params/region_def.py`
 
-## Run MOMP
+## Run ROMP
 With user-defined `config.in`, the main benchmarking workflow is executed via CLI::  
 
 `momp-run`
@@ -167,8 +167,8 @@ APIs may evolve during development
 MIT License
 
 ## Citation
-If you use MOMP in your research, please cite:
-MOMP: Monsoon Onset Metrics Package, UChicago HCWF Authors, 2026
+If you use ROMP in your research, please cite:
+ROMP: Monsoon Onset Metrics Package, UChicago HCWF Authors, 2026
 
 ## Contact
 Author: bosup  
