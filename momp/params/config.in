@@ -83,7 +83,7 @@ shpfile_dir = "data/shpfile"
 polygon = False              
 
 # ------------------------------------------------------------------------------
-# 6. MONSOON ONSET CRITERIA (Physics Logic)
+# 6. RAINY SEASON/MONSOON ONSET CRITERIA (Physics Logic)
 # ------------------------------------------------------------------------------
 # Rain threshold (mm) to identify the first wet day.
 wet_init = 1
@@ -100,7 +100,7 @@ dry_threshold = 5
 # Maximum number of consecutive dry days allowed after onset.
 dry_spell = 10
 
-# Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
+# Search window (days) after first valid wet spell to check for false onset. Must be >= dry_spell.
 # set to 0 if dry spell is not part of the search algorithm
 dry_extent = 0
 
@@ -170,7 +170,7 @@ MR  = True  # Miss Rate (Hit Rate complement)
 
 # --- Probabilistic Metrics ---
 probabilistic = False  # Set True to enable ensemble evaluation
-members = [1, 3, 7, 8, 9]  # Ensemble member IDs
+members = (1, 3, 7, 8, 9)  # Ensemble member IDs
 
 BS          = True  # Brier Skill Score
 RPS         = True  # Ranked Probability Skill Score

@@ -1,7 +1,7 @@
 import os
 #import inspect
 from dataclasses import fields
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 from pathlib import Path
 
 from momp.lib.convention import Case, Setting
@@ -59,26 +59,55 @@ def years_tuple_model(start_date: tuple[int,int,int], end_date: tuple[int,int,in
     return tuple(range(start_year, end_year + 1))
 
 
+#def take_ensemble_members(
+#    members: Union[List[int], str]
+#) -> List[int]:
+#    """
+#    Normalize members into a list of ints.
+#
+#    Accepts:
+#    - list of ints → returned as-is
+#    - string 'start-end' → expanded to list
+#    """
+#    # Case 1: already a list of ints
+#    if isinstance(members, list):
+#        return list(members)  # return a copy
+#
+#    # Case 2: string range "1-5"
+#    if isinstance(members, str) and "-" in members:
+#        start, end = map(int, members.split("-"))
+#        return list(range(start, end + 1))
+#
+#    raise TypeError("members must be list[int] or 'start-end' string")
+
+
 def take_ensemble_members(
-    members: Union[List[int], str]
-) -> List[int]:
+    members: Optional[Union[tuple[int, ...], list[int], str]]
+) -> list[int]:
     """
     Normalize members into a list of ints.
 
     Accepts:
-    - list of ints → returned as-is
+    - list[int] or tuple[int, ...] → returned as a list
     - string 'start-end' → expanded to list
+    - None → empty list
     """
-    # Case 1: already a list of ints
-    if isinstance(members, list):
-        return list(members)  # return a copy
+    # Case 0: None
+    if not members or members == 'All':
+        return None
+
+    # Case 1: list or tuple of ints
+    if isinstance(members, (list, tuple)):
+        return tuple(members)  # normalize to list
 
     # Case 2: string range "1-5"
     if isinstance(members, str) and "-" in members:
-        start, end = map(int, members.split("-"))
-        return list(range(start, end + 1))
+        start, end = map(int, members.split("-", 1))
+        return tuple(range(start, end + 1))
 
-    raise TypeError("members must be list[int] or 'start-end' string")
+    raise TypeError(
+        "members must be list[int], tuple[int, ...], 'start-end' string, or None"
+    )
 
 
 #def restore_args(func, kwargs, bound_args):
