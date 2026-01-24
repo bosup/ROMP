@@ -2,6 +2,7 @@ import os
 import xarray as xr
 from dataclasses import asdict
 from itertools import product
+import copy
 
 from momp.metrics.error import create_spatial_far_mr_mae
 from momp.stats.benchmark import compute_metrics_multiple_years
@@ -23,15 +24,17 @@ cfg, setting = get_cfg(), get_setting()
 def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
 
     # only executed for deterministic forecasts
-    if cfg.get('probabilistic'):
+    #if cfg.get('probabilistic'):
+    #if getattr(cfg, "probabilistic", False):
+    if cfg.probabilistic:
         return
 
     results = {}
 
-    layout_pool = iter_list(cfg)
+    layout_pool = iter_list(vars(cfg))
 
     for combi in product(*layout_pool):
-        case = make_case(Case, combi, cfg)
+        case = make_case(Case, combi, vars(cfg))
 
         print(f"processing model onset evaluation for {case.case_name}")
         print(f"\n verification window = {case.verification_window}\n")
@@ -80,17 +83,18 @@ def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
     # ------------------------------------------------------------------------
     # baseline metrics (climatology or user specified model)
 
-    if not cfg['ref_model']:
+    #if not cfg['ref_model']:
+    if not cfg.ref_model:
         return results 
 
-    cfg_ref = cfg
-    cfg_ref['model_list'] = (cfg['ref_model'],)
+    cfg_ref = copy.copy(cfg)
+    cfg_ref.model_list = (cfg.ref_model,)
     #print("cfg_ref['model_list'] = ", cfg_ref['model_list'])
-    layout_pool = iter_list(cfg_ref)
+    layout_pool = iter_list(vars(cfg_ref))
     #print("cfg_ref layout_pool = ", layout_pool)
 
     for combi in product(*layout_pool):
-        case = make_case(Case, combi, cfg_ref)
+        case = make_case(Case, combi, vars(cfg_ref))
         print(f"processing model onset evaluation for {case.case_name}")
 
         case_ref = {'model_dir': case_cfg['ref_model_dir'],

@@ -59,12 +59,13 @@ if __name__ == "__main__":
     
     result = {}
     
-    layout_pool = iter_list(cfg)
+    layout_pool = iter_list(vars(cfg))
 
     for combi in product(*layout_pool):
-        case = make_case(Case, combi, cfg)
+        case = make_case(Case, combi, vars(cfg))
 
-        fi = os.path.join(cfg['dir_out'],"spatial_metrics_{}.nc")
+        #fi = os.path.join(cfg['dir_out'],"spatial_metrics_{}.nc")
+        fi = os.path.join(cfg.dir_out,"spatial_metrics_{}.nc")
         fi = fi.format(case.case_name)
         ds = xr.open_dataset(fi)
         #ds_subset = ds[["mean_mae", "false_alarm_rate", "miss_rate"]]
@@ -74,7 +75,8 @@ if __name__ == "__main__":
         for var in var_list:
             result[case.model][day_bin][var] = ds[var]
 
-        fi = os.path.join(cfg['dir_out'],"spatial_metrics_{}_{}.nc")
+        #fi = os.path.join(cfg['dir_out'],"spatial_metrics_{}_{}.nc")
+        fi = os.path.join(cfg.dir_out,"spatial_metrics_{}_{}.nc")
         fi = fi.format(case.ref_model, day_bin)
         if result.get(case.ref_model, {}).get(day_bin) is not None:
             ds = xr.open_dataset(fi)
@@ -88,7 +90,7 @@ if __name__ == "__main__":
 #        import pickle
 #        results = pickle.load(f)
     
-    panel_portrait_mae_far_mr(results, **cfg)
+    panel_portrait_mae_far_mr(results, **vars(cfg))
 
 
 #mae = nested_dict_to_array(results, "mean_mae") # "miss_rate", "false_alarm_rate"

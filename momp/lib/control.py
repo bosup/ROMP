@@ -169,11 +169,11 @@ def make_case(dataclass, combi, dic):
     case.case_name = case_name.replace(" ", "_")
 
     #if not dic['years']:
-    if dic['years'] == 'All':
+    if dic['years'] == 'All' or not dic['years']:
         case.years = years_tuple_model(dic['start_date'], dic['end_date'])
 
     #if not dic['years_clim']:
-    if dic['years_clim'] == 'All':
+    if dic['years_clim'] == 'All' or not dic['years_clim']:
         case.years_clim = years_tuple_clim(dic['start_year_clim'], dic['end_year_clim'])
 
     case.members = take_ensemble_members(dic['members'])

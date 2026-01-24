@@ -34,7 +34,8 @@ def tuple_to_str_range(item):
 def print_momp_banner(cfg):
 
     version = pkg_version("momp")
-    project_name = cfg.get("project_name")
+    #project_name = cfg.get("project_name")
+    project_name = cfg.project_name
 
     banner = fr"""
 ================================================================================
@@ -70,19 +71,19 @@ def print_momp_banner(cfg):
 #            print(f"{key}: {value}")
 
 
-def print_cfg(config, key_patterns):
+def print_cfg(cfg, key_patterns):
     """
     Print key-value pairs from config where the key matches one or more patterns.
 
     Parameters:
-        config (dict): Dictionary of configuration.
+        cfg (SimpleNameSpace): SimpleNameSpace object
         key_patterns (str or list/tuple of str): Pattern(s) to match in keys.
     """
     # Ensure key_patterns is a list/tuple
     if isinstance(key_patterns, str):
         key_patterns = [key_patterns]
 
-    for key, value in config.items():
+    for key, value in vars(cfg).items():
         # Check if any pattern matches (endswith or contained)
         if any(key.endswith(p) or p in key for p in key_patterns):
             print(f"{key}: {value}")

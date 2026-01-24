@@ -39,8 +39,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-cfg=get_cfg()
-setting=get_setting()
+cfg, setting = get_cfg(), get_setting()
 
 #def run_momp(cfg=get_cfg(), setting=get_setting()):
 def run_momp(cfg=cfg, setting=setting):
@@ -52,7 +51,7 @@ def run_momp(cfg=cfg, setting=setting):
     Miss Rate (MR), and Mean Absolute Error (MAE).
 
     Args:
-        cfg: The loaded configuration dictionary/object.
+        cfg: The loaded configuration dictionary/SimpleNameSpace object.
         setting: The environment and directory settings.
     """
 

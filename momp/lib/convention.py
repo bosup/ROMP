@@ -38,8 +38,8 @@ class Case:
     max_forecast_day: int = field(default=30)
     day_bins: tuple[tuple[int, int], ...] = field(default=((1, 5), (6, 10), (11, 15)))
 
-    years: Optional[tuple[int, ...]] = field(default=None)
-    years_clim: Optional[tuple[int, ...]] = field(default=None)
+    years: Optional[Union[tuple[int, ...], str]] = field(default=None)
+    years_clim: Optional[Union[tuple[int, ...], str]] = field(default=None)
 
     mok: Optional[tuple[int, int]] = field(default=None)
 

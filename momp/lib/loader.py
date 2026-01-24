@@ -11,6 +11,8 @@ from momp.lib.convention import Setting
 from .parser import create_parser
 #from .parser import find_param_file
 
+from types import SimpleNamespace
+
 
 package = "momp"
 base_dir = importlib.resources.files(package)
@@ -192,14 +194,16 @@ def get_cfg(cli_args=None):
     global _cfg
     if _cfg is None:
         _cfg = build_cfg(cli_args)
-    return _cfg
+    #return _cfg
+    return SimpleNamespace(**_cfg)
 
 
 def get_setting(cli_args=None):
     global _setting
     if _setting is None:
         cfg = get_cfg(cli_args)
-        _setting = init_dataclass(Setting,cfg)
+        #_setting = init_dataclass(Setting, cfg)
+        _setting = init_dataclass(Setting, vars(cfg))
     return _setting
 
 

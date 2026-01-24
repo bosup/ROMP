@@ -23,16 +23,18 @@ cfg, setting = get_cfg(), get_setting()
 def skill_score_in_bins(cfg=cfg, setting=setting):
 
     # only execute for ensemble forecasts
-    if not cfg.get('probabilistic'):
+    #if not cfg.get('probabilistic'):
+    #if not getattr(cfg, "probabilistic", False):
+    if not cfg.probabilistic:
         return
 
     result_overall = {}
     result_binned = {}
 
-    layout_pool = iter_list(cfg)
+    layout_pool = iter_list(vars(cfg))
 
     for combi in product(*layout_pool):
-        case = make_case(Case, combi, cfg)
+        case = make_case(Case, combi, vars(cfg))
 
         print(f"processing bin skill score for {case.case_name}")
 

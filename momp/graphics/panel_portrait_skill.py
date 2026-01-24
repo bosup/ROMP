@@ -57,11 +57,14 @@ if __name__ == "__main__":
 
     results = {}
 
-    model_list = cfg.get("model_list")
-    max_forecast_day = cfg.get("max_forecast_day")
+    #model_list = cfg.get("model_list")
+    #max_forecast_day = cfg.get("max_forecast_day")
+    model_list = cfg.model_list
+    max_forecast_day = cfg.max_forecast_day
 
     for model in model_list:
-        fout = os.path.join(cfg['dir_out'],"binned_skill_scores_{}_{}day.csv")
+        #fout = os.path.join(cfg['dir_out'],"binned_skill_scores_{}_{}day.csv")
+        fout = os.path.join(cfg.dir_out,"binned_skill_scores_{}_{}day.csv")
         fout = fout.format(model, max_forecast_day)
         df = pd.read_csv(fout)
         dic = df.to_dict(orient='list')
@@ -72,7 +75,7 @@ if __name__ == "__main__":
 #        import pickle
 #        results = pickle.load(f)
     
-    panel_portrait_bss_auc(results, **cfg)
+    panel_portrait_bss_auc(results, **vars(cfg))
 
 
 #mae = nested_dict_to_array(results, "mean_mae") # "miss_rate", "false_alarm_rate"

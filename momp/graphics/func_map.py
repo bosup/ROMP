@@ -2,6 +2,7 @@ import numpy as np
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import copy
 from matplotlib.patches import Polygon
 from momp.params.region_def import polygon_boundary, add_polygon
 from momp.utils.land_mask import get_india_outline
@@ -194,17 +195,20 @@ if __name__ == "__main__":
 
     cfg, setting = get_cfg(), get_setting()
     
-    cfg['ref_model'] = 'climatology'
-    cfg['probabilistic'] = False
+    #cfg['ref_model'] = 'climatology'
+    #cfg['probabilistic'] = False
+    cfg.ref_model = 'climatology'
+    cfg.probabilistic = False
 
-    cfg_ref = cfg
-    cfg_ref['model_list'] = (cfg['ref_model'],)
+    cfg_ref = copy.copy(cfg)
+    #cfg_ref['model_list'] = (cfg['ref_model'],)
+    cfg_ref.model_list = (cfg.ref_model,)
     #print("cfg_ref['model_list'] = ", cfg_ref['model_list'])
-    layout_pool = iter_list(cfg_ref)
+    layout_pool = iter_list(vars(cfg_ref))
     #print("cfg_ref layout_pool = ", layout_pool)
 
     for combi in product(*layout_pool):
-        case = make_case(Case, combi, cfg_ref)
+        case = make_case(Case, combi, vars(cfg_ref))
         print(f"processing model onset evaluation for {case.case_name}")
 
         case_ref = {'model_dir': setting.ref_model_dir,

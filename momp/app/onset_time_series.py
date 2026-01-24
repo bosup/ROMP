@@ -68,5 +68,5 @@ def obs_onset_analysis(year, **kwargs):
 
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    obs_onset_analysis(year=2013, **cfg)
+    obs_onset_analysis(year=2013, **vars(cfg))
 
