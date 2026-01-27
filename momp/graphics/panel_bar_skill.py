@@ -9,22 +9,23 @@ from momp.io.dict import extract_overall_dict
 from momp.utils.printing import tuple_to_str
 
 
-def panel_bar_bss_rpss_auc(result_overall, *, dir_fig, legend=True, **kwargs):
+def panel_bar_bss_rpss_auc(result_overall, *, dir_fig, legend=True, show_panel=True, **kwargs):
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    window = kwargs.get("verification_window_list")[0]
+    window = kwargs.get("verification_window_list")[-1]
+    #window = kwargs.get("verification_window")
     title = f"{tuple_to_str(window)} day forecast"
 
     
     # load binned BSS, add climatology on top row
-#    bss, model_list  = extract_overall_dict(result_overall, 'Fair_Brier_Skill_Score')
-#    rps, _  = extract_overall_dict(result_overall, 'Fair_RPS_Skill_Score')
+    bss, model_list  = extract_overall_dict(result_overall, 'Fair_Brier_Skill_Score')
+    rps, _  = extract_overall_dict(result_overall, 'Fair_RPS_Skill_Score')
     auc, _  = extract_overall_dict(result_overall, 'AUC')
     auc_ref, _  = extract_overall_dict(result_overall, 'AUC_ref')[0]
 
-    bss, model_list  = extract_overall_dict(result_overall, 'Fair Brier Skill Score')
-    rps, _  = extract_overall_dict(result_overall, 'Fair RPS Skill Score')
+#    bss, model_list  = extract_overall_dict(result_overall, 'Fair Brier Skill Score')
+#    rps, _  = extract_overall_dict(result_overall, 'Fair RPS Skill Score')
 
     bss *= 100
     rps *= 100
@@ -104,7 +105,8 @@ def panel_bar_bss_rpss_auc(result_overall, *, dir_fig, legend=True, **kwargs):
                           loc='lower right', frameon=False)
     
     fig.tight_layout()
-    plt.show()
+    if show_panel:
+        plt.show()
 
     # save figure
     figure_filename = f'panel_bar_BSS_RPSS_AUC.png'
@@ -128,18 +130,19 @@ if __name__ == "__main__":
     model_list = cfg.model_list
     max_forecast_day = cfg.max_forecast_day
 
-    for model in model_list:
-        #fout = os.path.join(cfg['dir_out'],"overall_skill_scores_{}_{}day.csv")
-        fout = os.path.join(cfg.dir_out,"overall_skill_scores_{}_{}day.csv")
-        fout = fout.format(model, max_forecast_day)
-        df = pd.read_csv(fout)
-        dic = df.to_dict(orient='list')
-        results[model] = dic
+#    for model in model_list:
+#        #fout = os.path.join(cfg.dir_out,"overall_skill_scores_{}_{}day.csv")
+#        fout = os.path.join(cfg.dir_out,"overall_skill_scores_{}_{}day.csv")
+#        fout = fout.format(model, max_forecast_day)
+#        df = pd.read_csv(fout)
+#        dic = df.to_dict(orient='list')
+#        results[model] = dic
     
-#    fout = os.path.join(cfg['dir_out'],"combi_binned_skill_scores_results.pkl")
-#    with open(fout, "rb") as f:
-#        import pickle
-#        results = pickle.load(f)
+#    fout = os.path.join(cfg.dir_out,"combi_binned_skill_scores_{max_forecast_day}day.pkl")
+    fout = os.path.join(cfg.dir_out,"combi_overall_skill_scores_{max_forecast_day}day.pkl")
+    with open(fout, "rb") as f:
+        import pickle
+        results = pickle.load(f)
     
     panel_bar_bss_rpss_auc(results, **vars(cfg))
 

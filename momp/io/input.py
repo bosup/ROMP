@@ -213,8 +213,14 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
         raise KeyError("'step' dimension not found in dataset")
 
     #ds = ds.isel(member =slice(0, mem_num))  # limit to first mem_num members (0-mem_num)
+
+    #print("\n\n\n ds = ", ds)
+    #print("\n\n\n members = ", members)
+    #print(type(members))
+    #print(list(members))
     if members:
-        ds = ds.isel(member = members)
+        #ds = ds.isel(member = members)
+        ds = ds.isel(member = list(members) )
 
     ds = region_select(ds, **kwargs)
 

@@ -84,7 +84,7 @@ excluded_vars = {"f", "config_file_path", "params_in"}
 #    dir_in = set_dir(globals()["dir_in"])
 #
 if not Path(globals()["ref_model_dir"]).is_absolute():
-    dir_out = set_dir(globals()["ref_model_dir"])
+    ref_model_dir = set_dir(globals()["ref_model_dir"])
 
 if not Path(globals()["dir_out"]).is_absolute():
     dir_out = set_dir(globals()["dir_out"])
@@ -103,8 +103,10 @@ if globals().get("shpfile_dir") is not None:
     if not Path(globals()["shpfile_dir"]).is_absolute():
         shpfile_dir = set_dir(globals()["shpfile_dir"])
 
+
 os.makedirs(dir_fig, exist_ok=True)
 os.makedirs(dir_out, exist_ok=True)
+
 
 # print("dir_in = ",dir_in)
 
@@ -177,6 +179,8 @@ def build_cfg(cli_args=None):
     Build configuration by overlaying CLI arguments on base config.
     """
     args = create_parser(dic, cli_args=cli_args)
+#    print("\n\n\n\n dic:", dic["max_forecast_day"])
+#    print("\n\n\n\ args:", args.max_forecast_day)
 
     cfg = dic.copy()
     args_dict = vars(args)

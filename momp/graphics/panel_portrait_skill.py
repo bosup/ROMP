@@ -8,7 +8,7 @@ from momp.utils.visual import portrait_plot
 from momp.io.dict import extract_binned_dict #, extract_overall_dict
 
 
-def panel_portrait_bss_auc(result_binned, *, dir_fig, **kwargs):
+def panel_portrait_bss_auc(result_binned, *, dir_fig, show_panel=True, **kwargs):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3))
     
@@ -37,7 +37,8 @@ def panel_portrait_bss_auc(result_binned, *, dir_fig, **kwargs):
     ax2.set_xlabel('Forecast window (days)')
     
     fig.tight_layout()
-    plt.show()
+    if show_panel:
+        plt.show()
 
     # save figure
     figure_filename = f'panel_portrait_BSS_AUC.png'

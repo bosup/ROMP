@@ -5,6 +5,7 @@ from momp.metrics.skill import create_score_results
 from momp.graphics.heatmap import create_heatmap
 from momp.graphics.reliability import plot_reliability_diagram
 from momp.graphics.panel_portrait_skill import panel_portrait_bss_auc
+from momp.graphics.panel_bar_skill import panel_bar_bss_rpss_auc
 from momp.io.output import save_score_results
 from momp.lib.control import iter_list, make_case
 from momp.lib.convention import Case
@@ -39,6 +40,10 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
         print(f"processing bin skill score for {case.case_name}")
 
         case_cfg = {**asdict(setting), **asdict(case)}
+#        print("\n\n\n members = ", case_cfg['members'])
+#        print("\n\n\n max_forecast_day = ", case_cfg['max_forecast_day'])
+#        print("\n\n\n cfg.max_forecast_day = ", cfg.max_forecast_day)
+#        print("\n\n\n case.max_forecast_day = ", case.max_forecast_day)
 
 #        from pprint import pprint
 #        pprint(case_cfg)
@@ -67,15 +72,18 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
 #    print("\n binned_data \n", binned_data['Fair_Brier_Skill_Score'])
 
 
-#    if 2 > 1:
-#        import pickle
-#        fout = os.path.join(cfg['dir_out'],"combi_binned_skill_scores_results.pkl")
-#        with open(fout, "wb") as f:
-#            pickle.dump(result_binned, f)
-#
-#        fout = os.path.join(cfg['dir_out'],"combi_overall_skill_scores_results.pkl")
-#        with open(fout, "wb") as f:
-#            pickle.dump(result_overall, f)
+    max_forecast_day = cfg.max_forecast_day
+
+    if 2 > 1:
+        import pickle
+        import os
+        fout = os.path.join(cfg.dir_out,"combi_binned_skill_scores_{max_forecast_day}day.pkl")
+        with open(fout, "wb") as f:
+            pickle.dump(result_binned, f)
+
+        fout = os.path.join(cfg.dir_out,"combi_overall_skill_scores_{max_forecast_day}day.pkl")
+        with open(fout, "wb") as f:
+            pickle.dump(result_overall, f)
 
 
     # panel heatmap plot for binned BSS and AUC
@@ -84,7 +92,8 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
 
     # bar plot for BSS, RPSS, AUC in window
     if case_cfg['plot_bar_bss_rpss_auc']:
-        panel_bar_bss_rpss_auc(result_overall, **case_cfg)
+        #panel_bar_bss_rpss_auc(result_overall, **case_cfg)
+        panel_bar_bss_rpss_auc(result_overall, **vars(cfg))
 
 
 # ------------------------------------------------------------------------------

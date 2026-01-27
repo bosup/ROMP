@@ -2,6 +2,7 @@ import sys
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import colors as mcolors
 import numpy as np
 
 
@@ -102,7 +103,8 @@ def portrait_plot(
     annotate=False,
     annotate_data=None,
     annotate_textcolors=("black", "white"),
-    annotate_textcolors_threshold=(-2, 2),
+    #annotate_textcolors_threshold=(-2, 2),
+    annotate_textcolors_threshold=None,
     annotate_fontsize=15,
     annotate_format="{x:.2f}",
     figsize=(12, 10),
@@ -258,6 +260,7 @@ def portrait_plot(
                 im,
                 ax=ax,
                 data=data,
+                cmap=cmap,
                 annotate_data=annotate_data,
                 valfmt=annotate_format,
                 textcolors=annotate_textcolors,
@@ -476,6 +479,7 @@ def annotate_heatmap(
     im,
     ax,
     data=None,
+    cmap=None,
     annotate_data=None,
     valfmt="{x:.2f}",
     textcolors=("black", "white"),
@@ -530,6 +534,18 @@ def annotate_heatmap(
 
     # Loop over the data and create a `Text` for each "pixel".
     # Change the text's color depending on the data.
+
+    # determin text color based on background color luminance
+    vmin, vmax = np.nanquantile(data, [0.1, 0.9])
+    norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+    cmap_obj = plt.get_cmap(cmap)
+
+    def contrast_text_color(value, cmap_obj, norm, threshold=0.5):
+        r, g, b, _ = cmap_obj(norm(value)) # background color
+        luminance = 0.2126*r + 0.7152*g + 0.0722*b # perceived luminance (WCAG standard)
+        return 'black' if luminance > threshold else 'white'
+
+
     texts = []
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
@@ -543,7 +559,10 @@ def annotate_heatmap(
                     ]
                 )
             else:
-                kw.update(color=textcolors[int(data[i, j] > threshold)])
+                #kw.update(color=textcolors[int(data[i, j] > threshold)])
+                text_color = contrast_text_color(data[i,j], cmap_obj, norm, threshold=0.5)
+                kw.update(color=text_color)
+
             text = ax.text(j + 0.5, i + 0.5, valfmt(annotate_data[i, j], None), **kw)
             texts.append(text)
 

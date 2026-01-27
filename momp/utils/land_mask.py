@@ -291,17 +291,33 @@ def shp_outline(ax, region='Ethiopia', resolution='10m', category='cultural', na
     region_geom = get_shp(region=region, resolution=resolution, category=category, name=name)
 
     # Plot boundary
-    ax.add_geometries(
-        [region_geom],
-        crs=ccrs.PlateCarree(),
-        facecolor="none",
-        edgecolor="black",
-        linewidth=1.5
-    )
+#    ax.add_geometries(
+#        [region_geom],
+#        crs=ccrs.PlateCarree(),
+#        facecolor="none",
+#        edgecolor="black",
+#        linewidth=1.5
+#    )
     
+    if hasattr(ax, "add_geometries"):
+        # Cartopy GeoAxes
+        ax.add_geometries(
+            [region_geom],
+            crs=ccrs.PlateCarree(),
+            facecolor="none",
+            edgecolor="black",
+            linewidth=1.5,
+            zorder=10
+        )
+    else:
+        # Regular matplotlib Axes
+        x, y = region_geom.exterior.xy
+        ax.plot(x, y, color="black", linewidth=1.5, zorder=10)
+
     # Optional: background
-    ax.add_feature(cfeature.COASTLINE)
-    ax.add_feature(cfeature.BORDERS, linestyle=":")
+    if hasattr(ax, "add_feature"):
+        ax.add_feature(cfeature.COASTLINE)
+        ax.add_feature(cfeature.BORDERS, linestyle=":")
 
     return ax
 

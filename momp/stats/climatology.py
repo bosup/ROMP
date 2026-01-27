@@ -304,8 +304,8 @@ def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, 
         onset_3d,
         coords=[
             ('year', valid_years),
-            ('lat', thresh_slice.lat.values),
-            ('lon', thresh_slice.lon.values)
+            ('lat', rainfall_ds.lat.values),
+            ('lon', rainfall_ds.lon.values)
         ],
         name='climatological_onset_dates',
         attrs={
@@ -317,14 +317,14 @@ def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, 
     )
 
     # Print summary statistics
-    total_possible = len(valid_years) * thresh_slice.size
+    total_possible = len(valid_years) * rainfall_ds[0].size
     total_valid = (~pd.isna(climatological_onset_da.values)).sum()
 
     print(f"\n{'='*60}")
     print(f"CLIMATOLOGICAL ONSET DATASET SUMMARY")
     print(f"{'='*60}")
     print(f"Years processed: {len(valid_years)} ({min(valid_years)}-{max(valid_years)})")
-    print(f"Spatial domain: {len(thresh_slice.lat)} lats x {len(thresh_slice.lon)} lons")
+    print(f"Spatial domain: {len(rainfall_ds.lat)} lats x {len(rainfall_ds.lon)} lons")
     print(f"Total valid onsets: {total_valid:,}/{total_possible:,} ({total_valid/total_possible:.1%})")
     print(f"Method: {'MOK ({mok} filter)' if mok else 'No date filter'}")
 
@@ -332,7 +332,7 @@ def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, 
     print(f"\nOnset statistics by year:")
     for i, year in enumerate(valid_years):
         year_onsets = (~pd.isna(climatological_onset_da.isel(year=i).values)).sum()
-        print(f"  {year}: {year_onsets}/{thresh_slice.size} ({year_onsets/thresh_slice.size:.1%})")
+        print(f"  {year}: {year_onsets}/{rainfall_ds[0].size} ({year_onsets/rainfall_ds[0].size:.1%})")
 
     return climatological_onset_da
 

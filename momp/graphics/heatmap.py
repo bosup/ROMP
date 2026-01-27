@@ -6,7 +6,7 @@ import os
 from momp.stats.bins import get_target_bins
 
 
-def create_heatmap(score_results, *, model, max_forecast_day, dir_fig, **kwargs):
+def create_heatmap(score_results, *, model, max_forecast_day, dir_fig, show_plot=True, **kwargs):
     """Create and save skill score heatmap"""
 
     auc_forecast =score_results['AUC']
@@ -73,6 +73,8 @@ def create_heatmap(score_results, *, model, max_forecast_day, dir_fig, **kwargs)
     ax2.set_yticklabels([])
 
     plt.tight_layout()
+    if show_plot:
+        plt.show()
 
     # Save with model name and forecast days
     figure_filename = f'skill_scores_heatmap_{model}_{max_forecast_day}day.png'

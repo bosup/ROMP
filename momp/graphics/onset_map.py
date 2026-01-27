@@ -16,7 +16,8 @@ from momp.utils.land_mask import shp_outline, shp_mask, add_polygon
 from momp.graphics.func_map import spatial_metrics_map
 
 def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, polygon, dir_fig, 
-                                   region, figsize=(18, 6), cbar_ssn=False, domain_mask=False, **kwargs):
+                                   region, figsize=(18, 6), cbar_ssn=False, domain_mask=False, 
+                                   show_plot=True, **kwargs):
     """
     Plot spatial maps of climatology onset day of year
     """
@@ -38,7 +39,9 @@ def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, po
     panel_linewidth = 0.5
     tick_length = 3
     tick_width = 0.8
-    if abs(lat_diff - 2.0) < 0.1:
+    if abs(lat_diff) < 0.99:
+        txt_fsize = None
+    elif abs(lat_diff - 2.0) < 0.1:
         txt_fsize = 8
     elif abs(lat_diff - 4.0) < 0.1:
         txt_fsize = 10
@@ -58,16 +61,18 @@ def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, po
     set_basemap(ax, region, shpfile_dir, polygon, **kwargs)
 
     # Define Core Monsoon Zone bounding polygon coordinates based on resolution 
+    polygon_defined = False
+
     if polygon:
         ax, polygon1_lat, polygon1_lon, polygon_defined = \
                                     add_polygon(ax, climatological_onset_doy, polygon, return_polygon=True)
 
 
-    # Calculate statistics (only calculate CMZ stats if polygon is defined)
-    if polygon_defined:
-        cmz_onset_mean = calculate_cmz_averages(climatological_onset_doy, polygon1_lon, polygon1_lat)
-    else:
-        cmz_onset_mean = np.nan
+        # Calculate statistics (only calculate CMZ stats if polygon is defined)
+        if polygon_defined:
+            cmz_onset_mean = calculate_cmz_averages(climatological_onset_doy, polygon1_lon, polygon1_lat)
+        else:
+            cmz_onset_mean = np.nan
     
     if cbar_ssn:
         cmap_jjas, norm_jjas, bounds = cbar_season()
@@ -119,14 +124,15 @@ def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, po
 
 
     # Add text annotations for onset days
-    for i, lat in enumerate(lats):
-        for j, lon in enumerate(lons):
-            value = climatological_onset_doy.values[i, j]
-            if not np.isnan(value):
-                text_color = 'white' if value > 200 else 'black'
-                ax.text(lon, lat, f'{value:.1f}', 
-                           ha='center', va='center',
-                           color=text_color, fontsize=txt_fsize, fontweight='normal')
+    if txt_fsize:
+        for i, lat in enumerate(lats):
+            for j, lon in enumerate(lons):
+                value = climatological_onset_doy.values[i, j]
+                if not np.isnan(value):
+                    text_color = 'white' if value > 200 else 'black'
+                    ax.text(lon, lat, f'{value:.1f}', 
+                               ha='center', va='center',
+                               color=text_color, fontsize=txt_fsize, fontweight='normal')
     
     # Add CMZ average text (only if polygon is defined)
     if polygon_defined and not np.isnan(cmz_onset_mean):
@@ -151,7 +157,8 @@ def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, po
         #plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         #print(f"Figure saved to: {plot_path}")
     
-    plt.show()
+    if show_plot:
+        plt.show()
     
     return fig, ax, plot_path
 

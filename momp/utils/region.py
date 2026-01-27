@@ -2,7 +2,7 @@
 import xarray as xr
 import numpy as np
 from momp.params.region_def import domain
-from momp.utils.land_mask import polygon_mask, mask_land
+from momp.utils.land_mask import polygon_mask, mask_land, shp_mask
 
 #def domain(region, **kwargs):
 #    # swap = False
@@ -143,7 +143,7 @@ def coords_fmt(ds_tag, *, region, **kwargs):
 
 
 
-def region_select(ds, *, region, land_only=True, **kwargs):
+def region_select(ds, *, region, land_only=True, shp_only=True, **kwargs):
 
     lats, latn, lonw, lone, ds = coords_fmt(ds, region=region)
 
@@ -151,6 +151,9 @@ def region_select(ds, *, region, land_only=True, **kwargs):
 
     if land_only:
         ds_reg = mask_land(ds_reg)
+
+    if shp_only:
+        ds_reg = shp_mask(ds_reg)
 
     return ds_reg
 

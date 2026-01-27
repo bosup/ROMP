@@ -21,8 +21,8 @@ class Case:
     ref_model: str = field(default=None)
     ref_model_var: str = field(default=None)
 
-    thresh_file: str = field(default=None)
-    thresh_var: str = field(default=None)
+    thresh_file: Optional[str] = field(default=None)
+    thresh_var: Optional[str] = field(default=None)
 
     wet_init: float = field(default=1.0)
     wet_threshold: float = field(default=10.0)
@@ -30,6 +30,9 @@ class Case:
     dry_threshold: float = field(default=10.0)
     dry_spell: int = field(default=1)
     dry_extent: int = field(default=1)
+
+    probabilistic: bool = field(default=False)
+    members: Optional[tuple[int, ...]] = field(default=None)
 
     onset_percentage_threshold: float = field(default=0.5)
     
@@ -41,7 +44,7 @@ class Case:
     years: Optional[Union[tuple[int, ...], str]] = field(default=None)
     years_clim: Optional[Union[tuple[int, ...], str]] = field(default=None)
 
-    mok: Optional[tuple[int, int]] = field(default=None)
+    mok: Optional[tuple[int, int]] = field(default="")
 
     region: str = field(default=None)
 
@@ -81,9 +84,8 @@ class Setting:
     MR: bool = field(default=False)
     CSI: bool = field(default=False)
 
-    probabilistic: bool = field(default=False)
-
-    members: Optional[tuple[int, ...]] = field(default=None)
+    #probabilistic: bool = field(default=False)
+    #members: Optional[tuple[int, ...]] = field(default=None)
 
     BS: bool = field(default=False)
     RPS: bool = field(default=False)
@@ -91,8 +93,8 @@ class Setting:
 
     skill_score: bool = field(default=False)
 
-    obs_dir: str = field(default="data")
-    ref_model_dir: str = field(default="data")
+    obs_dir: str = field(default="../data")
+    ref_model_dir: str = field(default="../data")
 
     shpfile_dir: Optional[str] = field(default=None)
 
@@ -103,8 +105,8 @@ class Setting:
     ref_model_unit_cvt: Optional[float] = field(default=None)
 
     #dir_in: str = field(default="data")
-    dir_out: str = field(default="output")
-    dir_fig: str = field(default="figures")
+    dir_out: str = field(default="../output")
+    dir_fig: str = field(default="../figures")
 
     save_fig: bool = field(default=False)
 
@@ -122,6 +124,8 @@ class Setting:
     plot_panel_heatmap_error: bool = field(default=False)
     plot_panel_heatmap_skill: bool = field(default=False)
     plot_bar_bss_rpss_auc: bool = field(default=False)
+    show_plot: bool = field(default=False)
+    show_panel: bool = field(default=False)
 
     debug: bool = field(default=False)
     project_name: str = field(default="MOMP application project")

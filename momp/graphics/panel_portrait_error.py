@@ -8,7 +8,7 @@ from momp.io.output import nested_dict_to_array, analyze_nested_dict
 from momp.utils.visual import portrait_plot
 
 
-def panel_portrait_mae_far_mr(results, *, dir_fig, **kwargs):
+def panel_portrait_mae_far_mr(results, *, dir_fig, show_panel=True, **kwargs):
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(8, 3))
     
@@ -36,7 +36,8 @@ def panel_portrait_mae_far_mr(results, *, dir_fig, **kwargs):
                                  annotate=True, annotate_data=data, title='$\Delta MR (\%)$', colorbar_off=True)
     
     fig.tight_layout()
-    plt.show()
+    if show_panel:
+        plt.show()
 
     # save figure
     figure_filename = f'panel_portrait_mae_far_mr.png'

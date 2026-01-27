@@ -167,6 +167,11 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
     forecast_obs_df = pd.DataFrame(results_list)
 #    print("result_list = ", results_list)
 #    print("forecast_obs_df = ", forecast_obs_df)
+    import os
+    import pickle
+    fout = os.path.join(kwargs['dir_out'], "forecast_obs_df.pkl")
+    with open(fout, "wb") as f:
+        pickle.dump(forecast_obs_df, f)
 
     print(f"Generated {len(forecast_obs_df)} forecast-observation pairs")
     print(f"Total bins per forecast: {len(extended_bins)}")
@@ -449,6 +454,8 @@ def multi_year_forecast_obs_pairs(*, years, obs_dir, obs_file_pattern, obs_var,
     """Main function to perform multi-year reliability analysis."""
 
     kwargs = restore_args(multi_year_forecast_obs_pairs, kwargs, locals())
+#    print("\n\n\nmax_forecast_day = ", max_forecast_day)
+#    print("max_forecast_day kwargs = ", kwargs['max_forecast_day'])
 
     #members = kwargs['members']
     #probabilistic = kwargs['probabilistic']
@@ -508,6 +515,7 @@ def multi_year_forecast_obs_pairs(*, years, obs_dir, obs_file_pattern, obs_var,
 
         except Exception as e:
             print(f"Error processing year {year}: {e}")
+            raise
             continue
 
     # Combine all years

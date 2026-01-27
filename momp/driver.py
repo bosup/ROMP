@@ -57,6 +57,9 @@ def run_momp(cfg=cfg, setting=setting):
 
     print_momp_banner(cfg)
 
+#    print("\n\n\n cfg.max_forecast_day = ", cfg.max_forecast_day)
+#    print("\n\n\n cfg.model = ", cfg.model_list)
+
     logger.info("Starting MOMP Workflow...")
 
     try:

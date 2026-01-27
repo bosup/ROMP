@@ -30,7 +30,8 @@ def calculate_cmz_averages(da, polygon_lon, polygon_lat):
 
 
 #def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, figsize=(18, 6), **kwargs):
-def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, region, figsize=(18, 6), **kwargs):
+def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, region, 
+                         figsize=(18, 6), show_plot=True, **kwargs):
     """
     Plot spatial maps of Mean MAE, False Alarm Rate, and Miss Rate in a 1x3 subplot
     with India outline, CMZ polygon, grid values displayed, and CMZ averages.
@@ -55,9 +56,9 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
     if polygon:
         polygon1_lat, polygon1_lon = polygon_boundary(mean_mae)
 
-    #if polygon1_lat and polygon1_lon:
-    if len(polygon1_lat) > 0 and len(polygon1_lon) > 0:
-        polygon_defined = True
+        #if polygon1_lat and polygon1_lon:
+        if len(polygon1_lat) > 0 and len(polygon1_lon) > 0:
+            polygon_defined = True
 
     
     def calculate_mae_stats_across_years(spatial_metrics, lons, lats, polygon_lon, polygon_lat):
@@ -125,7 +126,9 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
     panel_linewidth = 0.5
     tick_length = 3
     tick_width = 0.8
-    if abs(lat_diff - 2.0) < 0.1:
+    if abs(lat_diff) < 0.99:
+        txt_fsize = None
+    elif abs(lat_diff - 2.0) < 0.1:
         txt_fsize = 8
     elif abs(lat_diff - 4.0) < 0.1:
         txt_fsize = 10
@@ -155,13 +158,14 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
         axes[0].add_patch(polygon)
     
     # Add text annotations for MAE values
-    for i, lat in enumerate(lats):
-        for j, lon in enumerate(lons):
-            value = mean_mae.values[i, j]
-            if not np.isnan(value):
-                text_color = 'white' if value > 7.5 else 'black'
-                axes[0].text(lon, lat, f'{value:.1f}', 
-                           ha='center', va='center',
+    if txt_fsize:
+        for i, lat in enumerate(lats):
+            for j, lon in enumerate(lons):
+                value = mean_mae.values[i, j]
+                if not np.isnan(value):
+                    text_color = 'white' if value > 7.5 else 'black'
+                    axes[0].text(lon, lat, f'{value:.1f}', 
+                               ha='center', va='center',
                            color=text_color, fontsize=txt_fsize, fontweight='normal')
     
     # Add CMZ average text with mean ± SE across years (only if polygon is defined)
@@ -201,14 +205,15 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
         axes[1].add_patch(polygon)
     
     # Add text annotations for FAR values
-    for i, lat in enumerate(lats):
-        for j, lon in enumerate(lons):
-            value = far.values[i, j]
-            if not np.isnan(value):
-                text_color = 'white' if value > 50 else 'black'
-                axes[1].text(lon, lat, f'{value:.0f}', 
-                           ha='center', va='center',
-                           color=text_color, fontsize=txt_fsize, fontweight='normal')
+    if txt_fsize:
+        for i, lat in enumerate(lats):
+            for j, lon in enumerate(lons):
+                value = far.values[i, j]
+                if not np.isnan(value):
+                    text_color = 'white' if value > 50 else 'black'
+                    axes[1].text(lon, lat, f'{value:.0f}', 
+                               ha='center', va='center',
+                               color=text_color, fontsize=txt_fsize, fontweight='normal')
     
     # Add CMZ average text (only if polygon is defined)
     if polygon_defined and not np.isnan(cmz_far):
@@ -242,14 +247,15 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
         axes[2].add_patch(polygon)
     
     # Add text annotations for Miss Rate values
-    for i, lat in enumerate(lats):
-        for j, lon in enumerate(lons):
-            value = miss_rate.values[i, j]
-            if not np.isnan(value):
-                text_color = 'white' if value > 50 else 'black'
-                axes[2].text(lon, lat, f'{value:.0f}', 
-                           ha='center', va='center',
-                           color=text_color, fontsize=txt_fsize, fontweight='normal')
+    if txt_fsize:
+        for i, lat in enumerate(lats):
+            for j, lon in enumerate(lons):
+                value = miss_rate.values[i, j]
+                if not np.isnan(value):
+                    text_color = 'white' if value > 50 else 'black'
+                    axes[2].text(lon, lat, f'{value:.0f}', 
+                               ha='center', va='center',
+                               color=text_color, fontsize=txt_fsize, fontweight='normal')
     
     # Add CMZ average text (only if polygon is defined)
     if polygon_defined and not np.isnan(cmz_mr):
@@ -264,12 +270,58 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
 
     axes[2].set_xlabel('Longitude', fontsize=12)
     
+    # add colorbar
+    ims = [im1, im2, im3]
+    for ax, im in zip(axes, ims):
+        # Get position of the subplot
+        pos = ax.get_position()
+
+        # Shorter than the subplot width
+        cbar_width = pos.width * 0.7  # 70% width
+        cbar_height = 0.015           # very thin
+
+        # Centered below the subplot
+        cbar_x = pos.x0 + (pos.width - cbar_width)/2
+        cbar_y = pos.y0 - 0.06        # distance below subplot
+
+        #cax = fig.add_axes([cbar_x, cbar_y, cbar_width, cbar_height])
+
+        #cbar = fig.colorbar(
+        #    im,
+        #    #ax=ax,
+        #    ax=cax,
+        #    orientation='horizontal',
+        #    #fraction=0.05,   # height of the colorbar relative to axes
+        #    #pad=0.01,          # distance between axes and colorbar
+        #    extend='both', extendfrac=0.05, 
+        #)
+
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        divider = make_axes_locatable(ax)
+
+        # 2. Append a new axes at the bottom ('bottom')
+        # size: height of cbar (5%), pad: distance from plot (0.05)
+        cax = divider.append_axes("bottom", size="5%", pad=0.3)
+        #cax = ax.inset_axes([0.2, -0.25, 0.6, 0.04])
+    
+        # 3. Create the colorbar in that specific cax
+        cbar = fig.colorbar(im, cax=cax, orientation='horizontal')
+                            #extend='both', extendfrac=0.1)
+        # 4. To make it SHORTER (e.g., 60% of the plot width):
+        pos = cax.get_position()
+        new_width = pos.width * 0.6
+        new_x = pos.x0 + (pos.width - new_width) / 2
+        cax.set_position([new_x, pos.y0, new_width, pos.height])
+        cax.set_anchor('C') # Center it
+        cax.set_box_aspect(0.05) # This forces a thin, short ratio
+
+
     # Set consistent axis limits and styling for all panels
     for i, ax in enumerate(axes):
         ax.set_xlim([lons.min()-2, lons.max()+2])
         ax.set_ylim([lats.min()-2, lats.max()+2])
         
-        xticks = np.arange(lons.min(), lons.max()+1, 8)
+        xticks = np.arange(lons.min(), lons.max()+1, 4)
         xticklabels = [f"{int(x)}°E" for x in xticks]
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticklabels)
@@ -313,7 +365,8 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
     else:
         print(f"\nNote: CMZ averages not calculated (resolution {lat_diff:.1f}° not supported)")
 
-    plt.show()
+    if show_plot:
+        plt.show()
     
     return fig, axes
 

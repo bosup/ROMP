@@ -4,7 +4,8 @@ import pandas as pd
 import os
 
 #def plot_reliability_diagram(combined_forecast_obs, years, max_forecast_day, save_fig, dir_fig, **kwargs):
-def plot_reliability_diagram(combined_forecast_obs, *, model, max_forecast_day, save_fig, dir_fig, **kwargs):
+def plot_reliability_diagram(combined_forecast_obs, *, model, max_forecast_day, 
+                             save_fig, dir_fig, show_plot=True, **kwargs):
     """Plot reliability diagram from forecast-observation pairs."""
 
     n_bins = 10
@@ -101,7 +102,8 @@ def plot_reliability_diagram(combined_forecast_obs, *, model, max_forecast_day, 
         print(f"Figure saved to: {fig_fn}")
 
     plt.tight_layout()
-    plt.show()
+    if show_plot:
+        plt.show()
 
     return fig, ax, results_df
 

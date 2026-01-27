@@ -39,7 +39,9 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
     panel_linewidth = 0.5
     tick_length = 3
     tick_width = 0.8
-    if abs(lat_diff - 2.0) < 0.1:
+    if abs(lat_diff) < 0.99:
+        txt_fsize = None
+    elif abs(lat_diff - 2.0) < 0.1:
         txt_fsize = 8
     elif abs(lat_diff - 4.0) < 0.1:
         txt_fsize = 10
@@ -162,17 +164,18 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
             color='black', fontsize=text_size*1.2, fontweight='bold')
 
     # Add text annotations for onset days
-    for i, lat in enumerate(lats):
-        for j, lon in enumerate(lons):
-            value = da.values[i, j]
-            if not np.isnan(value):
-                #text_color = 'white' if value > 200 else 'black'
-                #text_color = 'white' if value > text_color_bw else 'black'
-                #text_color = 'black' if luminance > 0.5 else 'white'
-                text_color = contrast_text_color(value, cmap_obj, norm)
-                ax.text(lon, lat, f'{value:.0f}' if onset_plot else f'{value:.1f}', 
-                           ha='center', va='center',
-                           color=text_color, fontsize=txt_fsize, fontweight='normal')
+    if txt_fsize:
+        for i, lat in enumerate(lats):
+            for j, lon in enumerate(lons):
+                value = da.values[i, j]
+                if not np.isnan(value):
+                    #text_color = 'white' if value > 200 else 'black'
+                    #text_color = 'white' if value > text_color_bw else 'black'
+                    #text_color = 'black' if luminance > 0.5 else 'white'
+                    text_color = contrast_text_color(value, cmap_obj, norm)
+                    ax.text(lon, lat, f'{value:.0f}' if onset_plot else f'{value:.1f}', 
+                               ha='center', va='center',
+                               color=text_color, fontsize=txt_fsize, fontweight='normal')
     
     # Add CMZ average text (only if polygon is defined)
     if polygon_defined and not np.isnan(cmz_onset_mean) and onset_plot:

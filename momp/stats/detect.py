@@ -460,8 +460,8 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
 
     date_method = "MOK {mok}(MM-DD) filter" if mok else "no date filter"
     print(f"Processing {len(init_times)} init times x {len(unique_pairs)} unique locations x {len(members)} members...")
-    print(f"Unique lat-lon pairs: {unique_pairs}")
-    print(f"Using {date_method} for onset detection")
+    #print(f"Unique lat-lon pairs: {unique_pairs}")
+    #print(f"Using {date_method} for onset detection")
 
     #max_steps_needed = forecast_bin_end + window + dry_extent - forecast_bin_start
     #max_steps_needed = max_forecast_day + wet_spell - 1
@@ -473,7 +473,8 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
 
     full_steps = p_model.sizes['step']
     if full_steps < max_steps_needed:
-        raise ValueError(f"Not enough forecast time steps: {full_steps} < {max_steps_needed}")
+        raise ValueError(f"Not enough forecast time steps: model steps {full_steps} \
+                < min steps required {max_steps_needed}, consider decrese dry_extent value")
 
     # Track statistics
     total_potential_forecasts = 0
@@ -490,7 +491,9 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
 
         init_date = pd.to_datetime(init_time)
         year = init_date.year
-        mok_date = datetime(year, *mok)
+
+        if mok:
+            mok_date = datetime(year, *mok)
 
         # Loop over unique lat-lon pairs only
         for loc_idx, (lon, lat) in enumerate(unique_pairs):
@@ -539,10 +542,11 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
                         init_time=t_idx,
                         lat=loc_idx,
                         lon=loc_idx,
-                        member=m_idx,
+                        #member=m_idx,
                         #step=slice(forecast_bin_start, forecast_bin_start + max_steps_needed)
-                        step=slice(1, max_steps_needed)
-                    ).values
+                        ).sel(step=slice(1, max_steps_needed)).sel(member=member).values
+#                        step=slice(1, max_steps_needed)
+#                    ).values
 
 #                    print("max_steps_needed = ", max_steps_needed)
 #                    print("len(forecast_series) = ", len(forecast_series))
@@ -654,8 +658,11 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
                     }
                     results_list.append(result)
 
+#                    print("\n\n\nXXXXX result  = ", result)
+
                 except Exception as e:
-                    print(f"Error at init_time {t_idx}, location ({lon}, {lat}), member {m_idx}: {e}")
+                    print(f"Error at init_time {t_idx}, location ({lon}, {lat}), member {member}: {e}")
+                    raise
                     continue
 
 
@@ -694,7 +701,7 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
     onset_df = pd.DataFrame(results_list)
     onset_mean_df = pd.DataFrame(results_mean_list)
 
-    print("\n WWWWWWWWW", onset_df)
+#    print("\n WWWWWWWWW onset_df = ", onset_df)
     print(f"\nProcessing Summary:")
     print(f"Total potential forecasts: {total_potential_forecasts}")
     print(f"Skipped (no observed onset): {skipped_no_obs}")
