@@ -167,11 +167,12 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
     forecast_obs_df = pd.DataFrame(results_list)
 #    print("result_list = ", results_list)
 #    print("forecast_obs_df = ", forecast_obs_df)
-    import os
-    import pickle
-    fout = os.path.join(kwargs['dir_out'], "forecast_obs_df.pkl")
-    with open(fout, "wb") as f:
-        pickle.dump(forecast_obs_df, f)
+    #if 2 > 1:
+    #    import os
+    #    import pickle
+    #    fout = os.path.join(kwargs['dir_out'], "forecast_obs_df.pkl")
+    #    with open(fout, "wb") as f:
+    #        pickle.dump(forecast_obs_df, f)
 
     print(f"Generated {len(forecast_obs_df)} forecast-observation pairs")
     print(f"Total bins per forecast: {len(extended_bins)}")

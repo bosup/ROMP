@@ -303,7 +303,8 @@ def compute_onset_for_deterministic_model(p_model, thresh_slice, onset_da, *,
 
     full_steps = p_model.sizes['step']
     if full_steps < max_steps_needed:
-        raise ValueError(f"Not enough forecast time steps: {full_steps} < {max_steps_needed}")
+        raise ValueError(f"Not enough forecast time steps: model steps {full_steps} \
+                < min steps required {max_steps_needed}, consider decrese dry_extent value")
 
     total_potential_inits = 0
     valid_inits = 0

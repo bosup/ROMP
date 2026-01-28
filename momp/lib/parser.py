@@ -169,6 +169,12 @@ def create_parser(config, cli_args=None):
         help=f"Ensemble evaluation toggle, True or False (default: {config['probabilistic']})"
     )
     
+    parser.add_argument(
+        "--debug",
+        type=str2bool,
+        default=config['debug'],
+        help="debug model for developers only, True of False (default: {config['debug']})"
+    )
 
 #    parser.add_argument(
 #        "--ensemble_list",

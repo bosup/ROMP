@@ -91,5 +91,6 @@ def plot_rainfall_timeseries_with_onset_and_wetspell(pr, onset_date, wetspell_da
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+        print(f"onset time series figure saved to {save_path}")
     
     plt.show()

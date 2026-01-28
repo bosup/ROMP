@@ -33,8 +33,8 @@ def calculate_cmz_averages(da, polygon_lon, polygon_lat):
 def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, region, 
                          figsize=(18, 6), show_plot=True, **kwargs):
     """
-    Plot spatial maps of Mean MAE, False Alarm Rate, and Miss Rate in a 1x3 subplot
-    with India outline, CMZ polygon, grid values displayed, and CMZ averages.
+    Plot spatial maps of Mean MAE, False Alarm Rate, and Miss Rate for one model in a 1x3 subplot
+    with region boundary, CMZ polygon, grid values displayed, and CMZ averages.
     """
     
     # Extract data
@@ -348,7 +348,7 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
     if dir_fig:
         plot_filename = f"spatial_metrics_{case_name}.png"
         plot_path = os.path.join(dir_fig, plot_filename)
-        plt.savefig(plot_path, dpi=600, bbox_inches='tight')
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         print(f"Figure saved to: {plot_path}")
     
     # Only print CMZ averages if polygon is defined

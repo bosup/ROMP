@@ -9,7 +9,7 @@ from momp.utils.practical import restore_args
 
 cfg, setting = get_cfg(), get_setting()
 
-def obs_onset_analysis(year, **kwargs):
+def obs_onset_analysis(year, lat_select=11, lon_select=39, **kwargs):
 
     kwargs = restore_args(obs_onset_analysis, kwargs, locals())
 
@@ -63,10 +63,14 @@ def obs_onset_analysis(year, **kwargs):
     #plot_onset_time_series(lat=10, lon=40,)
     plot_rainfall_timeseries_with_onset_and_wetspell(da_sub, onset_da, None, 
                                                      #lat_select=32, lon_select=72, year_select=year)
-                                                     lat_select=20, lon_select=80, year_select=year, save_path=save_path)
+                                                     #lat_select=20, lon_select=80, year_select=year, save_path=save_path)
+                                                     lat_select=lat_select, lon_select=lon_select, 
+                                                     year_select=year, save_path=save_path)
+
+    return da_sub, onset_da
 
 
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    obs_onset_analysis(year=2013, **vars(cfg))
+    obs_onset_analysis(year=2020, lat_select=10, lon_select=40, **vars(cfg))
 

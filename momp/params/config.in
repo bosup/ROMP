@@ -1,23 +1,23 @@
 # ==============================================================================
-# Rainy season Onset Metrics Package (ROMP) Configuration
+# Monsoon Onset Metrics Package (MOMP) Configuration
 # Version: 0.0.1
-# Description: Workflow configuration for evaluating rainy season onset forecast 
+# Description: Workflow configuration for evaluating monsoon onset forecast 
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
 # 1. CORE STRUCTURE & DIMENSIONS
 # ------------------------------------------------------------------------------
-project_name = "test ROMP run with sample data"
+project_name = "test MOMP run with sample data"
 
-# Internal benchmarking workflow layout (e.g., dimensions in the processed case).
-# Frozen with major ROMP versions
+# Internal data layout (e.g., dimensions in the processed case).
+# Frozen with major MOMP version
 layout = ("model", "verification_window")
 
 # List of models to process (e.g., "AIFS", "IFS", "NGCM").
-# Must be in same forecast category, e.g., all probabilistic models
-# for all parameters ending in '_list', keep the trailing comma if only one item
-# the number of entries in '*_list' should be consistent with 'model_list'
-model_list = ("IFS", "NGCM")
+# Must be models from the same category, e.g., all probabilistic models
+# for all parameter lists in config.in, keep the trailing comma if only one item
+model_list = ("AIFS", "XXXX")
+#model_list = ("IFS", "NGCM")
 
 # ------------------------------------------------------------------------------
 # 2. OBSERVATION DATA SETTINGS
@@ -26,7 +26,7 @@ model_list = ("IFS", "NGCM")
 obs = "IMD"
 
 # Root directory for observational NetCDF files.
-obs_dir = "data/obs"
+obs_dir = "/Users/bodong/Code/dev_tmp/4x4/obs"
 
 # Pattern to find files. {} is replaced by date/year components.
 obs_file_pattern = ("{}.nc", "data_{}.nc")
@@ -34,7 +34,7 @@ obs_file_pattern = ("{}.nc", "data_{}.nc")
 # Variable name for rainfall in the NetCDF file.
 obs_var = "RAINFALL"
 
-# Multiplier for unit conversion (e.g., 1000 to convert m to mm). None if no conversion.
+# Multiplier for unit conversion (e.g., 1000 to convert m to mm). None if no change.
 obs_unit_cvt = None
 
 # ------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ obs_unit_cvt = None
 ref_model = "climatology"
 
 # Directory for the reference model data.
-ref_model_dir = "data/obs"
+ref_model_dir = "/Users/bodong/Code/dev_tmp/4x4/obs"
 
 # File naming pattern for the reference model.
 ref_model_file_pattern = ("{}.nc", "data_{}.nc")
@@ -59,9 +59,10 @@ ref_model_unit_cvt = None
 # 4. FORECAST MODEL SETTINGS
 # ------------------------------------------------------------------------------
 # List of directories corresponding to the 'model_list'.
-model_dir_list = ("data/ifs", "data/ngcm")
+model_dir_list = ("/Users/bodong/Code/dev_tmp/4x4/aifs", "/Users/bodong/Code/dev_tmp/4x4/aifs")
+#model_dir_list = ("/Users/bodong/Code/dev_tmp/4x4/ifs", "/Users/bodong/Code/dev_tmp/4x4/ngcm")
 
-# Variable names for rainfall in each forecast model.
+# Variable names for rainfall in each forecast model (e.g., 'tp' for Total Precip).
 model_var_list = ("tp", "tp")
 
 # Unit conversion factors for each forecast model.
@@ -76,39 +77,33 @@ file_pattern_list = ("{}.nc", "{}.nc")
 # Target geographic region for evaluation.
 region = "India"
 
-# shapefile to define region boundary
-shpfile_dir = "data/shpfile" 
-#
-# Mask/boundary as region polygons, if True must define in params/region_def
-polygon = False              
-
-# ------------------------------------------------------------------------------
-# 6. RAINY SEASON/MONSOON ONSET CRITERIA (Physics Logic)
-# ------------------------------------------------------------------------------
-# Rain threshold (mm) to identify the first wet day.
-wet_init = 1
-
-# Accumlated rainfall threshold (mm) for onset, used only if no spatial thresh_file is provided.
-wet_threshold = 10
-
-# Minimum number of days the accumlated rainfall must stay above threshold (Wet Spell).
-wet_spell = 5
-
-# Maximum allowed rainfall (mm) to define a dry day/spell.
-dry_threshold = 5
-
-# Maximum number of consecutive dry days allowed after onset.
-dry_spell = 10
-
-# Search window (days) after first valid wet spell to check for false onset. Must be >= dry_spell.
-# set to 0 if dry spell is not part of the search algorithm
-dry_extent = 0
-
-# Path to a NetCDF file containing spatial onset thresholds. None = use scalar.
+# Path to a NetCDF file containing spatial thresholds (MWset). None = Use scalar.
 thresh_file = "data/mwset4x4.nc4"
 
 # Variable name for the threshold inside the thresh_file.
 thresh_var = "MWmean"
+
+# ------------------------------------------------------------------------------
+# 6. MONSOON ONSET CRITERIA (Physics Logic)
+# ------------------------------------------------------------------------------
+# Rain threshold (mm) to identify the first potential wet day.
+wet_init = 1
+
+# Rainfall threshold (mm) used only if no spatial thresh_file is provided.
+wet_threshold = 20
+
+# Minimum number of days the accumlated rainfall must stay above threshold (Wet Spell).
+wet_spell = 3
+
+# Maximum allowed rainfall (mm) to define a dry day/spell.
+dry_threshold = 1
+
+# Maximum number of consecutive dry days allowed after onset.
+dry_spell = 7
+
+# Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
+# set to 0 if monsoon cessation is not part of the search algorithm
+dry_extent = 0
 
 # Probability threshold (0.0 - 1.0) for determining onset in ensemble members.
 onset_percentage_threshold = 0.5
@@ -124,35 +119,33 @@ end_date = (2015, 10, 31)
 start_year_clim = 2013
 end_year_clim = 2015
 
-# Target date for "Monsoon Onset over a specific location e.g. Kerala" (Month, Day).
-# mok = (6, 2) # set to None in current package version
+# Target date for "Monsoon Onset over Kerala" (Month, Day).
+#mok = (6, 2)
 
 # Specific years to include in the forecast analysis.
-# Optional. to overide consecutive year list generated based on start_date and end_date
-years = (2013, 2014, 2015)
+#years = (2013, 2014, 2015)
 
 # Specific years used to generate the climatological baseline.
-# Optional. to overide consecutive year list generated based on start_year_clim and end_year_clim
-years_clim = (2013, 2014, 2015)
+#years_clim = (2013, 2014, 2015)
 
 # Date buffer to search for onset if it occurs before the start_date.
-# fallback_date = (4, 1) # set to None in crrent package version.
+#fallback_date = (4, 1)
 
-# List of forecast initialization days of week, (0->Monday, 3->Thursday).
+# List of forecast initialization days (day of week, 0->Monday).
 init_days = (0, 3)
 
-# Year used for filtering init dates. 
-# e.g., the mm/dd of a Monday in 2024 is considered as init date for all other years
+# Year used for filtering or standardizing date formats.
 date_filter_year = 2024
 
 # ------------------------------------------------------------------------------
 # 8. EVALUATION & VERIFICATION PARAMETERS
 # ------------------------------------------------------------------------------
-# Range of days after initialization to consider for evaluation.
-verification_window_list = ((1, 15), (16, 30))
+# Range of days after initialization to consider for validation.
+#verification_window_list = ((1, 15),)
+verification_window_list = ((1, 15), (16,20))
 
 # Allowed error margin (in days) when comparing forecast to obs onset.
-tolerance_days_list = (3, 5)
+tolerance_days_list = (3, 5,)
 
 # Total number of days to look ahead in the forecast.
 max_forecast_day = 15
@@ -170,7 +163,7 @@ MR  = True  # Miss Rate (Hit Rate complement)
 
 # --- Probabilistic Metrics ---
 probabilistic = False  # Set True to enable ensemble evaluation
-members = (1, 3, 7, 8, 9)  # Ensemble member IDs
+members = (1, 2, 3, 4, 5)  # Ensemble member IDs
 
 BS          = True  # Brier Skill Score
 RPS         = True  # Ranked Probability Skill Score
@@ -186,22 +179,23 @@ dir_out = "output"
 dir_fig = "figure"
 
 # Save file and figure options
-save_fig = True                   # Generate and save figures
+save_fig = True                   # Generate and save PNG/PDF figures
 save_nc_spatial_far_mr_mae = True # Save spatial metrics as NetCDF
 save_csv_score = True             # Save skill scores as CSV
 save_nc_climatology = True        # Save calculated climatology to NetCDF
 
 # Graphics configuration
-plot_spatial_far_mr_mae = False                     # spatial maps of mae,far,mr
-plot_heatmap = False                                # performance heatmap for single model
-plot_reliability = False                            # reliability curve plots
+shpfile_dir = "/Users/bodong/Code/dev_tmp/shpfile" # Path to GIS shapefiles
+polygon = False                                     # Mask/Plot by region polygons
+plot_spatial_far_mr_mae = False                     # Generate spatial maps of far,mr,mae
+plot_heatmap = False                                # Generate score heatmaps
+plot_reliability = False                            # Generate reliability curve plots
 plot_climatology_onset = False                      # Spatial map of climatology onset
-plot_panel_heatmap_error = False                    # panel heatmap of mae,mr,far 
-plot_panel_heatmap_skill = False                    # panel heatmap of skill score 
-plot_bar_bss_rpss_auc = False                       # bar plot of skill score 
+plot_panel_heatmap_error = True                    # panel heatmap of mae,mr,far 
+plot_panel_heatmap_skill = True                    # panel heatmap of skill score 
+plot_bar_bss_rpss_auc = True                    # bar plot of skill score 
 
 # ------------------------------------------------------------------------------
 # 11. DEBUG SETTINGS
 # ------------------------------------------------------------------------------
 debug = False # run MOMP in debug mode for developers
-

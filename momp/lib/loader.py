@@ -2,6 +2,7 @@ import importlib.resources
 import os
 from pathlib import Path
 import argparse
+import sys
 
 #from momp.io.input import set_dir
 from momp.utils.practical import set_dir
@@ -205,7 +206,11 @@ def get_cfg(cli_args=None):
         validator.validate()
         print("Configuration validated!")
     except ROMPConfigError as e:
-        print(e)
+        print(f"Error: Invalid Config!!! {e}")
+        if not _cfg.get('debug'):
+            #raise
+            #raise ROMPConfigError("invalid config")
+            sys.exit(1)
 
     #return _cfg
     return SimpleNamespace(**_cfg)

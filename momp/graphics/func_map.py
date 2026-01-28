@@ -19,7 +19,8 @@ from momp.utils.land_mask import shp_outline, shp_mask, add_polygon
 def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig, region, 
                     fig=None, ax=None, figsize=(8, 6), cmap='YlOrRd', n_colors=10, int_bin=True,
                     onset_plot=False, cbar_ssn=False, domain_mask=False, polygon_only=False,
-                    show_ylabel=True, title=None, panel=False, text_scale=1.0, **kwargs):
+                    show_ylabel=True, title=None, panel=False, text_scale=1.0, 
+                    vmin=None, vmax=None, **kwargs):
     """
     Plot spatial maps of climatology onset day of year
     """
@@ -52,11 +53,14 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
 
     text_size = 14
     text_size *= text_scale
-    txt_fsize *= text_scale
+    if txt_fsize is not None:
+        txt_fsize *= text_scale 
 
     
     # Define colormap levels 
-    vmin, vmax = da.quantile([0.1, 0.9], dim=None, skipna=True).values
+    if None in (vmin, vmax):
+        vmin, vmax = da.quantile([0.1, 0.9], dim=None, skipna=True).values
+
     text_color_bw = da.quantile(0.5, dim=None, skipna=True).item()
 
     norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
@@ -158,7 +162,7 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
         cbar.ax.tick_params(labelsize=10)    
 
     # Add model name text in top-right
-    ax.text(0.95, 0.95, model_name, transform=ax.transAxes,
+    ax.text(0.99, 0.97, model_name, transform=ax.transAxes,
             horizontalalignment='right', verticalalignment='top',
             #color='black', fontsize=15, fontweight='bold')
             color='black', fontsize=text_size*1.2, fontweight='bold')
@@ -205,7 +209,7 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
     if title:
         ax.text(0.02, 1.02, title, transform=ax.transAxes,
                 #verticalalignment='bottom', fontsize=15, fontweight='normal')
-                verticalalignment='bottom', fontsize=text_size*1.2, fontweight='normal')
+                verticalalignment='bottom', fontsize=text_size*1.0, fontweight='normal')
     
 
     if not panel:

@@ -136,6 +136,8 @@ def save_metrics_to_netcdf(spatial_metrics, attrs_dict, desc_dict=None, fname='s
             clean_attrs[key] = ','.join(map(str, val))
         elif isinstance(val, bool):
             clean_attrs[key] = int(val)
+        elif val is None:
+            clean_attrs[key] = str(val)
         else:
             clean_attrs[key] = val
 
