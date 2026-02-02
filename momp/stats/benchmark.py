@@ -9,6 +9,7 @@ from momp.utils.printing import tuple_to_str_range
 import numpy as np
 import pandas as pd
 import os
+import sys
 
 
 def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification_window, **kwargs):
@@ -58,7 +59,8 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
             model_onset = init_row['model_onset_dt']
 
             valid_window_start = t_init + pd.Timedelta(days=forecast_bin_start)
-            valid_window_end = valid_window_start + pd.Timedelta(days=forecast_bin_end - 1)
+            #valid_window_end = valid_window_start + pd.Timedelta(days=forecast_bin_end - 1)
+            valid_window_end = t_init + pd.Timedelta(days=forecast_bin_end)
 
             whole_forecast_window_start = t_init + pd.Timedelta(days=1)
             whole_forecast_window_end = t_init + pd.Timedelta(days=forecast_bin_end)
@@ -67,9 +69,9 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
 #            if init_date >= obs_date_dt:
 #                continue
 
-            is_onset_in_whole_window = whole_forecast_window_start <= gt_grd <= whole_forecast_window_end
+            is_obs_onset_in_whole_window = whole_forecast_window_start <= gt_grd <= whole_forecast_window_end
 
-            if is_onset_in_whole_window:
+            if is_obs_onset_in_whole_window:
                 num_onset += 1
             else:
                 num_no_onset += 1
@@ -83,8 +85,8 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
 
             has_model_onset = not pd.isna(model_onset)
 
-            #if has_model_onset:
-            if has_model_onset and is_onset_in_whole_window:
+            if has_model_onset:
+            #if has_model_onset and is_obs_onset_in_whole_window:
                 is_model_in_valid_window = valid_window_start <= model_onset <= valid_window_end
 
                 if is_model_in_valid_window:
@@ -99,16 +101,25 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
 
                 else:
                     if model_onset > valid_window_end: #make sure no model onset in early bins
-                        if is_onset_in_whole_window:
+                        if is_obs_onset_in_whole_window:
                             FN += 1
                         else:
                             TN += 1
 
             else:
-                if is_onset_in_whole_window:
+                if is_obs_onset_in_whole_window:
                     FN += 1
                 else:
                     TN += 1
+
+#            if lat==9.75 and lon==38.5:
+#            if lat==14.5 and lon==39.75:
+#            if lat==14.25 and lon==39.75:
+#            if lat==11.25 and lon==41.25:
+#            if lat==11.75 and lon==40.5:
+#                print("------ init time: ", t_init)
+#                print("TP, FP, FN, TN = ", TP, FP, FN, TN)
+#                print("model onset, obs onset = ", model_onset, gt_grd)
 
         total_forecasts = len(grid_data)
 
@@ -135,6 +146,9 @@ def compute_onset_metrics_with_windows(onset_df, *, tolerance_days, verification
             'forecast_days': forecast_bin_end
         }
         results_list.append(result)
+
+#    import sys
+#    sys.exit()
 
     metrics_df = pd.DataFrame(results_list)
 
@@ -199,10 +213,18 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
 
     # calculate obs climatology onset 
     if ref_clim:
+        print("Generating climatology onset doy for each year as onset_da_dict")
         climatological_onset_doy = compute_climatological_onset(**kwargs)
+
+#        from datetime import datetime, timedelta
+#        clim_onset_doy = climatological_onset_doy.sel(lat=11.75,lon=40.5)
+#        clim_onset_date = datetime(2020, 1, 1) + timedelta(days=int(clim_onset_doy) - 1)
+#        clim_onset_date = pd.to_datetime(clim_onset_date)
+#        print(f"\n\nClim onset date {clim_onset_date}, at lat, lon")
 
         # climatological onset as "obs" for climatology baseline metrics
         onset_da_dict = {year: climatological_onset_doy for year in years}
+        #onset_da_dict = {year: climatological_onset_doy for year in years_clim}
 
 #        # save climatological onset to netcdf
 #        if save_nc_climatology:
@@ -210,15 +232,45 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
 #            fout = fout.format(tuple_to_str_range(years_clim))
 #            climatological_onset_doy.to_netcdf(fout)
 
+        #for year in years_clim:
+        #    print(f"\n{'-'*50}")
+        #    print(f"Processing year {year}")
+    
+        #    # obs onset
+        #    imd = load_imd_rainfall(year, **kwargs)
+        #    onset_da = detect_observed_onset(imd, thresh_da, year, **kwargs)
 
+        #    # climatology as forecast
+        #    print("Computing onset for climatology as forecast ...")
+        #    init_dates = get_initialization_dates(year, **kwargs)
+        #    onset_df = compute_climatology_as_forecast(
+        #        climatological_onset_doy, year, init_dates, onset_da, **kwargs)
+
+        #    print("Computing onset-obs metrics TP,TN,FP,FN for all locations and init times ...")
+        #    metrics_df, summary_stats = compute_onset_metrics_with_windows(
+        #        onset_df, **kwargs
+        #    )
+    
+        #    metrics_df_dict[year] = metrics_df
+
+
+        #return metrics_df_dict, onset_da_dict
+
+
+    # model onset vs obs onset
     for year in years:
         print(f"\n{'-'*50}")
         print(f"Processing year {year}")
         #print(f"{'='*50}")
 
+#        print("MOKMOKMOK ", kwargs['mok'])
+
         # obs onset
         imd = load_imd_rainfall(year, **kwargs)
         onset_da = detect_observed_onset(imd, thresh_da, year, **kwargs)
+#        print(f"\n\nMMMMMMM onset_da 11.5, 41.25 {onset_da.sel(lat=11.5,lon=41.25)}")
+#        print(f"\n\nMMMMMMM onset_da 11.5, 41.25 {onset_da.sel(lat=11.5,lon=41)}")
+#        sys.exit()
 
         # extract forecast at approporiate init dates
         if probabilistic:
@@ -251,6 +303,13 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
             )
 
 
+#        df_sel = onset_df[(onset_df["lat"] == 10) & (onset_df["lon"] == 40)]
+#        #print("\n\n onset df = ", onset_df)
+#        print("\n\n onset df = ", df_sel)
+#        import sys
+#        sys.exit()
+
+
         # onset-obs metrics TP,TN,FP,FN for all locations and init times
         print("Computing onset-obs metrics TP,TN,FP,FN for all locations and init times ...")
         metrics_df, summary_stats = compute_onset_metrics_with_windows(
@@ -258,6 +317,25 @@ def compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var,
         )
 
         metrics_df_dict[year] = metrics_df
+
+        slat = 11.5
+        slon = 41.25
+
+#        df_sel = metrics_df[(metrics_df["lat"] == 9.75) & (metrics_df["lon"] == 38.5)]
+        #df_sel = metrics_df[(metrics_df["lat"] == 14.25) & (metrics_df["lon"] == 39.75)]
+        #df_sel = metrics_df[(metrics_df["lat"] == 11.25) & (metrics_df["lon"] == 41.25)]
+
+        #df_sel = onset_df[(onset_df["lat"] == 11.75) & (onset_df["lon"] == 40.5)]
+        #df_sel = onset_df[(onset_df["lat"] == 12) & (onset_df["lon"] == 41)]
+
+#        df_sel = onset_df[(onset_df["lat"] == slat) & (onset_df["lon"] == slon)]
+#        print("\n\n onset df = ", df_sel[['onset_date','obs_onset_date']].to_string(index=False))
+#        df_sel = metrics_df[(metrics_df["lat"] == slat) & (metrics_df["lon"] == slon)]
+#        print("\n\n metrics df = ", df_sel[['true_positive', 'false_positive', 'true_negative', 'false_negative']].to_string(index=False))
+#        print("\n\n metrics df = ", df_sel[['mae_combined']].to_string(index=False))
+
+#        import sys
+#        sys.exit()
 
         if not ref_clim:
             onset_da_dict[year] = onset_da
