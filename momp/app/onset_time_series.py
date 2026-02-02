@@ -17,9 +17,9 @@ def obs_onset_analysis(year, lat_select=11, lon_select=39, **kwargs):
     thresh_da = load_thresh_file(**kwargs)
 
     #year = years[0]
-    print(f"\n{'='*50}")
+    print(f"\n{'-'*50}")
     print(f"Processing year {year}")
-    print(f"{'='*50}")
+    #print(f"{'='*50}")
 
     # obs onset
     da = load_imd_rainfall(year, **kwargs)
