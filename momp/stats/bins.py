@@ -7,6 +7,7 @@ from momp.stats.detect import detect_observed_onset, compute_onset_for_all_membe
 #from momp.lib.control import restore_args
 from momp.utils.practical import restore_args
 #from momp.stats.climatology import compute_climatological_onset_dataset
+from itertools import product
 
 
 def extract_day_range(bin_label):
@@ -54,9 +55,11 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
     max_forecast_day : int, default=15
         Maximum forecast day. Members without onset get assigned to "after day X" bin
     """
-
     #day_bins = kwargs["stats_day_bins"]
     #max_forecast_day = kwargs["max_forecast_day"]
+
+    max_forecast_day = max(day_bins)[1]
+    min_forecast_day = min(day_bins)[0]
 
     results_list = []
 
@@ -64,7 +67,9 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
     forecast_groups = onset_all_members.groupby(['init_time', 'lat', 'lon'])
 
     # Add the "after max_forecast_day" bin
-    extended_bins = day_bins + ((max_forecast_day + 1, float('inf')),)
+    #extended_bins = day_bins + ((max_forecast_day + 1, float('inf')),)
+    extended_bins = ((-float('inf'), min_forecast_day - 1),) + day_bins + ((max_forecast_day + 1, float('inf')),)
+#    print("\n\n\n XXXXXXXX extended_bins = ", extended_bins)
 
     print(f"Processing {len(forecast_groups)} forecast cases with day bins: {day_bins}")
     print(f"Including 'after day {max_forecast_day}' bin for members without onset in forecast window")
@@ -102,8 +107,29 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
         # For each day bin (including the "after max_forecast_day" bin)
         for bin_idx, (bin_start, bin_end) in enumerate(extended_bins):
 
+            if bin_start == -float('inf'):
+            #if bin_start < min_forecast_day:
+                bin_label = f'Before day {min_forecast_day}'
+
+                # Check if observed onset occurs before window start 
+                forecast_start_date = init_date + pd.Timedelta(days=min_forecast_day)
+                observed_onset = int(obs_date_dt.date() < forecast_start_date.date())
+
+                # Count members that didn't predict onset within forecast window
+                members_with_onset_in_bin = 0
+                total_members = len(group)
+
+                for member_idx, member_row in group.iterrows():
+                    member_onset_day = member_row['onset_day']
+
+                    # Member predicts < min_forecast_day
+                    if pd.notna(member_onset_day) and member_onset_day < min_forecast_day:
+                        members_with_onset_in_bin += 1
+
+
             # Handle the "after max_forecast_day" bin differently
-            if bin_start > max_forecast_day:
+            #if bin_start > max_forecast_day:
+            elif bin_start > max_forecast_day:
                 bin_label = f'After day {max_forecast_day}'
 
                 # Check if observed onset occurs after max_forecast_day
@@ -150,8 +176,10 @@ def create_forecast_observation_pairs_with_bins(onset_all_members, onset_da, *, 
                 'init_time': init_time,
                 'lat': lat,
                 'lon': lon,
-                'bin_start': bin_start if bin_start <= max_forecast_day else max_forecast_day + 1,
-                'bin_end': bin_end if bin_end <= max_forecast_day else float('inf'),
+                #'bin_start': bin_start if bin_start <= max_forecast_day else max_forecast_day + 1,
+                #'bin_end': bin_end if bin_end <= max_forecast_day else float('inf'),
+                'bin_start': bin_start,
+                'bin_end': bin_end,
                 'bin_label': bin_label,
                 'predicted_prob': predicted_prob,
                 'observed_onset': observed_onset,
@@ -220,6 +248,10 @@ def create_climatological_forecast_obs_pairs(clim_onset, target_year, init_dates
     DataFrame with forecast-observation pairs
     """
 
+    # adjust max_forecast_day to the end of day_bins
+    max_forecast_day = max(day_bins)[1]
+    min_forecast_day = min(day_bins)[0]
+
     results_list = []
 
     # Get the observed onset for the target year
@@ -233,13 +265,15 @@ def create_climatological_forecast_obs_pairs(clim_onset, target_year, init_dates
     ensemble_onset_da = clim_onset.sel(year=ensemble_years)
 
     # Create extended bins including "before initialization" and "after max_forecast_day" bins
-    extended_bins = ((-float('inf'), 0),) + day_bins + ((max_forecast_day + 1, float('inf')),)
+    #extended_bins = ((-float('inf'), 0),) + day_bins + ((max_forecast_day + 1, float('inf')),)
+    extended_bins = ((-float('inf'), min_forecast_day - 1),) + day_bins + ((max_forecast_day + 1, float('inf')),)
 
     print(f"Creating climatological forecasts for target year {target_year}")
     print(f"Using {len(ensemble_years)} years as ensemble members: {ensemble_years}")
     print(f"Processing {len(init_dates)} initialization dates")
     print(f"Day bins: {day_bins}")
-    print(f"Extended bins include: 'Before initialization' and 'After day {max_forecast_day}' ")
+    #print(f"Extended bins include: 'Before initialization' and 'After day {max_forecast_day}' ")
+    print(f"Extended bins include: 'Before day {min_forecast_day}' and 'After day {max_forecast_day}' ")
     print(f"Using day-of-year method for onset comparison")
 
     # Get the actual lat/lon coordinates from the data
@@ -247,7 +281,8 @@ def create_climatological_forecast_obs_pairs(clim_onset, target_year, init_dates
     lons = obs_onset_da.lon.values
 
     # Create unique lat-lon pairs (no repetition)
-    unique_pairs = list(zip(lons, lats))
+    #unique_pairs = list(zip(lons, lats))
+    unique_pairs = list(product(lons, lats))
 
     print(f"Processing {len(unique_pairs)} unique lat-lon pairs")
 
@@ -313,7 +348,8 @@ def create_climatological_forecast_obs_pairs(clim_onset, target_year, init_dates
                 # Handle the "before initialization" bin
                 if bin_start == -float('inf'):
                     for i, member_onset_day in enumerate(ensemble_forecast_days):
-                        if member_onset_day is not None and member_onset_day <= 0:
+                        #if member_onset_day is not None and member_onset_day <= 0:
+                        if member_onset_day is not None and member_onset_day <= min_forecast_day - 1:
                             members_with_onset_in_bin += 1
 
                 # Handle the "after max_forecast_day" bin
@@ -345,10 +381,12 @@ def create_climatological_forecast_obs_pairs(clim_onset, target_year, init_dates
 
                 # Handle the "before initialization" bin
                 if bin_start == -float('inf'):
-                    bin_label = 'Before initialization'
+                    #bin_label = 'Before initialization'
+                    bin_label = f'Before day {min_forecast_day}'
 
                     # Check if observed onset occurs before initialization (by day of year)
-                    observed_onset = int(obs_onset_doy <= init_doy)
+                    #observed_onset = int(obs_onset_doy <= init_doy)
+                    observed_onset = int(obs_onset_doy <= init_doy + min_forecast_day - 1 )
 
                     # Get contributing years
                     for i, member_onset_day in enumerate(ensemble_forecast_days):
