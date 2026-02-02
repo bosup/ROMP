@@ -81,7 +81,7 @@ def load_imd_rainfall(year, *, obs_dir, obs_file_pattern, obs_var, obs_unit_cvt,
             f"Available files: {available_files}"
         )
 
-    print(f"Loading observation rainfall from: {obs_file}")
+    #print(f"Loading observation rainfall from: {obs_file}")
 
     ds = xr.open_dataset(obs_file)
 

@@ -5,6 +5,7 @@ import pandas as pd
 import xarray as xr
 import pickle
 from momp.stats.bins import get_target_bins
+from momp.utils.printing import tuple_to_str
 #from momp.utils.printing import tuple_to_str
 
 #def file_path(directory, filename):
@@ -12,7 +13,8 @@ from momp.stats.bins import get_target_bins
 #    return Path(directory) / filename
 
 
-def save_score_results(score_results, *, model, max_forecast_day, dir_out, **kwargs):
+#def save_score_results(score_results, *, model, max_forecast_day, dir_out, **kwargs):
+def save_score_results(score_results, *, model, verification_window, dir_out, **kwargs):
     """Save overall and binned skill scores to CSV files"""
             
     # Save overall scores
@@ -33,15 +35,20 @@ def save_score_results(score_results, *, model, max_forecast_day, dir_out, **kwa
     #overall_df = pd.DataFrame(overall_scores)
     # pd.DataFrame expects lists/arrays as values, or a list of dicts for rows, not a dict of scalars
     # Wrap the dict in a list so pandas treats it as a single row, or make each value wrapped in a list []
+
+    # create dataframe and save as .csv
     overall_df = pd.DataFrame([overall_scores_nested])
-    overall_filename = f'overall_skill_scores_{model}_{max_forecast_day}day.csv'
+
+    window_str = tuple_to_str(verification_window)
+    overall_filename = f'overall_skill_scores_{model}_{window_str}.csv'
+                        #f'overall_skill_scores_{model}_{max_forecast_day}day.csv'
                         #{model}_{tuple_to_str(verification_window)}window_{max_forecast_day}day.csv'
     overall_filename = os.path.join(dir_out, overall_filename)
     overall_df.to_csv(overall_filename, index=False)
     print(f"Saved overall scores to '{overall_filename}'")
     print(overall_df)
 
-    # Get target bins
+    # Get target bins, remove bins with "Day Before" and "Day After"
     target_bins = get_target_bins(score_results['BS'], score_results['BS_ref'])
     clean_bins = [b.replace("Days ", "") for b in target_bins]
 
@@ -56,8 +63,11 @@ def save_score_results(score_results, *, model, max_forecast_day, dir_out, **kwa
         'Fair_Brier_Score_Climatology': [score_results['BS_ref']['bin_fair_brier_scores'].get(bin_name, np.nan) for bin_name in target_bins]
     }
 
+    # create dataframe and save as .csv
     binned_df = pd.DataFrame(binned_data)
-    binned_filename = f'binned_skill_scores_{model}_{max_forecast_day}day.csv'
+
+    binned_filename = f'binned_skill_scores_{model}_{window_str}.csv'
+                        #f'binned_skill_scores_{model}_{max_forecast_day}day.csv'
     binned_filename = os.path.join(dir_out, binned_filename)
     binned_df.to_csv(binned_filename, index=False)
     print(f"Saved binned scores to '{binned_filename}'")
