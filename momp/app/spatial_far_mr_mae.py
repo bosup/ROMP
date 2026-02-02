@@ -88,8 +88,8 @@ def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
 
     #if not cfg['ref_model']:
     if not cfg.ref_model:
-        #return results 
-        pass
+        return results 
+        #pass
 
     cfg_ref = copy.copy(cfg)
     cfg_ref.model_list = (cfg.ref_model,)
@@ -112,8 +112,8 @@ def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
 
         case.update(case_ref)
 
-        if case.model == 'climatology':
-            case.years = case.years_clim
+        #if case.model == 'climatology':
+        #    case.years = case.years_clim
 
         case_cfg_ref = {**asdict(case), **asdict(setting)}
 

@@ -6,9 +6,10 @@ from momp.lib.loader import get_cfg, get_setting
 #from momp.io.output import nested_dict_to_array, analyze_nested_dict
 from momp.utils.visual import portrait_plot
 from momp.io.dict import extract_binned_dict #, extract_overall_dict
+from momp.utils.printing import tuple_to_str
 
 
-def panel_portrait_bss_auc(result_binned, *, dir_fig, show_panel=True, **kwargs):
+def panel_portrait_bss_auc(result_binned, verification_window, *, dir_fig, show_panel=True, **kwargs):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3))
     
@@ -42,7 +43,9 @@ def panel_portrait_bss_auc(result_binned, *, dir_fig, show_panel=True, **kwargs)
         plt.show()
 
     # save figure
-    figure_filename = f'panel_portrait_BSS_AUC.png'
+    window_str = tuple_to_str(verification_window)
+    #figure_filename = f"panel_portrait_BSS_AUC_{kwargs['max_forecast_day']}day.png"
+    figure_filename = f"panel_portrait_BSS_AUC_{window_str}.png"
     figure_filename = os.path.join(dir_fig, figure_filename)
     fig.savefig(figure_filename, dpi=300, bbox_inches='tight')
     print(f"Figure saved as '{figure_filename}'")
@@ -63,11 +66,14 @@ if __name__ == "__main__":
     #max_forecast_day = cfg.get("max_forecast_day")
     model_list = cfg.model_list
     max_forecast_day = cfg.max_forecast_day
+    verification_window = cfg.verification_window_list[0]
+    window_str = tuple_to_str(verification_window)
 
     for model in model_list:
         #fout = os.path.join(cfg['dir_out'],"binned_skill_scores_{}_{}day.csv")
-        fout = os.path.join(cfg.dir_out,"binned_skill_scores_{}_{}day.csv")
-        fout = fout.format(model, max_forecast_day)
+        fout = os.path.join(cfg.dir_out,"binned_skill_scores_{}_{}.csv")
+        #fout = fout.format(model, max_forecast_day)
+        fout = fout.format(model, window_str)
         df = pd.read_csv(fout)
         dic = df.to_dict(orient='list')
         results[model] = dic
@@ -77,7 +83,7 @@ if __name__ == "__main__":
 #        import pickle
 #        results = pickle.load(f)
     
-    panel_portrait_bss_auc(results, **vars(cfg))
+    panel_portrait_bss_auc(results, verification_window, **vars(cfg))
 
 
 #mae = nested_dict_to_array(results, "mean_mae") # "miss_rate", "false_alarm_rate"

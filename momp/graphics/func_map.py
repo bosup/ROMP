@@ -225,9 +225,9 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
         plt.show()
     
     
-    vwindow = tuple_to_str(kwargs.get('verification_window'))
-    #plot_filename = f"map_{model_name}_{var_name}_{vwindow}_{tuple_to_str_range(years)}.png"
-    plot_filename = f"map_{model_name}_{var_name}_{vwindow}.png"
+    window_str = tuple_to_str(kwargs.get('verification_window'))
+    #plot_filename = f"map_{model_name}_{var_name}_{window_str}_{tuple_to_str_range(years)}.png"
+    plot_filename = f"map_{model_name}_{var_name}_{window_str}.png"
     plot_path = os.path.join(dir_fig, plot_filename)
     #plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     #print(f"Figure saved to: {plot_path}")

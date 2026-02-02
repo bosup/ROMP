@@ -20,7 +20,7 @@ from matplotlib import colors as mcolors
 
 def panel_map_mae_far_mr(model_list, verification_window, var_name, cfg, setting, **kwargs):
 
-    day_bin = tuple_to_str(verification_window)
+    window_str = tuple_to_str(verification_window)
     
     n = len(model_list)
     fig = plt.figure(figsize=(8, 5/4*n))
@@ -35,7 +35,7 @@ def panel_map_mae_far_mr(model_list, verification_window, var_name, cfg, setting
 
     for i, model in enumerate(model_list):
         fi = os.path.join(cfg.dir_out,"spatial_metrics_{}_{}.nc")
-        fi = fi.format(model, day_bin)
+        fi = fi.format(model, window_str)
         ds = xr.open_dataset(fi)
         da = ds[var_name]
         unit = "days"
@@ -73,7 +73,7 @@ def panel_map_mae_far_mr(model_list, verification_window, var_name, cfg, setting
             #show_ylabel, title, cmap = False, None, 'RdBu_r'
             show_ylabel, title, cmap = False, '$\Delta$'+unit, 'RdBu_r'
         else:
-            #show_ylabel, title, cmap = True, f"{var_name} {day_bin} day", 'YlOrRd'
+            #show_ylabel, title, cmap = True, f"{var_name} {window_str} day", 'YlOrRd'
             #show_ylabel, title, cmap = True, None, 'YlOrRd'
             show_ylabel, title, cmap = True, unit, 'YlOrRd'
 
@@ -175,11 +175,11 @@ def panel_map_mae_far_mr(model_list, verification_window, var_name, cfg, setting
 
             cb.ax.tick_params(labelsize=7, direction='in', length=1.5)
 
-    fig.suptitle(f"{var_name} {day_bin} day forecast", fontsize=12, y=0.98)
+    fig.suptitle(f"{var_name} {window_str} day forecast", fontsize=12, y=0.98)
     #plt.subplots_adjust(top=0.88, hspace=0.1) # this will change colorbar size and position!!!
 #    plt.tight_layout(rect=[0, 0, 0.99, 1]) # doesn't work for Cartopy axes
 
-    plot_filename = f"map_{var_name}_{day_bin}.png"
+    plot_filename = f"map_{var_name}_{window_str}.png"
     plot_path = os.path.join(cfg.dir_fig, plot_filename)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     print(f"Figure saved to: {plot_path}")
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     model_list = (cfg.ref_model,) + model_list
     verification_window = cfg.verification_window_list[0]
     print(verification_window)
-    day_bin = tuple_to_str(verification_window)
+    window_str = tuple_to_str(verification_window)
     
     var_name = "mean_mae"
 
@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
     for i, model in enumerate(model_list):
         fi = os.path.join(cfg.dir_out,"spatial_metrics_{}_{}.nc")
-        fi = fi.format(model, day_bin)
+        fi = fi.format(model, window_str)
         ds = xr.open_dataset(fi)
         da = ds[var_name]
         ds.close()
@@ -256,7 +256,7 @@ if __name__ == "__main__":
         if i > 0:
             show_ylabel, title, cmap = False, None, 'RdBu_r'
         else:
-            show_ylabel, title, cmap = True, f"{var_name} {day_bin} day", 'YlOrRd'
+            show_ylabel, title, cmap = True, f"{var_name} {window_str} day", 'YlOrRd'
 
         print(i, show_ylabel, title, cmap)
 
@@ -343,11 +343,11 @@ if __name__ == "__main__":
 
 
 
-    fig.suptitle(f"{var_name} (in days) {day_bin} day forecast", fontsize=15)
+    fig.suptitle(f"{var_name} (in days) {window_str} day forecast", fontsize=15)
     plt.tight_layout(rect=[0, 0, 0.99, 1])
     plt.show()
 
-    plot_filename = f"map_{var_name}_{model_name}_{day_bin}.png"
+    plot_filename = f"map_{var_name}_{model_name}_{window_str}.png"
     plot_path = os.path.join(cfg.dir_fig, plot_filename)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     print(f"Figure saved to: {plot_path}")

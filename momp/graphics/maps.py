@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from momp.params.region_def import polygon_boundary
 from momp.utils.land_mask import get_india_outline, shp_outline#, polygon_mask
+from momp.utils.visual import box_boundary
 
 
 def calculate_cmz_averages(da, polygon_lon, polygon_lat):
@@ -31,7 +32,7 @@ def calculate_cmz_averages(da, polygon_lon, polygon_lat):
 
 #def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, figsize=(18, 6), **kwargs):
 def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, dir_fig, region, 
-                         figsize=(18, 6), show_plot=True, **kwargs):
+                         figsize=(18, 6), show_plot=True, rect_box=True, **kwargs):
     """
     Plot spatial maps of Mean MAE, False Alarm Rate, and Miss Rate for one model in a 1x3 subplot
     with region boundary, CMZ polygon, grid values displayed, and CMZ averages.
@@ -342,6 +343,13 @@ def plot_spatial_metrics(spatial_metrics, *, case_name, shpfile_dir, polygon, di
         ax.set_aspect('equal', adjustable='box')
         ax.grid(False)
     
+
+    for ax in axes:
+        if rect_box:
+            box_boundary('rect_boundary', ax, edgecolor='black', linewidth=2,
+                    linestyle='-', fill=False, alpha=1.0,
+                    zorder=20)
+
     plt.tight_layout()
     
     # Save if path provided

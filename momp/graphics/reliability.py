@@ -2,11 +2,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from momp.io.dict import extract_pd_bins
+from momp.utils.printing import tuple_to_str
+from momp.lib.control import filter_bins_in_window
 
 #def plot_reliability_diagram(combined_forecast_obs, years, max_forecast_day, save_fig, dir_fig, **kwargs):
-def plot_reliability_diagram(combined_forecast_obs, *, model, max_forecast_day, 
-                             save_fig, dir_fig, show_plot=True, **kwargs):
+#def plot_reliability_diagram(combined_forecast_obs, *, model, max_forecast_day, day_bins,
+def plot_reliability_diagram(combined_forecast_obs, *, model, verification_window, day_bins,
+                             save_fig, dir_fig, extract_bins=True, show_plot=True, **kwargs):
     """Plot reliability diagram from forecast-observation pairs."""
+
+#    day_bins_filtered = filter_bins_in_window(day_bins, verification_window)
+
+    if extract_bins:
+        combined_forecast_obs = extract_pd_bins(combined_forecast_obs, day_bins)
+#        combined_forecast_obs = extract_pd_bins(combined_forecast_obs, day_bins_filtered)
 
     n_bins = 10
     bin_edges = np.linspace(0, 1, n_bins + 1)
@@ -97,7 +107,9 @@ def plot_reliability_diagram(combined_forecast_obs, *, model, max_forecast_day,
     if save_fig:
         os.makedirs(dir_fig, exist_ok=True)
         #model = kwargs.get("model")
-        fig_fn = os.path.join(dir_fig, f'reliability_{model}_{max_forecast_day}day.png')
+        window_str = tuple_to_str(verification_window)
+        #fig_fn = os.path.join(dir_fig, f'reliability_{model}_{max_forecast_day}day.png')
+        fig_fn = os.path.join(dir_fig, f'reliability_{model}_{window_str}.png')
         fig.savefig(fig_fn, dpi=600, bbox_inches='tight')
         print(f"Figure saved to: {fig_fn}")
 

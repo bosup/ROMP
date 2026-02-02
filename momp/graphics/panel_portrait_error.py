@@ -40,7 +40,7 @@ def panel_portrait_mae_far_mr(results, *, dir_fig, show_panel=True, **kwargs):
         plt.show()
 
     # save figure
-    figure_filename = f'panel_portrait_mae_far_mr.png'
+    figure_filename = f"panel_portrait_mae_far_mr_{kwargs['max_forecast_day']}day.png"
     figure_filename = os.path.join(dir_fig, figure_filename)
     fig.savefig(figure_filename, dpi=300, bbox_inches='tight')
     print(f"Figure saved as '{figure_filename}'")
@@ -75,15 +75,15 @@ if __name__ == "__main__":
     for combi in product(*layout_pool):
         case = make_case(Case, combi, vars(cfg))
 
-        day_bin = tuple_to_str(case.verification_window) 
+        window_bin_str = tuple_to_str(case.verification_window) 
 
         fi = os.path.join(cfg.dir_out,"spatial_metrics_{}_{}.nc")
-        fi = fi.format(case.model, day_bin)
+        fi = fi.format(case.model, window_bin_str)
         ds = xr.open_dataset(fi)
 
         #ds_subset = ds[["mean_mae", "false_alarm_rate", "miss_rate"]]
         #for var in var_list:
-        #    result[case.model][day_bin][var] = ds[var]
+        #    result[case.model][window_bin_str][var] = ds[var]
 
         spatial_metrics_dict = {var: ds[var] for var in var_list}
 
@@ -101,12 +101,12 @@ if __name__ == "__main__":
 
         #print("\n combi  = ", combi)
         #print("case.ref_model = ", case.ref_model)
-        day_bin = tuple_to_str(case.verification_window) 
+        window_bin_str = tuple_to_str(case.verification_window) 
 
         fi = os.path.join(cfg.dir_out,"spatial_metrics_{}_{}.nc")
-        fi = fi.format(case.ref_model, day_bin)
+        fi = fi.format(case.ref_model, window_bin_str)
 
-        if result.get(case.ref_model, {}).get(day_bin) is None:
+        if result.get(case.ref_model, {}).get(window_bin_str) is None:
             #print("\n ref dict is None")
             ds = xr.open_dataset(fi)
             spatial_metrics_dict = {var: ds[var] for var in var_list}
