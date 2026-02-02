@@ -6,6 +6,7 @@ from momp.utils.printing import tuple_to_str
 from momp.io.output import save_ref_score_results, load_ref_score_results
 #from momp.lib.control import restore_args
 from momp.utils.practical import restore_args
+from momp.io.dict import extract_pd_bins
 
 def create_score_results(*, BS, RPS, AUC, skill_score, 
                          ref_model, ref_model_dir, ref_model_var, ref_model_file_pattern, ref_model_unit_cvt,
@@ -33,7 +34,12 @@ def create_score_results(*, BS, RPS, AUC, skill_score,
     results = {}
 
     print("\n1. Processing forecast model...")
-    forecast_obs_df = multi_year_forecast_obs_pairs(**kwargs)
+    #forecast_obs_df = multi_year_forecast_obs_pairs(**kwargs)
+
+    # select bins without "Day before" and "Day After"
+    forecast_obs_df_all = multi_year_forecast_obs_pairs(**kwargs)
+    forecast_obs_df = extract_pd_bins(forecast_obs_df_all, day_bins)
+
     results["forecast_obs_df"] = forecast_obs_df
 
     results["BS"] = calculate_brier_score(forecast_obs_df) if BS else None
@@ -67,7 +73,11 @@ def create_score_results(*, BS, RPS, AUC, skill_score,
     if ref_model == "climatology":
 
         clim_onset = compute_climatological_onset_dataset(**kwargs)
-        climatology_obs_df = multi_year_climatological_forecast_obs_pairs(clim_onset, **kwargs)
+        #climatology_obs_df = multi_year_climatological_forecast_obs_pairs(clim_onset, **kwargs)
+
+        climatology_obs_df_all = multi_year_climatological_forecast_obs_pairs(clim_onset, **kwargs)
+        climatology_obs_df = extract_pd_bins(climatology_obs_df_all, day_bins)
+
         results["climatology_obs_df"] = climatology_obs_df
         
         if BS:
@@ -99,7 +109,10 @@ def create_score_results(*, BS, RPS, AUC, skill_score,
                       'unit_cvt': ref_model_unit_cvt
                       }
 
-        ref_obs_df = multi_year_forecast_obs_pairs(**kwargs_ref)
+        #ref_obs_df = multi_year_forecast_obs_pairs(**kwargs_ref)
+
+        ref_obs_df_all = multi_year_forecast_obs_pairs(**kwargs)
+        ref_obs_df = extract_pd_bins(ref_obs_df_all, day_bins)
 
         if BS:
             brier_ref = calculate_brier_score(ref_obs_df)
