@@ -45,8 +45,8 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
         case = make_case(Case, combi, vars(cfg))
 
         print(f"{'='*50}")
-        print(f"processing {case.model} onset evaluation for verification window \
-                {case.verification_window}, case: {case.case_name}")
+        print(f"processing {case.model} onset evaluation for verification window "
+                f"{case.verification_window}, case: {case.case_name}")
         #print(f"processing bin skill score for {case.case_name}")
 
         day_bins_filtered = filter_bins_in_window(case.day_bins, case.verification_window)
@@ -75,7 +75,7 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
         
 
         # heatmap plot
-        if case_cfg['plot_heatmap']:
+        if case_cfg['plot_heatmap_bss_auc']:
             create_heatmap(score_results, **case_cfg)
 
         # reliability plot
@@ -88,7 +88,7 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
 
     max_forecast_day = cfg.max_forecast_day
 
-    if 2 > 1:
+    if 2 > 3:
         import pickle
         import os
         fout = os.path.join(cfg.dir_out,f"combi_binned_skill_scores_{max_forecast_day}day.pkl")

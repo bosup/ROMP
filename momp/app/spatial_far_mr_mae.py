@@ -6,7 +6,7 @@ import copy
 
 from momp.metrics.error import create_spatial_far_mr_mae
 from momp.stats.benchmark import compute_metrics_multiple_years
-from momp.lib.control import iter_list, make_case
+from momp.lib.control import iter_list, make_case, ref_model_case
 from momp.lib.convention import Case
 #from momp.lib.loader import cfg,setting
 from momp.lib.loader import get_cfg, get_setting
@@ -37,8 +37,8 @@ def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
         case = make_case(Case, combi, vars(cfg))
 
         print(f"{'='*50}")
-        print(f"processing {case.model} onset evaluation for verification window \
-                {case.verification_window}, case: {case.case_name}")
+        print(f"processing {case.model} onset evaluation for verification window "
+                f"{case.verification_window}, case: {case.case_name}")
         #print(f"processing model onset evaluation for {case.case_name}")
         #print(f"\n verification window = {case.verification_window}\n")
 
@@ -100,9 +100,11 @@ def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
     for combi in product(*layout_pool):
         case = make_case(Case, combi, vars(cfg_ref))
         print(f"{'='*50}")
-        print(f"processing {case.model} onset evaluation for verification window \
-                {case.verification_window}, case: {case.case_name}")
+        print(f"processing {case.model} onset evaluation for verification window"
+                f"{case.verification_window}, case: {case.case_name}")
         #print(f"processing model onset evaluation for {case.case_name}")
+
+        #case, case_cfg_reg = ref_model_case(case, case_cfg)
 
         case_ref = {'model_dir': case_cfg['ref_model_dir'],
                     'model_var': case_cfg['ref_model_var'],

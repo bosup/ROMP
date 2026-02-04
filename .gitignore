@@ -16,8 +16,16 @@ __pycache__/
 
 # user specific input, output and figure
 data/
+!/demo/data/
+!/demo/data/**
 figure/
+#!/demo/figure/.gitkeep
+#!/demo/figure/
+#!/demo/figure/**
 output/
+#!/demo/output/.gitkeep
+#!/demo/output/
+#!/demo/output/**
 
 # .DS_Store
 .DS_Store

@@ -1,14 +1,14 @@
 """
-MOMP Main Entry Script
+ROMP Main Entry Script
 ----------------------
-This script serves as the primary execution point for the Monsoon Onset
-Metrics Package (MOMP). It orchestrates the calculation of skill scores
+This script serves as the primary execution point for the Rainy season Onset
+Metrics Package (ROMP). It orchestrates the calculation of skill scores
 or the generation of spatial performance maps.
 
 Usage:
     momp-run
     or
-    python -m MOMP.driver
+    python -m momp.driver
 """
 
 import logging
@@ -44,7 +44,7 @@ cfg, setting = get_cfg(), get_setting()
 #def run_momp(cfg=get_cfg(), setting=get_setting()):
 def run_momp(cfg=cfg, setting=setting):
     """
-    Executes the standard MOMP evaluation workflow.
+    Executes the standard ROMP evaluation workflow.
 
     This function triggers the bin-based skill score calculations
     or generates spatial maps for False Alarm Ratio (FAR),
@@ -60,7 +60,7 @@ def run_momp(cfg=cfg, setting=setting):
 #    print("\n\n\n cfg.max_forecast_day = ", cfg.max_forecast_day)
 #    print("\n\n\n cfg.model = ", cfg.model_list)
 
-    logger.info("Starting MOMP Workflow...")
+    logger.info("Starting ROMP Workflow...")
 
     try:
         # 1. Calculate and save Skill Scores in defined day bins
@@ -71,10 +71,10 @@ def run_momp(cfg=cfg, setting=setting):
         #logger.info("Generating spatial metric maps (FAR, MR, MAE)...")
         spatial_far_mr_mae_map()
 
-        logger.info("MOMP Workflow completed successfully!")
+        logger.info("ROMP Workflow completed successfully!")
 
     except Exception as e:
-        logger.error(f"MOMP failed during execution: {e}")
+        logger.error(f"ROMP failed during execution: {e}")
         traceback.print_exc()
         sys.exit(1)
 
