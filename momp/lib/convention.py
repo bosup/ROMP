@@ -25,11 +25,11 @@ class Case:
     thresh_var: Optional[str] = field(default=None)
 
     wet_init: float = field(default=1.0)
-    wet_threshold: float = field(default=10.0)
-    wet_spell: int = field(default=1)
-    dry_threshold: float = field(default=10.0)
-    dry_spell: int = field(default=1)
-    dry_extent: int = field(default=1)
+    wet_threshold: float = field(default=20.0)
+    wet_spell: int = field(default=3)
+    dry_threshold: float = field(default=1.0)
+    dry_spell: int = field(default=0)
+    dry_extent: int = field(default=0)
 
     probabilistic: bool = field(default=False)
     members: Optional[tuple[int, ...]] = field(default=None)
@@ -39,7 +39,7 @@ class Case:
     verification_window: tuple[int, int] = field(default=(1,15))
     tolerance_days: int = field(default=3)
     max_forecast_day: int = field(default=30)
-    day_bins: tuple[tuple[int, int], ...] = field(default=((1, 5), (6, 10), (11, 15)))
+    day_bins: Optional[tuple[tuple[int, int], ...]] = field(default=((1, 5), (6, 10), (11, 15)))
 
     years: Optional[Union[tuple[int, ...], str]] = field(default=None)
     years_clim: Optional[Union[tuple[int, ...], str]] = field(default=None)
@@ -69,6 +69,8 @@ class Case:
 @dataclass
 class Setting:
     layout: list = field(default_factory=list)
+    model_list: tuple[str, ...] = field(default=None)
+    verification_window_list: tuple[tuple[int, int], ...] = field(default=None)
 
     start_date: tuple[int, int, int] = field(default=(2019,5,1))
     end_date: tuple[int, int, int] = field(default=(2024,10,31))
@@ -82,7 +84,7 @@ class Setting:
     MAE: bool = field(default=False)
     FAR: bool = field(default=False)
     MR: bool = field(default=False)
-    CSI: bool = field(default=False)
+    #CSI: bool = field(default=False)
 
     #probabilistic: bool = field(default=False)
     #members: Optional[tuple[int, ...]] = field(default=None)
@@ -117,7 +119,7 @@ class Setting:
     polygon: bool = field(default=False)
 
     plot_spatial_far_mr_mae: bool = field(default=False)
-    plot_heatmap: bool = field(default=False)
+    plot_heatmap_bss_auc: bool = field(default=False)
     plot_reliability: bool = field(default=False)
     plot_portrait: bool = field(default=False)
     plot_climatology_onset: bool = field(default=False)
@@ -128,7 +130,7 @@ class Setting:
     show_panel: bool = field(default=False)
 
     debug: bool = field(default=False)
-    project_name: str = field(default="MOMP application project")
+    project_name: str = field(default="ROMP application project")
 
     def update(self, updates):
         for key, value in updates.items():

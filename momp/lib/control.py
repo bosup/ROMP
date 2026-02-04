@@ -8,7 +8,7 @@ from momp.lib.convention import Case, Setting
 from momp.utils.printing import combi_to_str
 #from momp.io.input import set_dir
 from momp.utils.practical import set_dir
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 import copy
 
 
@@ -214,11 +214,19 @@ def ref_model_case(case_orig, setting):
 
     case = copy.copy(case_orig)
 
-    case_ref = {'model_dir': setting.ref_model_dir,
-                'model_var': case.ref_model_var,
-                'file_pattern': setting.ref_model_file_pattern,
-                'unit_cvt': setting.ref_model_unit_cvt
-                }
+    if isinstance(setting, Setting):
+        case_ref = {'model_dir': setting.ref_model_dir,
+                    'model_var': case.ref_model_var,
+                    'file_pattern': setting.ref_model_file_pattern,
+                    'unit_cvt': setting.ref_model_unit_cvt
+                    }
+    elif isinstance(setting, dict):
+        case_cfg = setting
+        case_ref = {'model_dir': case_cfg['ref_model_dir'],
+                    'model_var': case_cfg['ref_model_var'],
+                    'file_pattern': case_cfg['ref_model_file_pattern'],
+                    'unit_cvt': case_cfg['ref_model_unit_cvt']
+                    }
 
     case.update(case_ref)
 

@@ -110,10 +110,10 @@ class ROMPValidator:
         is_prob = getattr(self.cfg, 'probabilistic', False)
 
         if is_prob:
-            # 4. Probabilistic runs must have exactly one verification window
-            if len(self.cfg.verification_window_list) != 1:
-                self._add_error("Probabilistic Mode Error: \
-                        verification_window_list must contain exactly one tuple.")
+            ## 4. Probabilistic runs must have exactly one verification window
+            #if len(self.cfg.verification_window_list) != 1:
+            #    self._add_error("Probabilistic Mode Error: \
+            #            verification_window_list must contain exactly one tuple.")
 
             # 5. Window max cannot be smaller than day_bins max
             max_v_day = max([pair[1] for pair in self.cfg.verification_window_list])

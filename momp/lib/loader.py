@@ -18,6 +18,7 @@ from momp.lib.assertion import ROMPValidator, ROMPConfigError
 
 package = "momp"
 base_dir = importlib.resources.files(package)
+base_dir = Path(base_dir).expanduser().as_posix().replace(str(Path.home()), "~")
 print(f"package base dir {base_dir}")
 
 #config_file = set_dir("params/config.in")
