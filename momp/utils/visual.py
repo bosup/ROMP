@@ -579,7 +579,7 @@ def annotate_heatmap(
     x_num = data.shape[1]
     fontsize = kw.get('fontsize')
     #fontsize *= 9/total_num
-    fontsize *= 3/x_num
+    fontsize *= 2/x_num
     kw.update({'fontsize': fontsize})
 
     # Get the formatter in case a string is supplied

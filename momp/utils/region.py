@@ -153,7 +153,12 @@ def region_select(ds, *, region, land_only=True, shp_only=True, **kwargs):
         ds_reg = mask_land(ds_reg)
 
     if shp_only:
-        ds_reg = shp_mask(ds_reg)
+        ds_reg = shp_mask(ds_reg, region=region)
+
+#    print("\n\n\n ds_reg - ", ds_reg.RAINFALL.sel(time='2015-04-11'))
+#    print("\n\n\n ds_reg values- ", ds_reg.RAINFALL.sel(time='2015-04-11').values)
+#    import sys
+#    sys.exit()
 
     return ds_reg
 
