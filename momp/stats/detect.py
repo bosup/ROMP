@@ -248,8 +248,13 @@ def detect_observed_onset(rain_slice, thresh_slice, year, *, wet_init, wet_spell
     else:
         onset_condition = first_day_condition & sum_condition
 
+#    print("rain_slice = ", rain_slice[100,...] )
+    #print("rain_subset = ", rain_subset[100,...] )
+#    print("\nrolling_sum_aligned = ", rolling_sum_aligned[100,...])
+#    print("\nfirst_day_condition = ", first_day_condition[100,...])
+#    print("\nsum_condition = ", sum_condition[100,...])
 #    print("find_first_true = ", find_first_true)
-#    print("onset_condition = ", onset_condition[100,...] )
+#    print("\nonset_condition = ", onset_condition[100,...] )
 #    print("onset_condition = ", onset_condition )
 #    #print(" input_core_dims = ", [['time']])
 #    import sys
@@ -282,6 +287,9 @@ def detect_observed_onset(rain_slice, thresh_slice, year, *, wet_init, wet_spell
         name='onset_date'
     )
 
+#    print("onset_condition = ", onset_condition)
+#    print("onset_indices = ", onset_indices)
+#    print("onset_da  = ", onset_da)
     return onset_da
 
 
@@ -590,6 +598,7 @@ def compute_onset_for_all_members(p_model, thresh_slice, onset_da, *, wet_init, 
             # Get observed onset date for this location
             try:
                 obs_onset = onset_da.isel(lat=lat_idx, lon=lon_idx).values
+#                print("obs_onset = ", obs_onset)
             except:
                 skipped_no_obs += len(members)
                 continue

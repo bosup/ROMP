@@ -40,7 +40,8 @@ def panel_portrait_mae_far_mr(results, *, dir_fig, show_panel=True, **kwargs):
         plt.show()
 
     # save figure
-    figure_filename = f"panel_portrait_mae_far_mr_{kwargs['max_forecast_day']}day.png"
+    first_model = kwargs.get('model_list')[0]
+    figure_filename = f"panel_portrait_mae_far_mr_{first_model}_{kwargs['max_forecast_day']}day.png"
     figure_filename = os.path.join(dir_fig, figure_filename)
     fig.savefig(figure_filename, dpi=300, bbox_inches='tight')
     print(f"Figure saved as '{figure_filename}'")

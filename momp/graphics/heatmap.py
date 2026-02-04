@@ -92,8 +92,6 @@ def create_heatmap(score_results, *, model, verification_window, day_bins, dir_f
     ax2.set_yticklabels([])
 
     plt.tight_layout()
-    if show_plot:
-        plt.show()
 
     # Save with model name and forecast days
     window_str = tuple_to_str(verification_window)
@@ -101,6 +99,10 @@ def create_heatmap(score_results, *, model, verification_window, day_bins, dir_f
     figure_filename = f'skill_scores_heatmap_{model}_{window_str}.png'
     figure_filename = os.path.join(dir_fig, figure_filename)
     plt.savefig(figure_filename, dpi=300, bbox_inches='tight')
+
+    if show_plot:
+        plt.show()
+
     plt.close()
 
     print(f"Figure saved as '{figure_filename}'")
