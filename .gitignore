@@ -16,8 +16,8 @@ __pycache__/
 
 # user specific input, output and figure
 data/
-!/demo/data/
-!/demo/data/**
+#!/demo/data/
+#!/demo/data/**
 figure/
 #!/demo/figure/.gitkeep
 #!/demo/figure/

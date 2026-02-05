@@ -132,7 +132,7 @@ def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, po
                 value = climatological_onset_doy.values[i, j]
                 if not np.isnan(value):
                     text_color = 'white' if value > 200 else 'black'
-                    ax.text(lon, lat, f'{value:.1f}', 
+                    ax.text(lon, lat, f'{value:.0f}', 
                                ha='center', va='center',
                                color=text_color, fontsize=txt_fsize, fontweight='normal')
     
