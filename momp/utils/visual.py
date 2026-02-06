@@ -118,6 +118,7 @@ def box_boundary(rect_boundary, ax, *, edgecolor='black', linewidth=2,
         #import cartopy.crs as ccrs
 
         if isinstance(ax, cgeo.GeoAxes):
+            import cartopy.crs as ccrs
             transform = ccrs.PlateCarree()
     except ImportError:
         # Cartopy not installed → silently fall back to data coords

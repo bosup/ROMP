@@ -263,6 +263,10 @@ def shp_mask(da, region='Ethiopia', resolution='10m', category='cultural', name=
     # get region boundary
     region_geom = get_shp(region=region, resolution=resolution, category=category, name=name)
 
+    if region_geom is None:
+        print("\n WARNING - specified region is not in cartopy.io.shapereader")
+        return da
+
     # Create mask for Ethiopia
     lons, lats = np.meshgrid(da.lon, da.lat)
     points = np.column_stack((lons.ravel(), lats.ravel()))
@@ -289,6 +293,10 @@ def shp_outline(ax, region='Ethiopia', resolution='10m', category='cultural', na
 
     # get region boundary
     region_geom = get_shp(region=region, resolution=resolution, category=category, name=name)
+
+    if region_geom is None:
+        print("WARNING - specified region is not in cartopy.io.shapereader")
+        return ax
 
     # Plot boundary
 #    ax.add_geometries(
@@ -320,4 +328,70 @@ def shp_outline(ax, region='Ethiopia', resolution='10m', category='cultural', na
         ax.add_feature(cfeature.BORDERS, linestyle=":")
 
     return ax
+
+
+
+def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
+    """
+    Mask an xarray Dataset/DataArray using a 0/1 mask stored in a NetCDF file.
+
+    Parameters
+    ----------
+    ds : xr.Dataset or xr.DataArray
+        Data to mask.
+    nc_mask : str
+        Path to NetCDF mask file (e.g., "land.nc").
+    mask_var : str, optional
+        Variable name inside mask file. If None, auto-pick if only one var exists.
+    keep_value : int or float, default 1
+        Which value means "keep". Commonly 1 (keep) and 0 (mask out).
+
+    Returns
+    -------
+    xr.Dataset or xr.DataArray
+        Masked data (values where mask is False become NaN).
+    """
+    mask_ds = xr.open_dataset(nc_mask)
+
+    try:
+        # pick mask variable
+        if mask_var is None:
+            if len(mask_ds.data_vars) != 1:
+                raise ValueError(
+                    f"Mask file has multiple variables {list(mask_ds.data_vars)}; "
+                    "please specify mask_var."
+                )
+            mask = next(iter(mask_ds.data_vars.values()))
+        else:
+            mask = mask_ds[mask_var]
+
+        # convert 0/1 (or numeric) to boolean
+        if mask.dtype == bool:
+            mask_bool = mask
+        else:
+            mask_bool = (mask == keep_value)
+
+        # align to prevent accidental broadcasting (and catch mismatched grids)
+        mask_bool, ds_aligned = xr.align(mask_bool, ds, join="exact")
+
+        ds_aligned = ds_aligned#.compute()
+        mask_bool = mask_bool#.compute()
+
+        #ds_aligned = ds_aligned.chunk(mask_bool.chunksizes)
+        #ds_masked = ds_aligned.where(mask_bool).persist()
+
+        #indices = np.where(mask_bool.values)[0]
+        #ds_masked = ds_aligned.isel(time=indices)
+
+        #ds_masked = ds_aligned.copy(deep=True)
+
+        for var in ds_aligned.data_vars:
+            # This uses numpy's broadcasting which is very fast
+            ds_aligned[var].values = np.where(mask_bool.values, ds_aligned[var].values, np.nan)
+
+        #return ds_masked
+        return ds_aligned
+
+    finally:
+        mask_ds.close()
 

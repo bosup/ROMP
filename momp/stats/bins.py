@@ -528,7 +528,7 @@ def multi_year_forecast_obs_pairs(*, years, obs_dir, obs_file_pattern, obs_var,
 #            p_model_slice = p_model.sel(lat=inside_lats, lon=inside_lons)
             p_model_slice = p_model # !!!!! region subset
                     
-            print("Loading IMD rainfall data...")
+            print("Loading observational rainfall data...")
             rainfall_ds = load_imd_rainfall(year, **kwargs)
 #            rainfall_ds_slice = rainfall_ds.sel(lat=inside_lats, lon=inside_lons)
             rainfall_ds_slice = rainfall_ds #!!!!! region subset

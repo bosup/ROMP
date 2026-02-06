@@ -186,9 +186,12 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     # Load data using xarray
     ds = xr.open_dataset(file_path)
 
+#    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
 #    print("XXXX", ds)
     ds = dim_fmt_model_ensemble(ds)
 
+#    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
+#    print("\n\nYYYYY ds raw ", ds.tp[0,0,0,...].values)
 #    print("YYYY", ds)
     # Find common dates between desired dates and available dates
     # redundant
@@ -201,6 +204,7 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     # Select only the matching initialization times
     ds = ds.sel(init_time=matching_times)
 
+#    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
 #    print("ZZZZZ", ds)
 #    if "total_precipitation_24hr" in ds.data_vars:
 #        ds = ds.rename({"total_precipitation_24hr": "tp"}) # For the quantile-mapped variable change the var name from total_precipitation_24hr to tp
@@ -215,7 +219,6 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
 
     #ds = ds.isel(member =slice(0, mem_num))  # limit to first mem_num members (0-mem_num)
 
-    #print("\n\n\n ds = ", ds)
     #print("\n\n\n members = ", members)
     #print(type(members))
     #print(list(members))
@@ -224,13 +227,18 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
         #ds = ds.isel(member = list(members) )
         ds = ds.sel(member = list(members) )
 
+    #print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
+    #print("\n\n\n ds = ", ds)
     ds = region_select(ds, **kwargs)
 
+    #print("\n\n\n ds = ", ds)
+#    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
     p_model = ds[model_var]  # in mm
 
     if unit_cvt:
         p_model *= unit_cvt
 
+    #print("\n\n\n p_model = ", p_model[1,1,1,...])
     #init_times = p_model.init_time.values
 
     ds.close()

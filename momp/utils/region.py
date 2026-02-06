@@ -2,7 +2,7 @@
 import xarray as xr
 import numpy as np
 from momp.params.region_def import domain
-from momp.utils.land_mask import polygon_mask, mask_land, shp_mask
+from momp.utils.land_mask import polygon_mask, mask_land, shp_mask, apply_nc_mask
 
 #def domain(region, **kwargs):
 #    # swap = False
@@ -143,11 +143,17 @@ def coords_fmt(ds_tag, *, region, **kwargs):
 
 
 
-def region_select(ds, *, region, land_only=True, shp_only=True, **kwargs):
+#def region_select(ds, *, region, land_only=True, shp_only=True, **kwargs):
+def region_select(ds, *, region, nc_mask, land_only=True, shp_only=True, **kwargs):
 
     lats, latn, lonw, lone, ds = coords_fmt(ds, region=region)
 
     ds_reg = ds.sel(lat=slice(lats, latn), lon=slice(lonw, lone))
+
+
+    if nc_mask:
+        ds_reg = apply_nc_mask(ds, nc_mask)
+
 
     if land_only:
         ds_reg = mask_land(ds_reg)
@@ -155,10 +161,12 @@ def region_select(ds, *, region, land_only=True, shp_only=True, **kwargs):
     if shp_only:
         ds_reg = shp_mask(ds_reg, region=region)
 
+    print("xxxxxxxx")
 #    print("\n\n\n ds_reg - ", ds_reg.RAINFALL.sel(time='2015-04-11'))
 #    print("\n\n\n ds_reg values- ", ds_reg.RAINFALL.sel(time='2015-04-11').values)
 #    import sys
 #    sys.exit()
+
 
     return ds_reg
 

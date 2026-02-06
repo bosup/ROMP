@@ -26,7 +26,6 @@ def dim_fmt(ds):
         ds = ds.rename({time_coords: "time"})
 
     return ds
-    return ds
 
 
 def dim_fmt_model(ds):
