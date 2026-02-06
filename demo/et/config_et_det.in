@@ -17,8 +17,6 @@ layout = ("model", "verification_window")
 # Must be models from the same category, e.g., all probabilistic models
 # for all parameter lists in config.in, keep the trailing comma if only one item
 model_list = ("AIFS",)
-#model_list = ("AIFS", "XXXX")
-#model_list = ("AIFS_ENS", "gencast")
 
 # ------------------------------------------------------------------------------
 # 2. OBSERVATION DATA SETTINGS
@@ -61,7 +59,6 @@ ref_model_unit_cvt = None
 # ------------------------------------------------------------------------------
 # List of directories corresponding to the 'model_list'.
 model_dir_list = ("../data/AIFS", )
-#model_dir_list = ("../data/AIFS_ENS", "../data/gencast")
 
 # Variable names for rainfall in each forecast model (e.g., 'tp' for Total Precip).
 model_var_list = ("tp", )
@@ -77,6 +74,9 @@ file_pattern_list = ("{}.nc", )
 # ------------------------------------------------------------------------------
 # Target geographic region for evaluation.
 region = "Ethiopia"
+
+# regional mask in .NetCDF format with 1s and 0s
+nc_mask = "../demo/data/jjas_seasonal_mask_0p25.nc"
 
 # Path to a NetCDF file containing spatial thresholds (MWset). None = Use scalar.
 thresh_file = None
@@ -120,18 +120,6 @@ end_date = (2024, 7, 31)
 start_year_clim = 1998
 end_year_clim = 2024
 
-# Target date for "Rainy season Onset over Kerala" (Month, Day).
-#mok = (6, 2)
-
-# Specific years to include in the forecast analysis.
-#years = (2013, 2014, 2015)
-
-# Specific years used to generate the climatological baseline.
-#years_clim = (2013, 2014, 2015)
-
-# Date buffer to search for onset if it occurs before the start_date.
-#fallback_date = (4, 1)
-
 # List of forecast initialization days (day of week, 0->Monday).
 init_days = (0, 3)
 
@@ -142,22 +130,15 @@ date_filter_year = 2024
 # 8. EVALUATION & VERIFICATION PARAMETERS
 # ------------------------------------------------------------------------------
 # Range of days after initialization to consider for validation.
-#verification_window_list = ((1, 15),)
-#verification_window_list = ((16, 30),)
-#verification_window_list = ((1, 30),)
 verification_window_list = ((1, 15), (16,30))
 
 # Allowed error margin (in days) when comparing forecast to obs onset.
 tolerance_days_list = (3, 5,)
-#tolerance_days_list = (5,)
 
 # Total number of days to look ahead in the forecast.
-#max_forecast_day = 15
 max_forecast_day = 30
 
 # Time windows for grouping statistics (e.g., Week 1, Week 2).
-#day_bins = ((1, 5), (6, 10), (11, 15))
-#day_bins = ((16, 20), (21, 25), (26, 30))
 day_bins = ((1, 5), (6, 10), (11, 15), (16, 20), (21, 25), (26, 30))
 
 # ------------------------------------------------------------------------------
@@ -170,9 +151,7 @@ MR  = True  # Miss Rate (Hit Rate complement)
 
 # --- Probabilistic Metrics ---
 probabilistic = False  # Set True to enable ensemble evaluation
-#members = (1, 2, 3, 4, 5,6,7,8,9,10)  # Ensemble member IDs
-#members = "1-30"
-members = "All"
+members = "All" # ensemble members to be included in evaluation
 
 BS          = True  # Brier Skill Score
 RPS         = True  # Ranked Probability Skill Score
@@ -184,8 +163,8 @@ skill_score = True  # Generic Skill Score calculation
 # 10. OUTPUT & GRAPHICS SETTINGS
 # ------------------------------------------------------------------------------
 # Folders for output data and plots
-dir_out = "../output"
-dir_fig = "../figure"
+dir_out = "../demo/et/output"
+dir_fig = "../demo/et/figure"
 
 # Save file and figure options
 save_fig = True                   # Generate and save PNG/PDF figures
@@ -217,7 +196,7 @@ debug = True # run ROMP in debug mode for developers
 # ------------------------------------------------------------------------------
 
 # Target date for "Rainy season Onset over a specific location e.g. Kerala" (Month, Day).
-mok = (5, 15) # set to None in current package version
+mok = (5, 15) # set to None if not using date filter
 
 # Specific years to include in the forecast analysis.
 # Optional. to overide consecutive year list generated based on start_date and end_date
