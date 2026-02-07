@@ -106,6 +106,11 @@ def box_boundary(rect_boundary, ax, *, edgecolor='black', linewidth=2,
 
     lats, latn, lonw, lone = domain(rect_boundary)
 
+    vals = [lats, latn, lonw, lone]
+
+        if any(v > 360 or v < -180 for v in vals):
+            return ax
+
     # Normalize bounds (safety)
     lonw, lone = sorted([lonw, lone])
     lats, latn = sorted([lats, latn])
@@ -138,7 +143,7 @@ def box_boundary(rect_boundary, ax, *, edgecolor='black', linewidth=2,
     )
 
     ax.add_patch(rect)
-    return rect
+    return ax #, rect
 
 
 def portrait_plot(

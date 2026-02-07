@@ -161,7 +161,7 @@ def region_select(ds, *, region, nc_mask, land_only=True, shp_only=True, **kwarg
     if shp_only:
         ds_reg = shp_mask(ds_reg, region=region)
 
-    print("xxxxxxxx")
+#    print("xxxxxxxx")
 #    print("\n\n\n ds_reg - ", ds_reg.RAINFALL.sel(time='2015-04-11'))
 #    print("\n\n\n ds_reg values- ", ds_reg.RAINFALL.sel(time='2015-04-11').values)
 #    import sys
