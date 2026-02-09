@@ -61,7 +61,7 @@ ref_model_unit_cvt = None
 # 4. FORECAST MODEL SETTINGS
 # ------------------------------------------------------------------------------
 # List of directories corresponding to the 'model_list'.
-model_dir_list = ("../data/AIFS_ENS", "../data/gencast")
+model_dir_list = ("../data/gencast", "../data/AIFS_ENS")
 
 # Variable names for rainfall in each forecast model (e.g., 'tp' for Total Precip).
 model_var_list = ("tp", "tp")
