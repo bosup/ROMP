@@ -27,7 +27,7 @@ model_list = ("AIFS",)
 obs = "CHIRPS_IMERG"
 
 # Root directory for observational NetCDF files.
-obs_dir = "../data/CHIRPS_IMERG"
+obs_dir = "data/CHIRPS_IMERG"
 
 # Pattern to find files. {} is replaced by date/year components.
 obs_file_pattern = ("{}.nc",)
@@ -45,7 +45,7 @@ obs_unit_cvt = None
 ref_model = "climatology"
 
 # Directory for the reference model data.
-ref_model_dir = "../data/CHIRPS_IMERG"
+ref_model_dir = "data/CHIRPS_IMERG"
 
 # File naming pattern for the reference model.
 ref_model_file_pattern = "{}.nc"
@@ -60,7 +60,7 @@ ref_model_unit_cvt = None
 # 4. FORECAST MODEL SETTINGS
 # ------------------------------------------------------------------------------
 # List of directories corresponding to the 'model_list'.
-model_dir_list = ("../data/AIFS", )
+model_dir_list = ("data/AIFS", )
 
 # Variable names for rainfall in each forecast model (e.g., 'tp' for Total Precip).
 model_var_list = ("tp", )
@@ -78,7 +78,7 @@ file_pattern_list = ("{}.nc", )
 region = "Ethiopia"
 
 # regional mask in .NetCDF format with 1s and 0s
-nc_mask = "../demo/data/jjas_seasonal_mask_0p25.nc"
+nc_mask = "demo/data/jjas_seasonal_mask_0p25.nc"
 
 # shapefile to define region boundary, None if not drawing boundary using shapefile
 shpfile_dir = None
@@ -106,7 +106,7 @@ dry_spell = 7
 
 # Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
 # set to 0 if rainy season cessation is not part of the search algorithm
-dry_extent = 0
+dry_extent = 21
 
 # Path to a NetCDF file containing spatial thresholds (MWset). None = Use scalar.
 thresh_file = None
@@ -171,8 +171,8 @@ skill_score = True  # Generic Skill Score calculation
 # 10. OUTPUT & GRAPHICS SETTINGS
 # ------------------------------------------------------------------------------
 # Folders for output data and plots
-dir_out = "../demo/et/output"
-dir_fig = "../demo/et/figure"
+dir_out = "demo/et/output"
+dir_fig = "demo/et/figure"
 
 # Save file and figure options
 save_fig = True                   # Generate and save PNG/PDF figures

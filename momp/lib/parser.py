@@ -306,21 +306,30 @@ def ensure_config_exists(param_path: str) -> Path:
     Ensure a user-writable config exists at param_path.
     If missing, create it from the packaged template momp/params/config.in.
     """
-    dst = Path(param_path).expanduser()
+#    dst = Path(param_path).expanduser()
+#
+#    if dst.exists():
+#        return dst
+#
+#    dst.parent.mkdir(parents=True, exist_ok=True)
+#
+#    template = (
+#        resources.files("momp")
+#        .joinpath("params/config.in")
+#        .read_text(encoding="utf-8")
+#    )
+#
+#    dst.write_text(template, encoding="utf-8")
+#    return dst
 
-    if dst.exists():
-        return dst
+    if param_path == "params/config.in":
+        # return a real path to the packaged file (read-only)
+        print("WOWOWOWO")
+        with resources.as_file(resources.files("momp").joinpath("params/config.in")) as p:
+            print("NICE resolved")
+            return Path(p)
 
-    dst.parent.mkdir(parents=True, exist_ok=True)
-
-    template = (
-        resources.files("momp")
-        .joinpath("params/config.in")
-        .read_text(encoding="utf-8")
-    )
-
-    dst.write_text(template, encoding="utf-8")
-    return dst
+    return Path(param_path).expanduser().resolve()
 
 
 ## Helper to parse date tuples (YYYY, M, D), python script.py --start_date "(2019, 6, 1)"
