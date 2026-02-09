@@ -9,7 +9,7 @@
 # ------------------------------------------------------------------------------
 project_name = "test ROMP run with demo data"
 work_dir = "~/Code/benchmarking/test_romp_project/"
-pkg_dir = "~/Code/benchmarking/momp/"
+pkg_dir = "~/Code/benchmarking/momp/" # package dir where the momp/ folder is
 
 # Internal benchmarking workflow layout (e.g., dimensions in the processed case).
 # Frozen with major ROMP versions
@@ -73,16 +73,20 @@ unit_cvt_list = (None, None)
 file_pattern_list = ("{}.nc", "{}.nc")
 
 # ------------------------------------------------------------------------------
-# 5. REGION & THRESHOLD DEFINITIONS
+# 5. REGION DEFINITIONS
 # ------------------------------------------------------------------------------
 # Target geographic region for evaluation.
 region = "India"
+
+# regional mask in .NetCDF format with 1s and 0s
+#nc_mask = "../demo/data/jjas_seasonal_mask_0p25.nc"
+nc_mask = None
 
 # shapefile to define region boundary, None if not drawing boundary using shapefile
 shpfile_dir = "../demo/data/shpfile" 
 
 # Mask/boundary as region polygons, if True must define in params/region_def
-polygon = False              
+polygon = True
 
 # ------------------------------------------------------------------------------
 # 6. RAINY SEASON/MONSOON ONSET CRITERIA (Physics Logic)

@@ -9,7 +9,7 @@
 # ------------------------------------------------------------------------------
 project_name = "test ROMP run with sample data"
 work_dir = "~/Code/benchmarking/test_romp_project/"
-pkg_dir = "~/Code/benchmarking/momp/"
+pkg_dir = "~/Code/benchmarking/momp/" # package dir where the momp/ folder is
 
 # Internal data layout (e.g., dimensions in the processed case).
 # Frozen with major ROMP version
@@ -72,7 +72,7 @@ unit_cvt_list = (None, )
 file_pattern_list = ("{}.nc", )
 
 # ------------------------------------------------------------------------------
-# 5. REGION & THRESHOLD DEFINITIONS
+# 5. REGION DEFINITIONS
 # ------------------------------------------------------------------------------
 # Target geographic region for evaluation.
 region = "Ethiopia"
@@ -80,11 +80,11 @@ region = "Ethiopia"
 # regional mask in .NetCDF format with 1s and 0s
 nc_mask = "../demo/data/jjas_seasonal_mask_0p25.nc"
 
-# Path to a NetCDF file containing spatial thresholds (MWset). None = Use scalar.
-thresh_file = None
+# shapefile to define region boundary, None if not drawing boundary using shapefile
+shpfile_dir = None
 
-# Variable name for the threshold inside the thresh_file.
-thresh_var = None
+# Mask/boundary as region polygons, if True must define in params/region_def
+polygon = False
 
 # ------------------------------------------------------------------------------
 # 6. ONSET CRITERIA (Physics Logic)
@@ -107,6 +107,12 @@ dry_spell = 7
 # Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
 # set to 0 if rainy season cessation is not part of the search algorithm
 dry_extent = 0
+
+# Path to a NetCDF file containing spatial thresholds (MWset). None = Use scalar.
+thresh_file = None
+
+# Variable name for the threshold inside the thresh_file.
+thresh_var = None
 
 # Probability threshold (0.0 - 1.0) for determining onset in ensemble members.
 onset_percentage_threshold = 0.5
@@ -175,8 +181,6 @@ save_csv_score = True             # Save skill scores as CSV
 save_nc_climatology = True        # Save calculated climatology to NetCDF
 
 # Graphics configuration
-shpfile_dir = None # Path to GIS shapefiles
-polygon = False                                     # Mask/Plot by region polygons
 plot_spatial_far_mr_mae = True                     # Generate spatial maps of far,mr,mae
 plot_heatmap_bss_auc = True                         # Generate score heatmaps
 plot_reliability = True                            # Generate reliability curve plots
@@ -191,7 +195,7 @@ show_panel = True                                 # show panel plot
 # ------------------------------------------------------------------------------
 # 11. DEBUG SETTINGS
 # ------------------------------------------------------------------------------
-debug = True # run ROMP in debug mode for developers
+debug = False # run ROMP in debug mode for developers
 
 # ------------------------------------------------------------------------------
 # PARAMS RESERVED FOR FUTURE VERSIONS, NOT VALID IN CURRENT PACKAGE VERSION

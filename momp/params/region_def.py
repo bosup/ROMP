@@ -11,11 +11,23 @@ def domain(region, **kwargs):
         lonw = 33
         lone = 48
 
+#    if region == "Sub_Ethiopia":
+#        lats = 8
+#        latn = 12
+#        lonw = 38
+#        lone = 42
+
+#    if region == "Sub_Ethiopia":
+#        lats = 10.5 
+#        latn = 12.5
+#        lonw = 37.5
+#        lone = 40
+
     if region == "Sub_Ethiopia":
-        lats = 8
-        latn = 12
-        lonw = 38
-        lone = 42
+        lats = 7.5 
+        latn = 13.5
+        lonw = 37.5 
+        lone = 38.75
 
     if region == "India":
         lats = 6.46
