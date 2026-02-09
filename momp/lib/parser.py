@@ -324,9 +324,9 @@ def ensure_config_exists(param_path: str) -> Path:
 
     if param_path == "params/config.in":
         # return a real path to the packaged file (read-only)
-        print("WOWOWOWO")
+#        print("WOWOWOWO")
         with resources.as_file(resources.files("momp").joinpath("params/config.in")) as p:
-            print("NICE resolved")
+#            print("NICE resolved")
             return Path(p)
 
     return Path(param_path).expanduser().resolve()
