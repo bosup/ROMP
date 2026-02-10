@@ -36,7 +36,7 @@ def domain(region, **kwargs):
         lone = 91.4
 
     if region == "rect_boundary":
-        lats = 8
+        lats = 999#8
         latn = 12# - 0.75
         lonw = 38
         lone = 42# -1
