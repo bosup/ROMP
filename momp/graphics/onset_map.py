@@ -243,14 +243,18 @@ if __name__ == "__main__":
         break
 
 
-    plot_spatial_climatology_onset(onset_da_dict, 
-                                   figsize=(18, 6), cbar_ssn=False, domain_mask=False, **case_cfg_ref)
+#    plot_spatial_climatology_onset(onset_da_dict, 
+#                                   figsize=(18, 6), cbar_ssn=False, domain_mask=False, **case_cfg_ref)
 
-#    da = next(iter(onset_da_dict.values()))
-#
-#    spatial_metrics_map(da, case.model, 
-#                    fig=None, ax=None, figsize=(8, 6), cmap='YlOrRd', n_colors=10,
-#                    onset_plot=True, cbar_ssn=True, domain_mask=True, polygon_only=False,
-#                    show_ylabel=True, title="climatology onset", **case_cfg_ref)
+    da = next(iter(onset_da_dict.values()))
 
+    fig, _, _, _ = spatial_metrics_map(da, case.model, 
+                    fig=None, ax=None, figsize=(8, 6), cmap='YlOrRd', n_colors=10,
+                    onset_plot=True, cbar_ssn=True, domain_mask=True, polygon_only=False,
+                    show_ylabel=True, title="climatology onset", **case_cfg_ref)
 
+    years_clim = case_cfg_ref.get('years_clim')
+    dir_fig = case_cfg_ref.get('dir_fig')
+    plot_filename = f"climatology_onset_{tuple_to_str_range(years_clim)}.png"
+    plot_path = os.path.join(dir_fig, plot_filename)
+    fig.savefig(plot_path, dpi=300, bbox_inches='tight')
