@@ -122,7 +122,7 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
             window_str = tuple_to_str(verification_window)
             result_overall_window = select_key_at_level(result_overall, 2, window_str)
             print("\n\n\n result_overall_window = ", result_overall_window)
-            pprint(result_overall_window)
+            #pprint(result_overall_window)
             panel_bar_bss_rpss_auc(result_overall_window, verification_window, **vars(cfg))
 
 #    # make spatial metrics plot --note it works only for whole country region, not subregion
