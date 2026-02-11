@@ -106,7 +106,7 @@ dry_spell = 7
 
 # Search window (days) after onset to check for the dry spell. Must be >= dry_spell.
 # set to 0 if rainy season cessation is not part of the search algorithm
-dry_extent = 21
+dry_extent = 0
 
 # Path to a NetCDF file containing spatial thresholds (MWset). None = Use scalar.
 thresh_file = None
