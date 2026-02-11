@@ -27,6 +27,7 @@ def panel_bar_bss_rpss_auc(result_overall, verification_window, *, dir_fig,
     bss, model_list  = extract_overall_dict(result_overall, 'Fair_Brier_Skill_Score')
     rps, _  = extract_overall_dict(result_overall, 'Fair_RPS_Skill_Score')
     auc, _  = extract_overall_dict(result_overall, 'AUC')
+    print("/n/n result_overall = ", result_overall)
     auc_ref, _  = extract_overall_dict(result_overall, 'AUC_ref')#[0]
     auc_ref = auc_ref[0]
 
