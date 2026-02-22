@@ -40,6 +40,17 @@ def create_score_results(*, BS, RPS, AUC, skill_score,
     forecast_obs_df_all = multi_year_forecast_obs_pairs(**kwargs)
     forecast_obs_df = extract_pd_bins(forecast_obs_df_all, day_bins)
 
+#    import pandas as pd
+#    pd.set_option('display.max_rows', None)
+#    pd.set_option('display.max_columns', None)
+#    pd.set_option('display.width', None)
+#    pd.set_option('display.max_colwidth', None)
+#    fields = ["init_time", "lat", "lon", "bin_label", "predicted_prob", "observed_onset"]
+#    print("\n\n\n forecast_obs_df_all = ", forecast_obs_df_all[fields])
+#    print("\n\n\n forecast_obs_df = ", forecast_obs_df[fields])
+#    import sys
+#    sys.exit()
+
     results["forecast_obs_df"] = forecast_obs_df
 
     results["BS"] = calculate_brier_score(forecast_obs_df) if BS else None
@@ -80,6 +91,18 @@ def create_score_results(*, BS, RPS, AUC, skill_score,
 
         results["climatology_obs_df"] = climatology_obs_df
         
+#        print("\n clim_onset = ", clim_onset)
+#        import pandas as pd
+#        pd.set_option('display.max_rows', None)
+#        pd.set_option('display.max_columns', None)
+#        pd.set_option('display.width', None)
+#        pd.set_option('display.max_colwidth', None)
+#        fields = ["init_time", "lat", "lon", "bin_label", "predicted_prob", "observed_onset"]
+#        print("\n\n\n climatology_obs_df_all = ", climatology_obs_df_all[fields])
+#        print("\n\n\n climatology_obs_df = ", climatology_obs_df[fields])
+#        import sys
+#        sys.exit()
+
         if BS:
             brier_ref = calculate_brier_score_climatology(climatology_obs_df)
             results["BS_ref"] = brier_ref

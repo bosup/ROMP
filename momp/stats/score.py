@@ -278,7 +278,8 @@ def calculate_brier_score_climatology(forecast_obs_df):
     """
     
     # Filter out "Before initialization" bin
-    filtered_df = forecast_obs_df[forecast_obs_df['bin_label'] != 'Before initialization'].copy()
+    #filtered_df = forecast_obs_df[forecast_obs_df['bin_label'] != 'Before initialization'].copy()
+    filtered_df = forecast_obs_df[~forecast_obs_df['bin_label'].str.contains('Before', na=False)].copy()
     
     if len(filtered_df) == 0:
         print("Warning: No data remaining after filtering out 'Before initialization' bin")
@@ -354,7 +355,8 @@ def calculate_auc_climatology(forecast_obs_df):
     --------
     dict with AUC metrics
     """
-    forecast_obs_df = forecast_obs_df[forecast_obs_df['bin_label'] != 'Before initialization'].copy()
+    #forecast_obs_df = forecast_obs_df[forecast_obs_df['bin_label'] != 'Before initialization'].copy()
+    forecast_obs_df = forecast_obs_df[~forecast_obs_df['bin_label'].str.contains('Before', na=False)].copy()
     # Extract probabilities and observations
     p_ij = forecast_obs_df['predicted_prob'].values
     y_ij = forecast_obs_df['observed_onset'].values

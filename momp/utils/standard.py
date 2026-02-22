@@ -16,6 +16,9 @@ def dim_fmt(ds):
 #        time_coords = [variable for variable in coord_list if "TIME" in variable][0]
 #        ds = ds.rename({time_coords: "time"})
 
+    if set(ds.dims) == {"lat", "lon"} and len(ds.dims) == 2:
+        return ds
+
     if "time" not in coord_list:
         keywords = ["time", 'date']
         time_coords = [
