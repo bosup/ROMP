@@ -152,7 +152,7 @@ def region_select(ds, *, region, nc_mask, land_only=True, shp_only=True, **kwarg
 
 
     if nc_mask:
-        ds_reg = apply_nc_mask(ds, nc_mask)
+        ds_reg = apply_nc_mask(ds_reg, nc_mask)
 
 
     if land_only:
@@ -167,6 +167,10 @@ def region_select(ds, *, region, nc_mask, land_only=True, shp_only=True, **kwarg
 #    import sys
 #    sys.exit()
 
+#    print("\n\n\n reigon = ", region)
+#    print(f"\n\n\n lats = {lats}, latn = {latn}, lonw = {lonw}, lone = {lone}")
+#    print("\n\n\n ds_reg.lat = ", ds_reg.lat)
+#    print("\n\n\n ds_reg.lon = ", ds_reg.lon)
 
     return ds_reg
 

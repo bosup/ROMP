@@ -59,7 +59,8 @@ def get_initialization_dates(year, *, date_filter_year, init_days, start_date, e
     return filtered_dates_yr
 
 
-def load_imd_rainfall(year, *, obs_dir, obs_file_pattern, obs_var, obs_unit_cvt, region, **kwargs):
+def load_imd_rainfall(year, *, obs_dir, obs_file_pattern, obs_var, obs_unit_cvt, region, 
+                      grid_point=False, lat_select=None, lon_select=None, **kwargs):
     """Load IMD daily rainfall NetCDF for a given year."""
 
     #file_patterns = [f"data_{year}.nc", f"{year}.nc"]
@@ -95,6 +96,8 @@ def load_imd_rainfall(year, *, obs_dir, obs_file_pattern, obs_var, obs_unit_cvt,
     if obs_unit_cvt:
         rainfall *= obs_unit_cvt
 
+    if grid_point:
+        rainfall = rainfall.sel(lat=[lat_select], lon=[lon_select])
 
     return rainfall
 

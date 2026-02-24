@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib.dates as mdates
 
-def plot_rainfall_timeseries_with_onset_and_wetspell(pr, onset_date, wetspell_date, lat_select, lon_select, year_select=None, save_path=None):
+def plot_rainfall_timeseries_with_onset_and_wetspell(pr, onset_date, wetspell_date, lat_select, lon_select, year_select=None, save_path=None, incl_clim=None, pr_clim=None, onset_clim=None):
     """
     Plot rainfall time series for a selected grid point with onset and wet spell dates marked.
     
@@ -47,6 +47,19 @@ def plot_rainfall_timeseries_with_onset_and_wetspell(pr, onset_date, wetspell_da
             color='blue', markerfacecolor='blue', markeredgecolor='blue',
             markeredgewidth=0.5, alpha=0.8, label='Daily rainfall')
     
+    #print("pr_year = ", pr_year.values)
+    #print("pr_clim = ", pr_clim.values)
+    #import sys
+    #sys.exit()
+
+    if incl_clim:
+        ax.plot(pr_clim.time, pr_clim.values, marker='s', markersize=3, linewidth=1.5,
+            color='dimgray', markerfacecolor='dimgray', markeredgecolor='dimgray',
+            markeredgewidth=0.5, alpha=0.8, label='Climatology')
+
+        ax.axvline(x=onset_clim, color='grey', linewidth=1.5, linestyle='-',
+                    label=f'Onset clim: {onset_clim.strftime("%b %d")}', alpha=0.8)
+
     # Mark wet spell date if it exists
     #if not pd.isna(wetspell_year.values):
     #    wetspell_datetime = pd.to_datetime(wetspell_year.values)

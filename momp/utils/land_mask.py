@@ -6,6 +6,7 @@ import regionmask
 import xarray as xr
 from momp.params.region_def import polygon_boundary
 from matplotlib.patches import Polygon
+from momp.utils.standard import dim_fmt
 
 
 # Function to find grid points inside a polygon (For core-monsoon zone analysis)
@@ -351,7 +352,16 @@ def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
     xr.Dataset or xr.DataArray
         Masked data (values where mask is False become NaN).
     """
+
     mask_ds = xr.open_dataset(nc_mask)
+    #print("mask_ds = ", mask_ds)
+    mask_ds = dim_fmt(mask_ds)
+    #print("\nmask_ds = ", mask_ds)
+
+    mask_ds = mask_ds.sel(lat=ds.lat, lon=ds.lon, method="nearest")
+
+    # subset mask_ds according to ds region bounds
+    #mask_ds, _ = xr.align(mask_ds, ds, join="inner")
 
     try:
         # pick mask variable
@@ -370,12 +380,18 @@ def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
             mask_bool = mask
         else:
             mask_bool = (mask == keep_value)
+        
+        #print("\n mask_bool = ", mask_bool)
+        #print("\n ds = ", ds)
 
         # align to prevent accidental broadcasting (and catch mismatched grids)
         mask_bool, ds_aligned = xr.align(mask_bool, ds, join="exact")
 
-        ds_aligned = ds_aligned#.compute()
-        mask_bool = mask_bool#.compute()
+        #print("\n mask_bool = ", mask_bool)
+        #print("\n ds_aligned = ", ds_aligned)
+
+        #ds_aligned = ds_aligned#.compute()
+        #mask_bool = mask_bool#.compute()
 
         #ds_aligned = ds_aligned.chunk(mask_bool.chunksizes)
         #ds_masked = ds_aligned.where(mask_bool).persist()
