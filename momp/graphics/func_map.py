@@ -218,10 +218,8 @@ def spatial_metrics_map(da, model_name, *, years, shpfile_dir, polygon, dir_fig,
                     linestyle='-', fill=False, alpha=1.0,
                     zorder=20)
 
-    plt.tight_layout()
-
+    # removed plt.tight_layout() because this doesn't work Cartopy axes in plot_panel_error
     if not panel:
-        plt.tight_layout()
         plt.show()
     
     
@@ -316,4 +314,3 @@ if __name__ == "__main__":
                         show_ylabel=True, title="spatial metrics", **case_cfg_ref)
     
         break
-
