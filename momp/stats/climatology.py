@@ -19,7 +19,8 @@ import sys
 
 def compute_climatological_onset(*, obs_dir, obs_file_pattern, obs_var, thresh_file, thresh_var, wet_threshold, 
                                   wet_init, wet_spell, dry_spell, dry_threshold, dry_extent, start_date, 
-                                 fallback_date, mok, years_clim, **kwargs):
+                                 fallback_date, mok, years_clim,
+                                 grid_point=False, lat_select=None, lon_select=None, **kwargs):
     """
     Compute climatological onset dates from all available IMD files.
     
@@ -39,12 +40,25 @@ def compute_climatological_onset(*, obs_dir, obs_file_pattern, obs_var, thresh_f
     print(f"Computing climatological onset from {len(years_clim)} years_clim: {min(years_clim)}-{max(years_clim)}")
     
     all_onset_days = []
+    rainfall_all_years = []
     
     for year in years_clim:       
         try:
             # Load rainfall data using the existing function that handles both patterns
-            rainfall_ds = load_imd_rainfall(year, **kwargs)
+            if grid_point:
+                if np.ndim(thresh_da) > 0:
+                    raise ValueError("thresh_da must be scalar.")
+
+                rainfall_ds = load_imd_rainfall(year, **kwargs)
+                #rainfall_ds = load_imd_rainfall(year, grid_point=grid_point, 
+                #                                lat_select=lat_select, lon_select=lon_select, **kwargs)
+
+                rainfall_all_years.append(rainfall_ds)
             
+            else:
+                rainfall_ds = load_imd_rainfall(year, **kwargs)
+
+
             # Detect onset for this year
             onset_da = detect_observed_onset(rainfall_ds, thresh_da, year, **kwargs)
             #print("\n\n\n year = ", year)
@@ -59,7 +73,7 @@ def compute_climatological_onset(*, obs_dir, obs_file_pattern, obs_var, thresh_f
             all_onset_days.append(onset_doy)
             
         except Exception as e:
-            print(f"Warning: Could not process year {year}: {e}")
+            print(f"Warning: Could not process year {year} when compute_climagoloical_onset: {e}")
             raise
             continue
     
@@ -74,6 +88,29 @@ def compute_climatological_onset(*, obs_dir, obs_file_pattern, obs_var, thresh_f
     climatological_onset_doy = np.round(climatological_onset_doy)
     
     print(f"Climatological onset computed from {len(all_onset_days)} valid years")
+
+    if grid_point:
+        #print("\n\n rainfall_all_years = ", rainfall_all_years)
+        rainfall_stack = xr.concat(rainfall_all_years, dim='year')
+        #rainfall_clim_mean = rainfall_stack.mean(dim='year') # doesn't work as time dim contain unique timestamp
+
+        # create day-of-year coordinate (1-365)
+        rainfall_stack = rainfall_stack.sel(time=~((rainfall_stack['time'].dt.is_leap_year) &
+                                           (rainfall_stack['time'].dt.dayofyear == 366)))
+        
+        # Create day-of-year index (just integer 1-365)
+        doy = rainfall_stack['time'].dt.dayofyear
+        rainfall_stack = rainfall_stack.assign_coords(doy=doy)
+        
+        # Aggregate over years using groupby
+        # explicitly reduce the 'time' dimension by taking mean
+        rainfall_clim_mean = (
+            rainfall_stack.groupby('doy')
+            .mean(dim='time')  # <- reduce the concatenated time dimension
+            .mean(dim='year')  # <- average across years
+        )
+
+        return climatological_onset_doy, rainfall_clim_mean
     
     return climatological_onset_doy
 
