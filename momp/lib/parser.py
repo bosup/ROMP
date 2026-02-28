@@ -179,6 +179,13 @@ def create_parser(config, cli_args=None):
     )
 
     parser.add_argument(
+        "--parallel",
+        type=str2bool,
+        default=config['parallel'],
+        help="parallelization, True of False (default: {config['parallel']})"
+    )
+
+    parser.add_argument(
         "--region",
         type=str,
         default=config['region'],

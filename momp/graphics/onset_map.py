@@ -16,6 +16,7 @@ from momp.utils.land_mask import shp_outline, shp_mask, add_polygon
 from momp.graphics.func_map import spatial_metrics_map
 from momp.utils.visual import box_boundary
 
+#from momp.stats.parallel import parallel_metrics_multiple_years
 
 def plot_spatial_climatology_onset(onset_da_dict, *, years_clim, shpfile_dir, polygon, dir_fig, 
                                    region, figsize=(18, 6), cbar_ssn=False, domain_mask=False, 

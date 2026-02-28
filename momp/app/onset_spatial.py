@@ -40,15 +40,15 @@ def spatial_onset(year, *, obs_dir, obs_file_pattern, obs_var,
 
 
 if __name__ == "__main__":
-    from itertools import product
-    from momp.stats.benchmark import compute_metrics_multiple_years
-    from momp.lib.control import iter_list, make_case
-    from momp.lib.convention import Case
+    #from itertools import product
+    #from momp.stats.benchmark import compute_metrics_multiple_years
+    #from momp.lib.control import iter_list, make_case
+    #from momp.lib.convention import Case
     from momp.lib.loader import get_cfg, get_setting
-    from dataclasses import asdict
+    #from dataclasses import asdict
     #from momp.graphics.onset_map import plot_spatial_climatology_onset
-    from momp.graphics.func_map import spatial_metrics_map
-    import xarray as xr
+    #from momp.graphics.func_map import spatial_metrics_map
+    #import xarray as xr
 
     cfg, setting = get_cfg(), get_setting()
 

@@ -53,9 +53,9 @@ def plot_rainfall_timeseries_with_onset_and_wetspell(pr, onset_date, wetspell_da
     #sys.exit()
 
     if incl_clim:
-        ax.plot(pr_clim.time, pr_clim.values, marker='s', markersize=3, linewidth=1.5,
+        ax.plot(pr_clim.time, pr_clim.values, marker='s', markersize=2, linewidth=1.2,
             color='dimgray', markerfacecolor='dimgray', markeredgecolor='dimgray',
-            markeredgewidth=0.5, alpha=0.8, label='Climatology')
+            markeredgewidth=0.3, alpha=0.8, label='Climatology')
 
         ax.axvline(x=onset_clim, color='grey', linewidth=1.5, linestyle='-',
                     label=f'Onset clim: {onset_clim.strftime("%b %d")}', alpha=0.8)

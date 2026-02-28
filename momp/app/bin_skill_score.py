@@ -61,8 +61,14 @@ def skill_score_in_bins(cfg=cfg, setting=setting):
 #        from pprint import pprint
 #        pprint(case_cfg)
 
+        import time
+        start = time.perf_counter()
+
         # Create bin skill score metrics
         score_results = create_score_results(**case_cfg)
+
+        end = time.perf_counter()
+        print(f"\n\n\n skill score Execution time: {end - start:.4f} seconds\n\n\n")
         
         # save score results as csv file
         if case_cfg['save_csv_score']:

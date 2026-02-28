@@ -193,7 +193,12 @@ plot_bar_bss_rpss_auc = True                    # bar plot of skill score
 show_plot = False                                 # show individual model plot
 show_panel = True                                 # show panel plot
 # ------------------------------------------------------------------------------
-# 11. DEBUG SETTINGS
+# 11. PARALLELIZATION SETTINGS
+# ------------------------------------------------------------------------------
+parallel = False # compute with multi-cores in parallel
+
+# ------------------------------------------------------------------------------
+# 12. DEBUG SETTINGS
 # ------------------------------------------------------------------------------
 debug = False # run ROMP in debug mode for developers
 

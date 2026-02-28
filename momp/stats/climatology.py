@@ -406,10 +406,10 @@ def compute_climatological_onset_dataset(*, obs_dir, obs_file_pattern, obs_var, 
     print(f"Method: {'MOK ({mok} filter)' if mok else 'No date filter'}")
 
     # Show onset statistics by year
-    print(f"\nOnset statistics by year:")
-    for i, year in enumerate(valid_years):
-        year_onsets = (~pd.isna(climatological_onset_da.isel(year=i).values)).sum()
-        print(f"  {year}: {year_onsets}/{rainfall_ds[0].size} ({year_onsets/rainfall_ds[0].size:.1%})")
+    #print(f"\nOnset statistics by year:")
+    #for i, year in enumerate(valid_years):
+    #    year_onsets = (~pd.isna(climatological_onset_da.isel(year=i).values)).sum()
+    #    print(f"  {year}: {year_onsets}/{rainfall_ds[0].size} ({year_onsets/rainfall_ds[0].size:.1%})")
 
     return climatological_onset_da
 

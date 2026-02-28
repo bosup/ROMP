@@ -265,7 +265,7 @@ def shp_mask(da, region='Ethiopia', resolution='10m', category='cultural', name=
     region_geom = get_shp(region=region, resolution=resolution, category=category, name=name)
 
     if region_geom is None:
-        print("\n WARNING - specified region is not in cartopy.io.shapereader")
+        print("    WARNING - specified region is not in cartopy.io.shapereader")
         return da
 
     # Create mask for Ethiopia
