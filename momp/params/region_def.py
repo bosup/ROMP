@@ -17,17 +17,17 @@ def domain(region, **kwargs):
 #        lonw = 38
 #        lone = 42
 
-#    if region == "Sub_Ethiopia":
-#        lats = 10.5 
-#        latn = 12.5
-#        lonw = 37.5
-#        lone = 40
-
     if region == "Sub_Ethiopia":
-        lats = 10.5 #7.5 
-        latn = 12 #13.5
-        lonw = 38 #37.5 
-        lone = 39 #38.75
+        lats = 7.5 
+        latn = 13.5
+        lonw = 37.5
+        lone = 40
+
+#    if region == "Sub_Ethiopia":
+#        lats = 10.5 #7.5 
+#        latn = 12 #13.5
+#        lonw = 38 #37.5 
+#        lone = 39 #38.75
 
     if region == "India":
         lats = 6.46

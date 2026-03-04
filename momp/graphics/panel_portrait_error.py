@@ -15,15 +15,19 @@ def panel_portrait_mae_far_mr(results, *, dir_fig, show_panel=True, **kwargs):
     # load mean mae data and calculate ananomly wrt cimatology
     arr, row_labels, col_labels = nested_dict_to_array(results, "mean_mae")
     data = arr[:-1] - arr[-1]
+    v = np.nanmax(np.abs(data))
+    vrange = (-v, v)
     
-    fig, ax1, im = portrait_plot(data, col_labels, row_labels[:-1], fig=fig, ax=ax1, 
+    fig, ax1, im = portrait_plot(data, col_labels, row_labels[:-1], fig=fig, ax=ax1, vrange=vrange,
                                  annotate=True, annotate_data=data, title='$\Delta MAE$ (days)', colorbar_off=True)
     
     # anomaly false alarm rate relative to climatology 
     arr, row_labels, col_labels = nested_dict_to_array(results, "false_alarm_rate")
     data = arr[:-1] - arr[-1]
+    v = np.nanmax(np.abs(data))
+    vrange = (-v, v)
     
-    fig, ax2, im = portrait_plot(data, col_labels, row_labels[:-1], fig=fig, ax=ax2, 
+    fig, ax2, im = portrait_plot(data, col_labels, row_labels[:-1], fig=fig, ax=ax2, vrange=vrange,
                                  annotate=True, annotate_data=data, title='$\Delta FAR (\%)$', colorbar_off=True)#, cbar_kw={"orientation":"horizontal"})
     
     ax2.set_xlabel('Forecast window (days)')
@@ -31,8 +35,10 @@ def panel_portrait_mae_far_mr(results, *, dir_fig, show_panel=True, **kwargs):
     # anomaly miss rate relative to climatology
     arr, row_labels, col_labels = nested_dict_to_array(results, "miss_rate")
     data = arr[:-1] - arr[-1]
+    v = np.nanmax(np.abs(data))
+    vrange = (-v, v)
     
-    fig, ax3, im = portrait_plot(data, col_labels, row_labels[:-1], fig=fig, ax=ax3, 
+    fig, ax3, im = portrait_plot(data, col_labels, row_labels[:-1], fig=fig, ax=ax3, vrange=vrange,
                                  annotate=True, annotate_data=data, title='$\Delta MR (\%)$', colorbar_off=True)
     
     fig.tight_layout()
