@@ -320,8 +320,13 @@ def shp_outline(ax, region='Ethiopia', resolution='10m', category='cultural', na
         )
     else:
         # Regular matplotlib Axes
-        x, y = region_geom.exterior.xy
-        ax.plot(x, y, color="black", linewidth=1.5, zorder=10)
+        geoms = getattr(region_geom, "geoms", [region_geom])
+        for geom in geoms:
+            exterior = getattr(geom, "exterior", None)
+            if exterior is None:
+                continue
+            x, y = exterior.xy
+            ax.plot(x, y, color="black", linewidth=1.5, zorder=10)
 
     # Optional: background
     if hasattr(ax, "add_feature"):
