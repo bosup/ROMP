@@ -30,7 +30,6 @@ from momp.utils.printing import tuple_to_str_range
 from momp.stats.benchmark import ens_compute_metrics_multiple_years
 from momp.stats.parallel import parallel_metrics_multiple_years
 
-cfg, setting = get_cfg(), get_setting()
 
 
 #def ens_compute_metrics_multiple_years(*, obs_dir, obs_file_pattern, obs_var, 
@@ -154,7 +153,12 @@ cfg, setting = get_cfg(), get_setting()
 
 
 
-def ens_spatial_far_mr_mae_map(cfg=cfg, setting=setting):
+def ens_spatial_far_mr_mae_map(cfg=None, setting=None):
+
+    if cfg is None:
+        cfg = get_cfg()
+    if setting is None:
+        setting = get_setting()
 
     if not cfg.probabilistic:
         return

@@ -20,9 +20,12 @@ from momp.utils.printing import tuple_to_str_range
 from momp.stats.parallel import parallel_metrics_multiple_years
 
 
-cfg, setting = get_cfg(), get_setting()
+def spatial_far_mr_mae_map(cfg=None, setting=None):#, **kwargs):
 
-def spatial_far_mr_mae_map(cfg=cfg, setting=setting):#, **kwargs):
+    if cfg is None:
+        cfg = get_cfg()
+    if setting is None:
+        setting = get_setting()
 
     # only executed for deterministic forecasts
     #if cfg.get('probabilistic'):

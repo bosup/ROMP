@@ -24,9 +24,12 @@ from collections import defaultdict
 #                         members, max_forecast_day, day_bins, date_filter_year,
 #                         file_pattern, mok, save_csv_score, plot_heatmap, **kwargs):
 
-cfg, setting = get_cfg(), get_setting()
+def skill_score_in_bins(cfg=None, setting=None):
 
-def skill_score_in_bins(cfg=cfg, setting=setting):
+    if cfg is None:
+        cfg = get_cfg()
+    if setting is None:
+        setting = get_setting()
 
     # only execute for ensemble forecasts
     #if not cfg.get('probabilistic'):

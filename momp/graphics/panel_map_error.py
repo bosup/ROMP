@@ -3,7 +3,6 @@ import os
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-from momp.lib.loader import get_cfg, get_setting
 from itertools import product
 from dataclasses import asdict
 from momp.lib.control import iter_list, make_case

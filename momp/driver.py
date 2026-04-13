@@ -22,6 +22,8 @@ from momp.app.bin_skill_score import skill_score_in_bins
 from momp.app.spatial_far_mr_mae import spatial_far_mr_mae_map
 from momp.utils.printing import print_momp_banner
 
+
+
 # Create a logs directory if it doesn't exist
 log_dir = "logs"
 #os.makedirs(log_dir, exist_ok=True)
@@ -39,10 +41,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-cfg, setting = get_cfg(), get_setting()
-
-#def run_momp(cfg=get_cfg(), setting=get_setting()):
-def run_momp(cfg=cfg, setting=setting):
+def run_momp(cfg=None, setting=None):
     """
     Executes the standard ROMP evaluation workflow.
 
@@ -54,6 +53,11 @@ def run_momp(cfg=cfg, setting=setting):
         cfg: The loaded configuration dictionary/SimpleNameSpace object.
         setting: The environment and directory settings.
     """
+
+    if cfg is None:
+        cfg = get_cfg()
+    if setting is None:
+        setting = get_setting()
 
     print_momp_banner(cfg)
 

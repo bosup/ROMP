@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from momp.lib.loader import get_cfg, get_setting
 from momp.io.output import nested_dict_to_array, analyze_nested_dict
 from momp.utils.visual import portrait_plot
 
