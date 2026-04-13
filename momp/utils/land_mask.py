@@ -319,9 +319,11 @@ def shp_outline(ax, region='Ethiopia', resolution='10m', category='cultural', na
             zorder=10
         )
     else:
-        # Regular matplotlib Axes
-        x, y = region_geom.exterior.xy
-        ax.plot(x, y, color="black", linewidth=1.5, zorder=10)
+        # Regular matplotlib Axes — handle both Polygon and MultiPolygon
+        geoms = [region_geom] if region_geom.geom_type == 'Polygon' else list(region_geom.geoms)
+        for geom in geoms:
+            x, y = geom.exterior.xy
+            ax.plot(x, y, color="black", linewidth=1.5, zorder=10)
 
     # Optional: background
     if hasattr(ax, "add_feature"):
