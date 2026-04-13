@@ -31,12 +31,21 @@ def calculate_brier_score(forecast_obs_df):
     dict with Brier score metrics
     """
     
+    # Guard: fair correction requires >1 member
+    n_members = forecast_obs_df['total_members'].iloc[0] if len(forecast_obs_df) > 0 else 1
+    if n_members <= 1:
+        raise ValueError(
+            f"Fair Brier Score requires >1 ensemble member, but found total_members={n_members}. "
+            "Check that your model data contains ensemble members and that the 'members' / "
+            "'probabilistic' parameters are configured correctly."
+        )
+
     # Calculate squared differences
     squared_diffs = (forecast_obs_df['observed_onset'] - forecast_obs_df['predicted_prob'])**2
-    
+
     # Calculate overall Brier Score
     brier_score = squared_diffs.mean()
-    
+
     # Calculate Fair Brier Score correction term
     # ens-1 where ens is the number of ensemble members
     correction_term = (forecast_obs_df['predicted_prob'] * (1 - forecast_obs_df['predicted_prob'])) / (forecast_obs_df['total_members'] - 1)
@@ -190,6 +199,15 @@ def calculate_rps(forecast_obs_df):
     dict with RPS metrics
     """
     
+    # Guard: fair correction requires >1 member
+    n_members = forecast_obs_df['total_members'].iloc[0] if len(forecast_obs_df) > 0 else 1
+    if n_members <= 1:
+        raise ValueError(
+            f"Fair RPS requires >1 ensemble member, but found total_members={n_members}. "
+            "Check that your model data contains ensemble members and that the 'members' / "
+            "'probabilistic' parameters are configured correctly."
+        )
+
     # Group by forecast (init_time, lat, lon) to get all bins for each forecast
     forecast_groups = forecast_obs_df.groupby(['init_time', 'lat', 'lon'])
     
