@@ -582,33 +582,52 @@ function renderIsochrones(state_, iso, primaryLabel) {
       showscale: true,
       name: "obs DOY",
     });
+
+    // "No data" cells: render NaN cells as a single distinct gray so the
+    // reader can see where the obs field is missing — this resolves the
+    // ambiguity of contours appearing to pass through "empty" regions
+    // (they're really tracing the data/no-data boundary).
+    const nanZ = state_.obs_onset.values.map(row =>
+      row.map(v => (v === null ? 1 : null))
+    );
+    traces.push({
+      type: "heatmap",
+      x: state_.obs_onset.lon, y: state_.obs_onset.lat, z: nanZ,
+      colorscale: [[0, "#3a4150"], [1, "#3a4150"]],
+      showscale: false,
+      opacity: 0.45,
+      hoverinfo: "skip", name: "no data",
+    });
   }
 
-  // Build per-day contour traces + endpoint label trace.
+  // Build per-day contour traces. Drop micro-segments (< 3 vertices) — they're
+  // typically isolated single-cell artifacts that visually pull a reader's
+  // eye to noise.
+  const MIN_SEG_VERTICES = 3;
   const days = (iso && iso.isochrones) || [];
-  const labelXs = [], labelYs = [], labelTxt = [];
+  const labels = [];   // {x, y, text, color}
 
   days.forEach((entry, i) => {
     const color = ISO_DAY_PALETTE[i % ISO_DAY_PALETTE.length];
     const grp = `day-${entry.day}`;
-
-    // longest forecast segment determines where to put the DOY label
     let bestSeg = null, bestLen = 0;
 
     const pushSegs = (segs, dash, tag) => {
-      (segs || []).forEach((seg, j) => {
-        if (!seg || !seg.length) return;
+      let drawn = 0;
+      (segs || []).forEach((seg) => {
+        if (!seg || seg.length < MIN_SEG_VERTICES) return;
         const xs = seg.map(pt => pt[0]);
         const ys = seg.map(pt => pt[1]);
         traces.push({
           type: "scatter", mode: "lines",
           x: xs, y: ys,
-          line: { color, width: dash === "dash" ? 2.6 : 3.2, dash },
-          opacity: dash === "dash" ? 0.92 : 1,
+          line: { color, width: 3.0, dash },
+          opacity: dash === "dash" ? 0.95 : 0.95,
           name: `DOY ${entry.day} · ${tag}`,
-          legendgroup: grp, showlegend: j === 0,
+          legendgroup: grp, showlegend: drawn === 0,
           hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
         });
+        drawn += 1;
         if (dash !== "dash" && xs.length > bestLen) {
           bestLen = xs.length;
           bestSeg = { x: xs, y: ys };
@@ -624,22 +643,31 @@ function renderIsochrones(state_, iso, primaryLabel) {
       for (let k = 1; k < bestSeg.x.length; k++) {
         if (bestSeg.x[k] > bestSeg.x[idx]) idx = k;
       }
-      labelXs.push(bestSeg.x[idx]);
-      labelYs.push(bestSeg.y[idx]);
-      labelTxt.push(`DOY ${entry.day}`);
+      labels.push({ x: bestSeg.x[idx], y: bestSeg.y[idx],
+                    text: `DOY ${entry.day}`, color });
     }
   });
 
-  if (labelTxt.length) {
+  // Stagger label y-positions so close labels don't collide. Sort by y and
+  // bump any label that's within MIN_DELTA degrees of the previous one.
+  if (labels.length > 1) {
+    const sorted = labels.slice().sort((a, b) => a.y - b.y);
+    const MIN_DELTA = 1.5;  // degrees latitude
+    for (let k = 1; k < sorted.length; k++) {
+      const dy = sorted[k].y - sorted[k - 1].y;
+      if (dy < MIN_DELTA) sorted[k].y = sorted[k - 1].y + MIN_DELTA;
+    }
+  }
+
+  labels.forEach(l => {
     traces.push({
-      type: "scatter",
-      mode: "text",
-      x: labelXs, y: labelYs, text: labelTxt,
+      type: "scatter", mode: "text",
+      x: [l.x], y: [l.y], text: [l.text],
       textposition: "middle right",
-      textfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: "#e8e1cf" },
+      textfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: l.color },
       hoverinfo: "skip", showlegend: false,
     });
-  }
+  });
 
   // Subtitle: onset criteria + iso-day spacing context.
   const params = (state.params && Object.keys(state.params).length)
@@ -650,7 +678,7 @@ function renderIsochrones(state_, iso, primaryLabel) {
   const spacing = isoDays.length >= 2 ? (isoDays[1] - isoDays[0]) : null;
   const subtitleBits = [];
   if (wi != null && ws != null && wt != null) {
-    subtitleBits.push(`onset = first ${ws}-day spell ≥ ${wi} mm/d, ∑ ≥ ${wt} mm`);
+    subtitleBits.push(`onset = first ${ws}-day spell ≥ ${wi} mm/d, ∑ ≥ ${wt} mm (over the ${ws}-day spell)`);
   }
   if (spacing != null) {
     subtitleBits.push(`${isoDays.length} thresholds, ${spacing}-day spacing across the shared onset window`);
