@@ -236,17 +236,44 @@ function buildParams(extra) {
  * Sidebar population
  * ------------------------------------------------------------------ */
 
+function yearsForActiveSelection() {
+  // Years available across the union of selected models, intersected with obs.
+  // If nothing is selected yet, fall back to catalog.shared_years.
+  const obsYears = new Set((state.catalog.obs && state.catalog.obs.years) || []);
+  const active = state.models.filter(m => m.on);
+  if (!active.length) return state.catalog.shared_years || [];
+  const primary = active[0];
+  const primaryYears = new Set(primary.years);
+  const filtered = (state.catalog.shared_years || [])
+    .filter(y => primaryYears.has(y) && obsYears.has(y));
+  return filtered;
+}
+
 function populateYearSelect() {
   const sel = $("year");
+  const prevValue = sel.value || (state.year !== null ? String(state.year) : "");
   sel.innerHTML = "";
-  const years = state.catalog.shared_years || [];
+  const years = yearsForActiveSelection();
+  if (!years.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "no overlap with primary model";
+    opt.disabled = true;
+    sel.appendChild(opt);
+    state.year = null;
+    return;
+  }
   for (const y of years) {
     const opt = document.createElement("option");
     opt.value = String(y);
     opt.textContent = String(y);
     sel.appendChild(opt);
   }
-  if (years.length) {
+  // Preserve current pick if still valid; otherwise default to most recent.
+  if (prevValue && years.map(String).includes(prevValue)) {
+    sel.value = prevValue;
+    state.year = Number(prevValue);
+  } else {
     const last = years[years.length - 1];
     sel.value = String(last);
     state.year = last;
@@ -269,6 +296,8 @@ function renderModelChips() {
       const model = state.models.find(x => x.key === m.key);
       model.on = !model.on;
       applyChipClasses();
+      // Year set depends on the (new) primary model's coverage.
+      populateYearSelect();
       refresh();
     });
     container.appendChild(b);

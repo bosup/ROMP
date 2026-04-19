@@ -88,6 +88,11 @@ _init_cache: dict[tuple, list[pd.Timestamp]] = {}
 
 
 def available_inits(model: ModelInfo, year: int) -> list[pd.Timestamp]:
+    if year not in model.years:
+        raise FileNotFoundError(
+            f"model {model.key!r} has no data for year {year}; "
+            f"available: {list(model.years)}"
+        )
     key = (model.key, int(year))
     with _cache_lock:
         if key in _init_cache:
@@ -176,7 +181,10 @@ def get_forecast_onset(model_key: str, year: int, init_idx: int,
                        params: OnsetParams) -> xr.DataArray:
     model = model_by_key(model_key)
     if year not in model.years:
-        raise KeyError(f"model {model_key} has no year {year}; available {model.years}")
+        raise FileNotFoundError(
+            f"model {model_key!r} has no data for year {year}; "
+            f"available years: {list(model.years)}"
+        )
     key = (model_key, int(year), int(init_idx), params)
     with _cache_lock:
         cached = _fcst_cache.get(key)
