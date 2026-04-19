@@ -336,11 +336,12 @@ def fss_route(
         out = AGG.aggregate_fss(per_year)
     out["years"] = _years_meta(bundles, yrs)
     out["base_rate"] = base_rates
-    out["no_skill_threshold"] = [
-        (2 * br * (1 - br)) / (br * br + (1 - br) ** 2)
-        if br is not None and 0 < br < 1 else None
-        for br in base_rates
-    ]
+    # Roberts & Lean 2008 conventions:
+    #   FSS_random  = base_rate (FSS of a forecast that always predicts f0)
+    #   FSS_useful  = 0.5 + 0.5 * base_rate (Roberts & Lean's "useful" line)
+    out["fss_no_skill"] = [br if br is not None else None for br in base_rates]
+    out["fss_useful"]   = [0.5 + 0.5 * br if br is not None else None
+                           for br in base_rates]
     return out
 
 

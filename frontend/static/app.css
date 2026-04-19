@@ -597,9 +597,10 @@ select {
   );
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 18px 24px 16px;
+  padding: 16px 24px 18px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  flex: 0 0 auto;
 }
 .usage-hint::before {
   content: "";
@@ -607,6 +608,8 @@ select {
   left: 0; top: 0; bottom: 0;
   width: 3px;
   background: linear-gradient(180deg, var(--amber), transparent);
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
 }
 .usage-row {
   display: flex;

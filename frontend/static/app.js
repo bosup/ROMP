@@ -1007,74 +1007,100 @@ function renderDisplacement(disp) {
 
 function renderFss(fss) {
   const thresholds = fss.thresholds || [];
-  const nbhds = fss.neighborhoods || [];
-  const z = fss.fss || [];
-  const baseRate = fss.base_rate || [];
-  const noSkill = fss.no_skill_threshold || [];
+  const nbhds      = fss.neighborhoods || [];
+  const z          = fss.fss || [];
+  const baseRate   = fss.base_rate || [];
+  const noSkill    = fss.fss_no_skill || baseRate;     // FSS_random = base rate
+  const useful     = fss.fss_useful   || baseRate.map(b => b == null ? null : 0.5 + 0.5 * b);
 
-  // annotations: per-cell value, color-coded by useful (>= 0.5) / no-skill / above no-skill
-  const annotations = [];
-  for (let i = 0; i < z.length; i++) {
+  // colors graded across the threshold dimension (early → late onset)
+  const lineColors = ["#6eb7ff", "#86b97d", "#f0b264", "#e87b85", "#b697e0",
+                      "#e8d06f", "#a8d6f0"];
+  const traces = [];
+
+  thresholds.forEach((thr, i) => {
+    const row = z[i] || [];
+    const color = lineColors[i % lineColors.length];
     const ns = noSkill[i];
-    for (let j = 0; j < (z[i] || []).length; j++) {
-      const v = z[i][j];
-      if (v === null || v === undefined || Number.isNaN(v)) continue;
-      let color = "#e4ddc9";
-      let suffix = "";
-      if (v > 0.6) color = "#0a1119";
-      if (ns !== null && ns !== undefined) {
-        if (v >= 0.5) suffix = "";
-        else if (v >= ns) suffix = "·";   // above no-skill but below "useful"
-        else suffix = "✕";                 // below no-skill
-      }
-      annotations.push({
-        x: nbhds[j], y: thresholds[i],
-        text: v.toFixed(2) + (suffix ? `\n${suffix}` : ""),
-        font: { family: "IBM Plex Mono, ui-monospace", size: 10, color },
-        showarrow: false,
-      });
-    }
-    // Side annotation: base rate + no-skill value, on the right of the matrix
-    if (baseRate[i] !== null && baseRate[i] !== undefined) {
-      const txt = `p=${baseRate[i].toFixed(2)} · ns=${(noSkill[i] ?? 0).toFixed(2)}`;
-      annotations.push({
-        xref: "paper", x: 1.02, y: thresholds[i], yref: "y",
-        text: txt, xanchor: "left",
-        font: { family: "IBM Plex Mono, ui-monospace", size: 9, color: "#a8a291" },
-        showarrow: false,
-      });
-    }
-  }
+    const us = useful[i];
+    const p  = baseRate[i];
+    const labelP = p == null ? "—" : p.toFixed(2);
 
-  const traces = [{
-    type: "heatmap",
-    x: nbhds, y: thresholds, z,
-    colorscale: FSS_COLORSCALE,
-    zmin: 0, zmax: 1,
-    colorbar: {
-      title: { text: "FSS", font: { size: 10, color: "#a8a291" } },
-      thickness: 10, len: 0.8,
-      tickfont: { size: 9, color: "#a8a291" },
-      x: 1.18,
-    },
-    hovertemplate: (
-      "thr DOY %{y} · nbhd %{x}<br>" +
-      "FSS %{z:.3f}<extra></extra>"
-    ),
-  }];
+    // FSS line for this threshold
+    traces.push({
+      type: "scatter", mode: "lines+markers",
+      x: nbhds, y: row,
+      name: `DOY ${thr} · p=${labelP}`,
+      legendgroup: `thr-${thr}`,
+      line: { color, width: 2.4 },
+      marker: { size: 6, color, line: { color, width: 1 } },
+      hovertemplate:
+        `<b>DOY ${thr}</b> at neighborhood %{x} cells<br>` +
+        `FSS %{y:.3f}<br>` +
+        `no-skill ${ns == null ? "—" : ns.toFixed(2)} · useful ${us == null ? "—" : us.toFixed(2)}` +
+        `<extra></extra>`,
+    });
+
+    // Per-threshold useful reference (dotted, same color, low opacity)
+    if (us != null) {
+      traces.push({
+        type: "scatter", mode: "lines",
+        x: [nbhds[0], nbhds[nbhds.length - 1]], y: [us, us],
+        line: { color, width: 1, dash: "dot" },
+        opacity: 0.45,
+        legendgroup: `thr-${thr}`, showlegend: false,
+        hovertemplate: `useful threshold for DOY ${thr}: ${us.toFixed(2)}<extra></extra>`,
+      });
+    }
+    // Per-threshold no-skill reference (very faint)
+    if (ns != null) {
+      traces.push({
+        type: "scatter", mode: "lines",
+        x: [nbhds[0], nbhds[nbhds.length - 1]], y: [ns, ns],
+        line: { color, width: 1, dash: "dashdot" },
+        opacity: 0.22,
+        legendgroup: `thr-${thr}`, showlegend: false,
+        hovertemplate: `no-skill (random=p) for DOY ${thr}: ${ns.toFixed(2)}<extra></extra>`,
+      });
+    }
+  });
 
   const layout = mergeLayout(PLOT_LAYOUT, {
-    xaxis: { title: { text: "Neighborhood (cells)", font: { size: 11, color: "#a8a291" } },
-             type: "category" },
-    yaxis: { title: { text: "Threshold (DOY)", font: { size: 11, color: "#a8a291" } },
-             type: "category", autorange: "reversed" },
-    annotations,
-    margin: { l: 64, r: 220, t: 30, b: 52 },
+    xaxis: {
+      title: { text: "Neighborhood radius (cells)", font: { size: 11, color: "#a8a291" } },
+      type: "linear", tickmode: "array", tickvals: nbhds, dtick: 1,
+    },
+    yaxis: {
+      title: { text: "FSS", font: { size: 11, color: "#a8a291" } },
+      range: [0, 1], dtick: 0.2,
+    },
+    annotations: [
+      // global "useful" zone shading hint
+      { xref: "paper", yref: "y", x: 0.005, y: 0.5,
+        text: "↑ useful zone (≥ 0.5 + 0.5·p)",
+        showarrow: false, xanchor: "left",
+        font: { family: "IBM Plex Mono, ui-monospace", size: 9, color: "#a8a291" } },
+    ],
+    shapes: [
+      { type: "rect", xref: "paper", yref: "y",
+        x0: 0, x1: 1, y0: 0.5, y1: 1.0,
+        fillcolor: "rgba(110, 183, 255, 0.04)", line: { width: 0 }, layer: "below" },
+    ],
+    legend: { orientation: "h", y: -0.28, font: { size: 11 } },
+    margin: { l: 56, r: 22, t: 18, b: 70 },
   });
 
   const div = $("plot-fss");
   Plotly.react(div, traces, layout, PLOT_CONFIG);
   rememberPlot(div);
+
+  // Per-threshold caption with computed numbers
+  const cap = $("fss-caption");
+  if (cap) {
+    cap.textContent = thresholds.length
+      ? `${thresholds.length} thresholds · base rates ${baseRate.filter(b => b != null).map(b => b.toFixed(2)).join(", ")}`
+      : "";
+  }
 }
 
 /* ------------------------------------------------------------------ *

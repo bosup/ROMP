@@ -193,17 +193,19 @@
 
           <section class="card card-wide">
             <header class="card-head">
-              <div><span class="eyebrow">roberts &amp; lean</span><h3>Fractions skill · threshold × neighborhood</h3></div>
+              <div><span class="eyebrow">roberts &amp; lean</span><h3>Fractions skill vs neighborhood</h3></div>
               <div class="card-meta"><span id="fss-caption">—</span></div>
             </header>
             <div id="plot-fss" class="plot plot-short"></div>
             <footer class="card-foot interp" id="fss-interp">
-              FSS = 1 perfect · ≥ 0.5 useful at that scale · below the per-row
-              <strong>no-skill threshold</strong> (<code>2p(1−p)/(p²+(1−p)²)</code>, shown
-              right of each row as <code>ns=…</code>) means the forecast adds nothing
-              over a random forecast at the obs base rate <code>p</code>.
-              Cells marked <code>✕</code> are below no-skill;
-              <code>·</code> means above no-skill but below the useful (0.5) threshold.
+              One line per onset-by-DOY threshold. <strong>FSS rises with
+              neighborhood</strong> as the forecast gets credit for being
+              spatially close; the question is how big a neighborhood it
+              takes to be useful. The faint dotted line per color is that
+              threshold's <strong>useful</strong> bar (<code>0.5 + 0.5·p</code>); the
+              faint dash-dot is its <strong>no-skill</strong> bar
+              (<code>FSS = p</code>, what a base-rate-only forecast scores).
+              <code>p</code> is the obs base rate at that DOY threshold.
             </footer>
           </section>
 
