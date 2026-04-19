@@ -54,6 +54,11 @@ dev = [
   "ipython",
   "gcsfs",
 ]
+frontend = [
+  "fastapi",
+  "uvicorn",
+  "scikit-learn",
+]
 
 [project.scripts]
 momp-run = "momp.driver:run_momp"

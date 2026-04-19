@@ -14,11 +14,13 @@ isochrone narrative, across multiple models side by side.
 ## Install
 
 ```bash
-uv pip install -e '.[dev]' fastapi uvicorn
+uv venv .venv
+uv pip install -e '.[frontend]'
 ```
 
-No node, no bundler, no build step. The static page is served directly
-by FastAPI.
+This creates `.venv/` in the repo root and installs momp editable plus
+fastapi, uvicorn, and scikit-learn. No node, no bundler, no build step.
+The static page is served directly by FastAPI.
 
 ## Run
 
@@ -27,6 +29,14 @@ by FastAPI.
 ```
 
 Then open <http://127.0.0.1:8000>.
+
+No venv activation required — `run.sh` auto-detects a Python
+interpreter that has both `uvicorn` and `momp` installed. It tries, in
+order: `$PY` (if set), `.venv/bin/python`, `../monsoon-bench/.venv/bin/python`,
+then `python3` / `python` on PATH. If none of them satisfies the import
+check you get a clear install hint instead of a traceback.
+
+Override the interpreter with `PY=/path/to/python ./frontend/run.sh`.
 
 ## Pointing at richer data
 
