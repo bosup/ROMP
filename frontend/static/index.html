@@ -3,81 +3,168 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ROMP · Onset Metrics Explorer</title>
+  <title>ROMP · Onset Observatory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..800,0..100,0..1;1,9..144,300..700,0..100,0..1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500&display=swap" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-  <header>
-    <div>
-      <h1>ROMP — Onset Metrics Explorer</h1>
-      <p>Rainy-season onset as an advancing front. Demo data: AIFS (deterministic),
-         NGCM (51-member ensemble), IMD 2015.</p>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="frame">
+
+    <header class="masthead">
+      <div class="wordmark">
+        <div class="wm-tag">Rainy-season Onset Metrics Package</div>
+        <h1>ROMP<span class="wm-dot">·</span><em>Onset Observatory</em></h1>
+        <div class="wm-sub">verification for the advancing front</div>
+      </div>
+      <div class="meta">
+        <dl class="meta-dl">
+          <dt>Catalog</dt><dd id="meta-catalog">…</dd>
+          <dt>Obs</dt><dd id="meta-obs">—</dd>
+          <dt>Status</dt><dd id="meta-status" class="status">loading</dd>
+        </dl>
+      </div>
+    </header>
+
+    <div class="contour-rule"></div>
+
+    <div class="layout">
+
+      <aside class="sidebar">
+        <section class="cntrl">
+          <h2 class="cntrl-head">Comparison</h2>
+
+          <label class="field">
+            <span>Year</span>
+            <select id="year"></select>
+          </label>
+
+          <div class="field">
+            <span>Models</span>
+            <div class="chips" id="models"></div>
+          </div>
+
+          <label class="field">
+            <span>Init for primary model</span>
+            <select id="init"><option value="auto">auto-select overlap</option></select>
+            <div class="field-hint" id="init-hint">auto picks the init whose onset range overlaps obs</div>
+          </label>
+        </section>
+
+        <section class="cntrl">
+          <h2 class="cntrl-head">Onset criteria <span class="cntrl-subhead">momp.stats.detect</span></h2>
+
+          <div class="param-grid" id="params"></div>
+          <button class="apply-btn" id="apply">recompute</button>
+          <div class="field-hint">detection re-runs against the full time series with these thresholds</div>
+        </section>
+
+        <section class="cntrl">
+          <h2 class="cntrl-head">Region <span class="cntrl-subhead">bbox</span></h2>
+          <div class="bbox-grid">
+            <label><span>lat min</span><input id="lat_min" type="number" step="0.5" placeholder="auto" /></label>
+            <label><span>lat max</span><input id="lat_max" type="number" step="0.5" placeholder="auto" /></label>
+            <label><span>lon min</span><input id="lon_min" type="number" step="0.5" placeholder="auto" /></label>
+            <label><span>lon max</span><input id="lon_max" type="number" step="0.5" placeholder="auto" /></label>
+          </div>
+        </section>
+
+        <section class="cntrl footer-block">
+          <div class="legend-card">
+            <div class="legend-head">legend</div>
+            <div class="legend-row"><span class="swatch solid"></span>forecast isochrone</div>
+            <div class="legend-row"><span class="swatch dashed"></span>observed isochrone</div>
+            <div class="legend-row"><span class="swatch det"></span>deterministic</div>
+            <div class="legend-row"><span class="swatch ens"></span>ensemble mean / prob</div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="main">
+
+        <section class="summary" id="summary-section">
+          <div class="summary-head">
+            <span class="eyebrow">bench summary</span>
+            <span class="summary-year" id="summary-year">—</span>
+          </div>
+          <div class="summary-table" id="summary-table">
+            <div class="summary-placeholder">select year and models to compute</div>
+          </div>
+        </section>
+
+        <section class="card card-hero">
+          <header class="card-head">
+            <div>
+              <span class="eyebrow">hero figure</span>
+              <h3>Isochrone overlay</h3>
+            </div>
+            <div class="card-meta">
+              <span class="legend-row"><span class="swatch solid"></span>forecast (solid)</span>
+              <span class="legend-row"><span class="swatch dashed"></span>observed (dashed)</span>
+            </div>
+          </header>
+          <div id="plot-isochrones" class="plot-hero"></div>
+          <footer class="card-foot" id="iso-distances"></footer>
+        </section>
+
+        <section class="card-grid">
+
+          <section class="card">
+            <header class="card-head">
+              <div><span class="eyebrow">goessling</span><h3>Progression curve</h3></div>
+              <div class="card-meta"><span id="progression-caption">—</span></div>
+            </header>
+            <div id="plot-progression" class="plot"></div>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <div><span class="eyebrow">corp · dimitriadis-gneiting-jordan</span><h3>Reliability</h3></div>
+              <div class="card-meta"><span id="corp-caption">—</span></div>
+            </header>
+            <div id="plot-corp" class="plot"></div>
+            <footer class="card-foot corp-breakdown" id="corp-breakdown"></footer>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <div><span class="eyebrow">censored · hemri</span><h3>CRPS field</h3></div>
+              <div class="card-meta"><span id="crps-caption">—</span></div>
+            </header>
+            <div id="plot-crps" class="plot"></div>
+          </section>
+
+          <section class="card">
+            <header class="card-head">
+              <div><span class="eyebrow">centroid shift</span><h3>Displacement + area bias</h3></div>
+            </header>
+            <div id="plot-displacement" class="plot"></div>
+          </section>
+
+          <section class="card card-wide">
+            <header class="card-head">
+              <div><span class="eyebrow">roberts &amp; lean</span><h3>Fractions skill · threshold × neighborhood</h3></div>
+            </header>
+            <div id="plot-fss" class="plot plot-short"></div>
+          </section>
+
+        </section>
+
+        <footer class="colophon">
+          <div class="colophon-line"></div>
+          <div class="colophon-text">
+            <span>ROMP onset observatory</span>
+            <span>data · <code id="colophon-root">—</code></span>
+            <span>FastAPI + Plotly · no build step</span>
+          </div>
+        </footer>
+      </main>
     </div>
-    <div class="status" id="status">loading…</div>
-  </header>
-
-  <main>
-    <section class="summary">
-      <div class="card" id="card-init">
-        <h3>Auto-selected init</h3>
-        <p id="init-info">—</p>
-      </div>
-      <div class="card" id="card-range">
-        <h3>Shared onset-DOY range</h3>
-        <p id="range-info">—</p>
-      </div>
-      <div class="card" id="card-iso-days">
-        <h3>Isochrone days</h3>
-        <p id="iso-info">—</p>
-      </div>
-    </section>
-
-    <section class="grid">
-      <div class="panel panel-wide">
-        <div class="panel-head">
-          <h2>Isochrone overlay</h2>
-          <span class="sub">forecast (solid) vs. observed (dashed)</span>
-        </div>
-        <div id="plot-isochrones" class="plot"></div>
-        <div class="footnote" id="iso-distances"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2>IOE / SPS through the season</h2>
-          <span class="sub">Goessling-IIEE adapted</span>
-        </div>
-        <div id="plot-progression" class="plot"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2>CORP reliability</h2>
-          <span class="sub">MCB − DSC + UNC = BS</span>
-        </div>
-        <div id="plot-corp" class="plot"></div>
-        <div class="footnote" id="corp-numbers"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Censored CRPS</h2>
-          <span class="sub">per cell, mixed no-onset atom handled</span>
-        </div>
-        <div id="plot-crps" class="plot"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Centroid displacement</h2>
-          <span class="sub">forecast region centroid shift vs. obs</span>
-        </div>
-        <div id="plot-displacement" class="plot"></div>
-      </div>
-    </section>
-  </main>
-
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>

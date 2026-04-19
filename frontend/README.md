@@ -1,15 +1,15 @@
 # ROMP onset-metrics frontend
 
-Zero-build Plotly UI over a small FastAPI backend. The app loads the demo
-AIFS / NGCM / IMD 2015 rainfall, detects onset with ROMP's production
-`momp.stats.detect.detect_onset`, and renders the five Milestone 1/2
-metrics interactively.
+Zero-build Plotly UI over a small FastAPI backend for exploring monsoon
+onset as an advancing front. See the repository root README for what
+ROMP is; this directory is just the interactive viewer for the new M1+M2
+metric stack.
 
-This is deliberately minimal — no npm, no build step. If you want a
-richer React experience, the `ROMP_frontend_POC` sibling repo has a
-FastAPI + React/Vite stack with broader coverage of the original ROMP
-pipeline; this frontend focuses narrowly on the new progression and
-probabilistic metrics.
+Scope vs. the `ROMP_frontend_POC` sibling: the POC is broader and wraps
+the original skill-score pipeline with a React/Vite frontend. This
+frontend is narrower and newer — it focuses on the M1 probabilistic
+depth metrics (CRPS, FSS, displacement, CORP) and the M2 progression /
+isochrone narrative, across multiple models side by side.
 
 ## Install
 
@@ -17,7 +17,8 @@ probabilistic metrics.
 uv pip install -e '.[dev]' fastapi uvicorn
 ```
 
-(`uv pip install -e .` plus `fastapi uvicorn` also works.)
+No node, no bundler, no build step. The static page is served directly
+by FastAPI.
 
 ## Run
 
@@ -27,32 +28,121 @@ uv pip install -e '.[dev]' fastapi uvicorn
 
 Then open <http://127.0.0.1:8000>.
 
-First request triggers onset detection over the demo data; this takes
-~10 seconds on a laptop and is cached for subsequent requests.
+## Pointing at richer data
 
-## Endpoints
+By default the app reads from `demo/data/` in the repo. Override with:
 
-| Endpoint | Returns |
-| --- | --- |
-| `GET /api/health` | liveness ping |
-| `GET /api/fields` | onset-DOY fields (obs + AIFS + ensemble mean) + selected init indices |
-| `GET /api/metrics/crps` | per-cell censored CRPS |
-| `GET /api/metrics/fss?thresholds=...&neighborhoods=...` | FSS sweep |
-| `GET /api/metrics/displacement` | centroid shift + area bias sweep |
-| `GET /api/metrics/progression?step=3` | IOE, extent, misplacement, SPS through the season |
-| `GET /api/metrics/isochrones` | forecast + observed isochrones as line segments + Hausdorff/Fréchet |
-| `GET /api/metrics/corp?tau=...` | MCB / DSC / UNC decomposition + calibration curve |
+```bash
+export ROMP_DATA_ROOT=/path/to/some/model_tree
+```
+
+The expected layout is:
+
+```
+$ROMP_DATA_ROOT/
+├── obs/
+│   ├── 2015.nc
+│   ├── 2016.nc
+│   └── ...
+├── aifs/
+│   ├── 2015.nc
+│   └── ...
+├── ngcm/
+│   └── ...
+└── <other-model>/
+    └── YYYY.nc
+```
+
+One NetCDF per `(model, year)`. Variable names inside each file are
+auto-detected — the catalog uses the first data variable, so any sane
+rainfall field works without renaming. Models whose NetCDFs carry a
+`number` dim are treated as ensembles and surface their member count in
+`/api/catalog`.
+
+## UI tour
+
+Sidebar controls:
+
+- **Year** — restricted to years present for both obs and at least one model.
+- **Model chips** — multi-select. Leftmost selected chip is the *primary*
+  model; other panels that only support one model use this one.
+- **Init picker** — shows initialization dates available for
+  `(primary model, year)`; `auto` picks the earliest valid init.
+- **Onset criteria** — six inputs matching `OnsetParams` (rain
+  threshold, accumulation window, dry-spell tolerance, etc.).
+- **Region bbox** — optional `lat_min/lat_max/lon_min/lon_max` clip.
+
+Panels:
+
+- **Cross-model summary table** — one row per selected model with the
+  headline scalars (CRPS mean, FSS at default scale, centroid shift,
+  CORP MCB/DSC/UNC).
+- **Hero isochrone overlay** — observed vs. forecast contours of the
+  onset front for selected iso-days, primary model.
+- **Progression curves** — IOE / extent / misplacement / SPS through the
+  season, overlaid for every selected model.
+- **CORP reliability** — primary-model calibration curve plus the
+  MCB / DSC / UNC bar.
+- **CRPS heatmap** — per-cell censored CRPS for the primary model.
+- **Centroid displacement + area bias** — primary-model sweep across
+  thresholds.
+- **FSS matrix** — primary-model FSS over the threshold × neighborhood
+  grid.
+
+## API reference
+
+All metric endpoints accept the onset-criteria query params (matching
+`OnsetParams`) and an optional region bbox; defaults come from
+`/api/catalog`.
+
+| Endpoint | Purpose | Key params |
+| --- | --- | --- |
+| `GET /api/health` | Liveness ping. | — |
+| `GET /api/catalog` | Discoverable models, years, obs source, shared years, onset-param defaults + docs. | — |
+| `GET /api/inits` | Init dates available for a `(model, year)`. | `model`, `year` |
+| `GET /api/state` | Onset fields (obs, member mean, members) plus suggested iso-days. | `model`, `year`, `init=auto\|INT` |
+| `GET /api/metrics/crps` | Per-cell censored CRPS for one model. | `model`, `year`, `init` |
+| `GET /api/metrics/fss` | FSS sweep over thresholds × neighborhoods. | `thresholds`, `neighborhoods` |
+| `GET /api/metrics/displacement` | Centroid shift + area bias across thresholds. | `thresholds` |
+| `GET /api/metrics/progression` | IOE / extent / misplacement / SPS through the season. | `step` |
+| `GET /api/metrics/isochrones` | Observed + forecast isochrone polylines, plus Hausdorff / Fréchet. | `days` |
+| `GET /api/metrics/corp` | CORP MCB / DSC / UNC decomposition + reliability curve. | `tau` |
+| `GET /api/compare` | Side-by-side scalar summary for several models. | `models=a,b,c`, `year` |
+
+Backend layering:
+
+- `frontend/api/catalog.py` — data discovery; reads `demo/data/` or
+  `ROMP_DATA_ROOT`.
+- `frontend/api/onset.py` — wraps `momp.stats.detect.detect_onset` with
+  a process-wide cache keyed by `(model, year, init, params)` and a
+  parameterized `OnsetParams` + optional `Region` bbox.
+- `frontend/api/metrics.py` — turns each metric output into a
+  JSON-friendly dict.
+- `frontend/api/app.py` — FastAPI routes using
+  `Depends(onset_deps)` + `Depends(region_deps)`.
 
 ## Layout
 
 ```
 frontend/
 ├── api/
-│   └── app.py            FastAPI app — endpoints above
+│   ├── app.py
+│   ├── catalog.py
+│   ├── onset.py
+│   └── metrics.py
 ├── static/
-│   ├── index.html        single page
-│   ├── app.css           styling
-│   └── app.js            Plotly rendering
+│   ├── index.html
+│   ├── app.css
+│   └── app.js
 ├── run.sh
+├── validate.py   (optional backend smoke test)
 └── README.md
 ```
+
+## Troubleshooting
+
+The first request for a given `(model, year, init, onset-params)` tuple
+runs the full onset detection and can take several seconds. Subsequent
+requests for the same tuple hit an in-process cache and return
+immediately. The cache lives in the FastAPI worker, so it clears on
+process restart — re-running `./frontend/run.sh` warms from cold again.

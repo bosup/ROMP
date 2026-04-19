@@ -1,198 +1,1149 @@
-/* ROMP frontend — fetch metric endpoints and render with Plotly. */
+/* ROMP Onset Observatory — multi-model verification dashboard.
+ * Plain vanilla JS; loaded after Plotly CDN.
+ */
+"use strict";
+
+/* ------------------------------------------------------------------ *
+ * Constants, palettes, theming
+ * ------------------------------------------------------------------ */
+
+const MODEL_PALETTE = [
+  "#f0b264", // amber   (primary)
+  "#6eb7ff", // sky
+  "#b697e0", // violet
+  "#86b97d", // green
+  "#e87b85", // rose
+  "#e8d06f", // sand
+];
+
+const ISO_DAY_PALETTE = ["#6eb7ff", "#86b97d", "#f0b264", "#e87b85"];
+
+const FSS_COLORSCALE = [
+  [0.0, "#11171f"],
+  [0.4, "#223044"],
+  [0.6, "#6eb7ff"],
+  [1.0, "#f0b264"],
+];
+
+const PARAM_ORDER = [
+  "wet_init",
+  "wet_spell",
+  "wet_threshold",
+  "dry_spell",
+  "dry_threshold",
+  "dry_extent",
+];
+
+const PARAM_STEP = {
+  wet_init: 1,
+  wet_spell: 1,
+  wet_threshold: 0.5,
+  dry_spell: 1,
+  dry_threshold: 0.5,
+  dry_extent: 1,
+};
+
+const REGION_KEYS = ["lat_min", "lat_max", "lon_min", "lon_max"];
 
 const PLOT_LAYOUT = {
   paper_bgcolor: "rgba(0,0,0,0)",
-  plot_bgcolor: "rgba(0,0,0,0)",
-  font: { color: "#d9e1ec", family: "inherit", size: 12 },
-  margin: { l: 50, r: 20, t: 30, b: 40 },
+  plot_bgcolor: "rgba(10,16,25,0.4)",
+  font: { family: "IBM Plex Sans, system-ui, sans-serif", color: "#e4ddc9", size: 12 },
+  margin: { l: 54, r: 20, t: 34, b: 42 },
+  hoverlabel: {
+    bgcolor: "#131e2a",
+    bordercolor: "#f0b264",
+    font: { family: "IBM Plex Mono, ui-monospace", color: "#e4ddc9", size: 11 },
+  },
+  xaxis: {
+    gridcolor: "#1a2536",
+    zerolinecolor: "#223044",
+    linecolor: "#223044",
+    tickfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: "#a8a291" },
+  },
+  yaxis: {
+    gridcolor: "#1a2536",
+    zerolinecolor: "#223044",
+    linecolor: "#223044",
+    tickfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: "#a8a291" },
+  },
+  legend: {
+    bgcolor: "rgba(0,0,0,0)",
+    font: { size: 11 },
+    orientation: "h",
+    y: -0.22,
+  },
 };
 
-async function fetchJSON(url) {
+const PLOT_CONFIG = {
+  displaylogo: false,
+  responsive: true,
+  modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d"],
+};
+
+function mergeLayout(...parts) {
+  // Shallow-deep merge for Plotly layouts. One level of nesting is enough.
+  const out = {};
+  for (const p of parts) {
+    for (const k of Object.keys(p || {})) {
+      const v = p[k];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        out[k] = Object.assign({}, out[k] || {}, v);
+      } else {
+        out[k] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * API helpers
+ * ------------------------------------------------------------------ */
+
+async function apiGet(path, params) {
+  const url = params ? `${path}?${params}` : path;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body && body.detail ? ` — ${body.detail}` : "";
+    } catch (e) {
+      /* ignore */
+    }
+    throw new Error(`${url}: HTTP ${res.status}${detail}`);
+  }
   return res.json();
 }
 
-function setStatus(text, cls) {
-  const el = document.getElementById("status");
+function qs(obj) {
+  const parts = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined || v === null || v === "") continue;
+    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+  }
+  return parts.join("&");
+}
+
+/* ------------------------------------------------------------------ *
+ * Global state
+ * ------------------------------------------------------------------ */
+
+const state = {
+  catalog: null,
+  year: null,
+  init: "auto",
+  initIdx: null,
+  models: [],           // array of {key,label,is_ensemble,n_members,on,primary}
+  modelColor: {},       // key -> hex color
+  params: {},
+  region: { lat_min: "", lat_max: "", lon_min: "", lon_max: "" },
+  busy: false,
+  progressionShowDecomp: false,
+  plotDivs: new Set(),
+};
+
+/* ------------------------------------------------------------------ *
+ * Small UI helpers
+ * ------------------------------------------------------------------ */
+
+function $(id) { return document.getElementById(id); }
+
+function setLoading(el, on) {
+  if (!el) return;
+  if (on) el.classList.add("is-loading");
+  else el.classList.remove("is-loading");
+}
+
+function setStatus(text, kind /* "ok" | "err" | "" */) {
+  const el = $("meta-status");
+  if (!el) return;
   el.textContent = text;
-  el.className = "status " + (cls || "");
+  el.className = "status" + (kind ? " " + kind : "");
 }
 
-function fmtKm2day(v) {
-  return (v / 1e6).toFixed(1) + " · 10⁶ km²·day";
+function fmt(n, d) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return Number(n).toFixed(d);
 }
 
-async function loadSummary() {
-  const f = await fetchJSON("/api/fields");
-  document.getElementById("init-info").textContent =
-    `AIFS init #${f.aifs_init_idx}  ·  NGCM init #${f.ngcm_init_idx} (${f.ens_members} members)`;
-  document.getElementById("range-info").textContent =
-    `obs ${f.obs_range.map(Math.round).join("–")}  ·  AIFS ${f.aifs_range.map(Math.round).join("–")}  ·  NGCM ${f.ngcm_range.map(Math.round).join("–")} DOY`;
-  document.getElementById("iso-info").textContent = f.iso_days.join(", ");
-  return f;
+function fmtE6(n, d = 1) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return (n / 1e6).toFixed(d);
 }
 
-function plotIsochrones(iso, fields) {
-  const traces = [];
-  // background: observed-onset DOY heatmap
-  traces.push({
-    z: fields.obs.values, x: fields.obs.lon, y: fields.obs.lat,
-    type: "heatmap",
-    colorscale: "Viridis",
-    opacity: 0.55,
-    colorbar: { title: "Obs DOY", thickness: 10 },
-    name: "Obs DOY",
-    hoverinfo: "skip",
-  });
-
-  const palette = ["#4da3ff", "#7be495", "#ff8a5c", "#c084fc", "#f9d57c"];
-  iso.isochrones.forEach((entry, idx) => {
-    const color = palette[idx % palette.length];
-    entry.forecast.forEach((seg, k) => {
-      traces.push({
-        x: seg.map(p => p[0]), y: seg.map(p => p[1]),
-        mode: "lines", type: "scatter",
-        line: { color, width: 2.5 },
-        name: `fcst DOY ${entry.day}`,
-        legendgroup: `fcst-${entry.day}`,
-        showlegend: k === 0,
-      });
-    });
-    entry.observed.forEach((seg, k) => {
-      traces.push({
-        x: seg.map(p => p[0]), y: seg.map(p => p[1]),
-        mode: "lines", type: "scatter",
-        line: { color, width: 2.5, dash: "dash" },
-        name: `obs DOY ${entry.day}`,
-        legendgroup: `obs-${entry.day}`,
-        showlegend: k === 0,
-      });
-    });
-  });
-
-  Plotly.newPlot("plot-isochrones", traces, {
-    ...PLOT_LAYOUT,
-    xaxis: { title: "Longitude", gridcolor: "#223042" },
-    yaxis: { title: "Latitude", gridcolor: "#223042", scaleanchor: "x" },
-    legend: { bgcolor: "rgba(0,0,0,0)", orientation: "h", y: -0.15 },
-  }, { displaylogo: false, responsive: true });
-
-  document.getElementById("iso-distances").innerHTML = iso.days.map((d, i) => {
-    const h = iso.hausdorff_km[i], f = iso.frechet_km[i];
-    const hs = h == null ? "—" : `${h.toFixed(0)} km`;
-    const fs = f == null ? "—" : `${f.toFixed(0)} km`;
-    const segs = `${iso.n_segments_fcst[i]}f / ${iso.n_segments_obs[i]}o segs`;
-    return `DOY ${d}: Hausdorff ${hs}, Fréchet ${fs} <span style="opacity:.6">(${segs})</span>`;
-  }).join(" &nbsp;·&nbsp; ");
+function fmtKm(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (Math.abs(n) >= 100) return Math.round(n).toString();
+  return n.toFixed(1);
 }
 
-function plotProgression(p) {
-  const toM = xs => xs.map(v => v == null ? null : v / 1e6);
-  const traces = [
-    { x: p.days, y: toM(p.ioe_km2), name: "IOE (det)", mode: "lines+markers",
-      line: { color: "#4da3ff", width: 2 } },
-    { x: p.days, y: toM(p.extent_km2), name: "extent", mode: "lines",
-      line: { color: "#7be495", width: 1.5, dash: "dash" } },
-    { x: p.days, y: toM(p.misplacement_km2), name: "misplacement", mode: "lines",
-      line: { color: "#ff8a5c", width: 1.5, dash: "dot" } },
-    { x: p.days, y: toM(p.sps_km2), name: "SPS (ens)", mode: "lines+markers",
-      line: { color: "#c084fc", width: 2 } },
-  ];
-  Plotly.newPlot("plot-progression", traces, {
-    ...PLOT_LAYOUT,
-    xaxis: { title: "DOY", gridcolor: "#223042" },
-    yaxis: { title: "Area (10⁶ km²)", gridcolor: "#223042" },
-    legend: { bgcolor: "rgba(0,0,0,0)", orientation: "h", y: -0.2 },
-    title: {
-      text: `season IOE ${fmtKm2day(p.season.ioe_km2_day)} · SPS ${fmtKm2day(p.season.sps_km2_day)}`,
-      font: { size: 12, color: "#9fb0c4" }, x: 0, xanchor: "left",
-    },
-  }, { displaylogo: false, responsive: true });
+function colorForModel(key) {
+  if (state.modelColor[key]) return state.modelColor[key];
+  const idx = Object.keys(state.modelColor).length % MODEL_PALETTE.length;
+  state.modelColor[key] = MODEL_PALETTE[idx];
+  return state.modelColor[key];
 }
 
-function plotCORP(c) {
-  const ideal = { x: [0, 1], y: [0, 1], mode: "lines",
-    line: { color: "#7a8699", dash: "dash", width: 1 }, name: "perfect" };
-  const curve = { x: c.curve.forecast_prob, y: c.curve.calibrated_prob,
-    mode: "lines+markers", line: { color: "#4da3ff", width: 2 },
-    marker: { size: 6 }, name: "CORP" };
-  // histogram of forecast frequencies behind calibration curve
-  const freq = {
-    x: c.forecast_prob_histogram, type: "histogram",
-    xbins: { start: 0, end: 1, size: 0.05 },
-    yaxis: "y2", marker: { color: "#334055", opacity: 0.45 },
-    name: "freq", showlegend: false,
-  };
-  Plotly.newPlot("plot-corp", [freq, ideal, curve], {
-    ...PLOT_LAYOUT,
-    xaxis: { title: "Forecast probability", range: [0, 1], gridcolor: "#223042" },
-    yaxis: { title: "Calibrated", range: [0, 1], gridcolor: "#223042" },
-    yaxis2: { overlaying: "y", side: "right", showgrid: false, tickfont: { color: "#6a7686" }, title: "" },
-    legend: { bgcolor: "rgba(0,0,0,0)", orientation: "h", y: -0.2 },
-  }, { displaylogo: false, responsive: true });
-
-  document.getElementById("corp-numbers").innerHTML =
-    `τ = ${c.tau} · BS ${c.mean_score.toFixed(3)} · MCB ${c.mcb.toFixed(3)} ·
-     DSC ${c.dsc.toFixed(3)} · UNC ${c.unc.toFixed(3)} ·
-     residual ${c.identity_residual.toExponential(1)}`;
+function primaryModelKey() {
+  const on = state.models.filter(m => m.on);
+  return on.length ? on[0].key : null;
 }
 
-function plotCRPS(m) {
-  Plotly.newPlot("plot-crps", [{
-    z: m.field.values, x: m.field.lon, y: m.field.lat,
-    type: "heatmap", colorscale: "Magma",
-    colorbar: { title: "CRPS (days)", thickness: 10 },
-    hovertemplate: "lat %{y:.1f}, lon %{x:.1f}<br>CRPS %{z:.1f} d<extra></extra>",
-  }], {
-    ...PLOT_LAYOUT,
-    xaxis: { title: "Longitude", gridcolor: "#223042" },
-    yaxis: { title: "Latitude", gridcolor: "#223042", scaleanchor: "x" },
-    title: {
-      text: `mean ${m.mean.toFixed(1)} d · max ${m.max.toFixed(1)} d · ${m.n_finite} cells`,
-      font: { size: 12, color: "#9fb0c4" }, x: 0, xanchor: "left",
-    },
-  }, { displaylogo: false, responsive: true });
+function activeModelKeys() {
+  return state.models.filter(m => m.on).map(m => m.key);
 }
 
-function plotDisplacement(d) {
-  Plotly.newPlot("plot-displacement", [
-    { x: d.thresholds, y: d.great_circle_km, name: "centroid shift (km)",
-      mode: "lines+markers", line: { color: "#4da3ff", width: 2 },
-      yaxis: "y1" },
-    { x: d.thresholds, y: d.area_bias_fraction.map(v => v == null ? null : 100 * v),
-      name: "area bias (%)", mode: "lines+markers",
-      line: { color: "#ff8a5c", width: 2, dash: "dot" }, yaxis: "y2" },
-  ], {
-    ...PLOT_LAYOUT,
-    xaxis: { title: "Onset-by-day threshold (DOY)", gridcolor: "#223042" },
-    yaxis: { title: "Centroid shift (km)", gridcolor: "#223042" },
-    yaxis2: { overlaying: "y", side: "right", title: "Area bias (%)", gridcolor: "#223042" },
-    legend: { bgcolor: "rgba(0,0,0,0)", orientation: "h", y: -0.2 },
-  }, { displaylogo: false, responsive: true });
+/* ------------------------------------------------------------------ *
+ * buildParams — common query-string for every metric call
+ * ------------------------------------------------------------------ */
+
+function readParamsFromInputs() {
+  const out = {};
+  for (const p of PARAM_ORDER) {
+    const el = document.querySelector(`#params input[data-key="${p}"]`);
+    if (!el) continue;
+    const v = el.value === "" ? null : Number(el.value);
+    if (v !== null && !Number.isNaN(v)) out[p] = v;
+  }
+  return out;
 }
 
-async function main() {
-  setStatus("loading…");
-  try {
-    const fields = await loadSummary();
-    const [iso, prog, corp, crps, disp] = await Promise.all([
-      fetchJSON("/api/metrics/isochrones"),
-      fetchJSON("/api/metrics/progression"),
-      fetchJSON("/api/metrics/corp"),
-      fetchJSON("/api/metrics/crps"),
-      fetchJSON("/api/metrics/displacement"),
-    ]);
-    plotIsochrones(iso, fields);
-    plotProgression(prog);
-    plotCORP(corp);
-    plotCRPS(crps);
-    plotDisplacement(disp);
-    setStatus("ready", "ok");
-  } catch (err) {
-    console.error(err);
-    setStatus("error: " + err.message, "err");
+function readRegionFromInputs() {
+  const out = {};
+  for (const k of REGION_KEYS) {
+    const el = $(k);
+    if (!el) continue;
+    const raw = el.value;
+    if (raw === "" || raw === null) continue;
+    const v = Number(raw);
+    if (!Number.isNaN(v)) out[k] = v;
+  }
+  return out;
+}
+
+function buildParams(extra) {
+  // core: onset params + region (region only if provided)
+  const p = readParamsFromInputs();
+  const r = readRegionFromInputs();
+  state.params = p;
+  state.region = Object.assign({ lat_min: "", lat_max: "", lon_min: "", lon_max: "" }, r);
+  return qs(Object.assign({}, p, r, extra || {}));
+}
+
+/* ------------------------------------------------------------------ *
+ * Sidebar population
+ * ------------------------------------------------------------------ */
+
+function populateYearSelect() {
+  const sel = $("year");
+  sel.innerHTML = "";
+  const years = state.catalog.shared_years || [];
+  for (const y of years) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    sel.appendChild(opt);
+  }
+  if (years.length) {
+    const last = years[years.length - 1];
+    sel.value = String(last);
+    state.year = last;
   }
 }
 
-main();
+function renderModelChips() {
+  const container = $("models");
+  container.innerHTML = "";
+  state.models.forEach((m, idx) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.dataset.key = m.key;
+    b.textContent = m.label + (m.is_ensemble ? ` · ${m.n_members}m` : "");
+    b.addEventListener("click", () => {
+      const model = state.models.find(x => x.key === m.key);
+      model.on = !model.on;
+      applyChipClasses();
+      refresh();
+    });
+    container.appendChild(b);
+    // pre-assign color by initial order
+    colorForModel(m.key);
+  });
+  applyChipClasses();
+}
+
+function applyChipClasses() {
+  // leftmost ON becomes primary; others ON become is-on; off = neither.
+  const container = $("models");
+  let primaryAssigned = false;
+  const chips = Array.from(container.children);
+  chips.forEach((chip) => {
+    const key = chip.dataset.key;
+    const model = state.models.find(x => x.key === key);
+    chip.classList.remove("is-primary", "is-on");
+    if (model && model.on) {
+      if (!primaryAssigned) {
+        chip.classList.add("is-primary");
+        model.primary = true;
+        primaryAssigned = true;
+      } else {
+        chip.classList.add("is-on");
+        model.primary = false;
+      }
+      // tint chip with model color
+      chip.style.setProperty("--chip-accent", colorForModel(key));
+    } else {
+      model.primary = false;
+      chip.style.removeProperty("--chip-accent");
+    }
+  });
+}
+
+function renderParamInputs() {
+  const container = $("params");
+  container.innerHTML = "";
+  const defaults = state.catalog.onset_defaults || {};
+  const docs = state.catalog.onset_docs || {};
+  for (const key of PARAM_ORDER) {
+    const label = document.createElement("label");
+    label.title = docs[key] || key;
+    const span = document.createElement("span");
+    span.textContent = key;
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = String(PARAM_STEP[key] || 0.1);
+    input.dataset.key = key;
+    if (defaults[key] !== undefined && defaults[key] !== null) {
+      input.value = defaults[key];
+    }
+    input.addEventListener("change", () => {
+      const btn = $("apply");
+      btn.classList.add("is-dirty");
+    });
+    label.appendChild(span);
+    label.appendChild(input);
+    container.appendChild(label);
+  }
+}
+
+function wireRegionInputs() {
+  for (const k of REGION_KEYS) {
+    const el = $(k);
+    if (!el) continue;
+    el.addEventListener("change", () => {
+      const btn = $("apply");
+      btn.classList.add("is-dirty");
+    });
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Init dropdown
+ * ------------------------------------------------------------------ */
+
+async function refreshInitOptions(primaryKey, year) {
+  const sel = $("init");
+  const currentVal = sel.value;
+  sel.innerHTML = "";
+  const auto = document.createElement("option");
+  auto.value = "auto";
+  auto.textContent = "auto-select overlap";
+  sel.appendChild(auto);
+
+  if (!primaryKey || !year) {
+    sel.value = "auto";
+    $("init-hint").textContent = "pick a primary model to load inits";
+    return;
+  }
+
+  try {
+    const data = await apiGet("/api/inits", qs({ model: primaryKey, year }));
+    (data.inits || []).forEach((iso, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `#${i} · ${iso}`;
+      sel.appendChild(opt);
+    });
+    // preserve selection if still valid, else reset to auto
+    if (currentVal && Array.from(sel.options).some(o => o.value === currentVal)) {
+      sel.value = currentVal;
+    } else {
+      sel.value = "auto";
+    }
+    state.init = sel.value;
+    $("init-hint").textContent = `auto picks whichever of ${data.n} init${data.n === 1 ? "" : "s"} overlaps obs`;
+  } catch (e) {
+    console.error("inits fetch failed", e);
+    $("init-hint").textContent = "init list unavailable";
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Summary table
+ * ------------------------------------------------------------------ */
+
+function renderSummaryTable(compare) {
+  const tbl = $("summary-table");
+  tbl.innerHTML = "";
+  $("summary-year").textContent = compare && compare.year ? compare.year : "—";
+
+  const heads = ["Model", "Members", "Season IOE (10⁶ km²·d)", "Season SPS", "CRPS mean (d)", "CORP BS", "MCB / DSC"];
+  for (const h of heads) {
+    const d = document.createElement("div");
+    d.className = "col-head";
+    d.textContent = h;
+    tbl.appendChild(d);
+  }
+
+  const rows = (compare && compare.rows) || [];
+  // preserve the order compare gave us (primary first in compare.rows)
+  rows.forEach((row, idx) => {
+    const accent = colorForModel(row.model);
+    const rowHead = document.createElement("div");
+    rowHead.className = "row-head";
+    rowHead.textContent = row.label || row.model;
+    rowHead.style.setProperty("--row-accent", accent);
+    tbl.appendChild(rowHead);
+
+    const members = document.createElement("div");
+    members.className = "cell";
+    members.textContent = row.is_ensemble ? `${row.n_members}` : "det";
+    tbl.appendChild(members);
+
+    const ioeCell = document.createElement("div");
+    ioeCell.className = "cell" + (idx === 0 ? " primary" : "");
+    const ioe = row.progression && row.progression.season ? row.progression.season.ioe_km2_day : null;
+    ioeCell.textContent = fmtE6(ioe, 1);
+    tbl.appendChild(ioeCell);
+
+    const spsCell = document.createElement("div");
+    spsCell.className = "cell";
+    const sps = row.progression && row.progression.season ? row.progression.season.sps_km2_day : null;
+    spsCell.textContent = row.is_ensemble ? fmtE6(sps, 1) : "—";
+    tbl.appendChild(spsCell);
+
+    const crpsCell = document.createElement("div");
+    crpsCell.className = "cell";
+    crpsCell.textContent = row.crps && row.crps.mean !== null ? fmt(row.crps.mean, 1) : "—";
+    tbl.appendChild(crpsCell);
+
+    const bsCell = document.createElement("div");
+    bsCell.className = "cell";
+    bsCell.textContent = row.corp && row.corp.bs !== null ? fmt(row.corp.bs, 3) : "—";
+    tbl.appendChild(bsCell);
+
+    const mdCell = document.createElement("div");
+    mdCell.className = "cell";
+    if (row.corp && row.corp.mcb !== null && row.corp.dsc !== null) {
+      mdCell.textContent = `${fmt(row.corp.mcb, 3)} / ${fmt(row.corp.dsc, 3)}`;
+    } else {
+      mdCell.textContent = "—";
+    }
+    tbl.appendChild(mdCell);
+  });
+
+  if (!rows.length) {
+    const msg = document.createElement("div");
+    msg.className = "summary-placeholder";
+    msg.textContent = "no rows returned";
+    tbl.appendChild(msg);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Plot renderers
+ * ------------------------------------------------------------------ */
+
+function rememberPlot(div) { state.plotDivs.add(div); }
+
+/* -- Isochrones (hero) -- */
+
+function renderIsochrones(state_, iso, primaryLabel) {
+  const traces = [];
+
+  // Background: observed-onset DOY heatmap
+  if (state_ && state_.obs_onset) {
+    traces.push({
+      type: "heatmap",
+      x: state_.obs_onset.lon,
+      y: state_.obs_onset.lat,
+      z: state_.obs_onset.values,
+      colorscale: "Viridis",
+      opacity: 0.55,
+      colorbar: {
+        title: { text: "Obs DOY", font: { size: 10, color: "#a8a291" } },
+        thickness: 10,
+        len: 0.6,
+        x: 1.02,
+        tickfont: { size: 9, color: "#a8a291" },
+      },
+      hovertemplate: "lon %{x:.2f} · lat %{y:.2f}<br>obs DOY %{z:.1f}<extra></extra>",
+      showscale: true,
+      name: "obs DOY",
+    });
+  }
+
+  const days = (iso && iso.isochrones) || [];
+  days.forEach((entry, i) => {
+    const color = ISO_DAY_PALETTE[i % ISO_DAY_PALETTE.length];
+    const grp = `day-${entry.day}`;
+    const pushSegs = (segs, dash, tag) => {
+      (segs || []).forEach((seg, j) => {
+        if (!seg || !seg.length) return;
+        const xs = seg.map(pt => pt[0]);
+        const ys = seg.map(pt => pt[1]);
+        traces.push({
+          type: "scattergl",
+          mode: "lines",
+          x: xs,
+          y: ys,
+          line: { color, width: 2, dash },
+          name: `DOY ${entry.day} · ${tag}`,
+          legendgroup: grp,
+          showlegend: j === 0,
+          hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
+        });
+      });
+    };
+    pushSegs(entry.forecast, "solid", "fcst");
+    pushSegs(entry.observed, "dash", "obs");
+  });
+
+  const layout = mergeLayout(PLOT_LAYOUT, {
+    title: {
+      text: primaryLabel ? `isochrones · ${primaryLabel}` : "isochrones",
+      font: { family: "Fraunces, serif", color: "#e8e1cf", size: 14 },
+      x: 0.01,
+      xanchor: "left",
+    },
+    xaxis: { title: { text: "Longitude", font: { size: 11, color: "#a8a291" } }, scaleanchor: "y" },
+    yaxis: { title: { text: "Latitude", font: { size: 11, color: "#a8a291" } } },
+    margin: { l: 58, r: 90, t: 46, b: 54 },
+    showlegend: true,
+  });
+  // enforce scaleanchor via xaxis -> y (Plotly uses scaleanchor on x referencing y)
+  layout.xaxis.scaleanchor = "y";
+
+  const div = $("plot-isochrones");
+  Plotly.react(div, traces, layout, PLOT_CONFIG);
+  rememberPlot(div);
+
+  // Distance footer
+  const foot = $("iso-distances");
+  const parts = [];
+  if (iso && iso.days && iso.days.length) {
+    iso.days.forEach((d, i) => {
+      const h = iso.hausdorff_km ? iso.hausdorff_km[i] : null;
+      const f = iso.frechet_km ? iso.frechet_km[i] : null;
+      const nf = iso.n_segments_fcst ? iso.n_segments_fcst[i] : 0;
+      const no = iso.n_segments_obs ? iso.n_segments_obs[i] : 0;
+      parts.push(`DOY ${d}: Hausdorff ${fmtKm(h)} km, Fréchet ${fmtKm(f)} km (${nf}f/${no}o segs)`);
+    });
+  }
+  foot.textContent = parts.join("  ·  ") || "no isochrone days returned";
+}
+
+/* -- Progression curves (all models) -- */
+
+function renderProgression(compare) {
+  const traces = [];
+  const rows = (compare && compare.rows) || [];
+
+  rows.forEach((row) => {
+    const color = colorForModel(row.model);
+    const p = row.progression || {};
+    const days = p.days || [];
+    if (Array.isArray(p.ioe_km2)) {
+      traces.push({
+        type: "scatter",
+        mode: "lines+markers",
+        x: days,
+        y: p.ioe_km2.map(v => (v === null ? null : v / 1e6)),
+        name: `${row.label} · IOE`,
+        line: { color, width: 2 },
+        marker: { size: 4, color },
+        connectgaps: false,
+        hovertemplate: `${row.label}<br>DOY %{x}<br>IOE %{y:.2f}·10⁶ km²<extra></extra>`,
+      });
+    }
+    if (Array.isArray(p.sps_km2) && p.sps_km2.some(v => v !== null && v !== undefined)) {
+      traces.push({
+        type: "scatter",
+        mode: "lines",
+        x: days,
+        y: p.sps_km2.map(v => (v === null ? null : v / 1e6)),
+        name: `${row.label} · SPS`,
+        line: { color, width: 1.5, dash: "dot" },
+        connectgaps: false,
+        hovertemplate: `${row.label} SPS<br>DOY %{x}<br>%{y:.2f}·10⁶ km²<extra></extra>`,
+      });
+    }
+  });
+
+  // Optional decomposition for primary model
+  if (state.progressionShowDecomp && rows.length) {
+    const primary = rows[0];
+    const color = colorForModel(primary.model);
+    const p = primary.progression || {};
+    const days = p.days || [];
+    if (Array.isArray(p.extent_km2)) {
+      traces.push({
+        type: "scatter",
+        mode: "lines",
+        x: days,
+        y: p.extent_km2.map(v => (v === null ? null : v / 1e6)),
+        name: `${primary.label} · extent`,
+        line: { color, width: 1.2, dash: "dash" },
+        opacity: 0.7,
+        connectgaps: false,
+      });
+    }
+    if (Array.isArray(p.misplacement_km2)) {
+      traces.push({
+        type: "scatter",
+        mode: "lines",
+        x: days,
+        y: p.misplacement_km2.map(v => (v === null ? null : v / 1e6)),
+        name: `${primary.label} · misplacement`,
+        line: { color: "#e87b85", width: 1.2, dash: "dashdot" },
+        opacity: 0.8,
+        connectgaps: false,
+      });
+    }
+  }
+
+  const layout = mergeLayout(PLOT_LAYOUT, {
+    xaxis: { title: { text: "Day of year", font: { size: 11, color: "#a8a291" } } },
+    yaxis: { title: { text: "10⁶ km²", font: { size: 11, color: "#a8a291" } } },
+    margin: { l: 56, r: 22, t: 22, b: 60 },
+    legend: { orientation: "h", y: -0.26 },
+  });
+
+  const div = $("plot-progression");
+  Plotly.react(div, traces, layout, PLOT_CONFIG);
+  rememberPlot(div);
+
+  // Caption + toggle chip
+  const capEl = $("progression-caption");
+  capEl.innerHTML = "";
+
+  // Chip toggle for decomposition
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "mini-chip" + (state.progressionShowDecomp ? " is-on" : "");
+  toggle.textContent = state.progressionShowDecomp ? "decomp: on" : "decomp";
+  toggle.addEventListener("click", () => {
+    state.progressionShowDecomp = !state.progressionShowDecomp;
+    renderProgression(compare);
+  });
+  capEl.appendChild(toggle);
+
+  // Text summary
+  const seasons = rows
+    .map(r => r.progression && r.progression.season ? r.progression.season.ioe_km2_day : null)
+    .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+  const txt = document.createElement("span");
+  txt.className = "caption-text";
+  if (seasons.length) {
+    const lo = Math.min(...seasons) / 1e6;
+    const hi = Math.max(...seasons) / 1e6;
+    txt.textContent = `${rows.length} model${rows.length === 1 ? "" : "s"} · season IOE range ${lo.toFixed(1)}–${hi.toFixed(1)} · 10⁶ km²·d`;
+  } else {
+    txt.textContent = `${rows.length} model${rows.length === 1 ? "" : "s"}`;
+  }
+  capEl.appendChild(txt);
+}
+
+/* -- CORP reliability -- */
+
+function renderCorp(corp, primaryLabel) {
+  const traces = [];
+
+  // Histogram of forecast probabilities (behind)
+  const hist = corp.forecast_prob_histogram || [];
+  if (hist.length) {
+    const xs = hist.map((_, i) => (i + 0.5) / hist.length);
+    traces.push({
+      type: "bar",
+      x: xs,
+      y: hist,
+      name: "freq",
+      marker: { color: "rgba(168,162,145,0.25)", line: { width: 0 } },
+      yaxis: "y2",
+      hovertemplate: "p %{x:.2f}<br>count %{y}<extra></extra>",
+      showlegend: false,
+      width: hist.length ? 1 / hist.length * 0.95 : 0.05,
+    });
+  }
+
+  // 45° perfect reliability
+  traces.push({
+    type: "scatter",
+    mode: "lines",
+    x: [0, 1],
+    y: [0, 1],
+    name: "perfect",
+    line: { color: "#6a7689", width: 1, dash: "dash" },
+    hoverinfo: "skip",
+    showlegend: false,
+  });
+
+  // CORP calibration curve
+  if (corp.curve) {
+    traces.push({
+      type: "scatter",
+      mode: "lines+markers",
+      x: corp.curve.forecast_prob,
+      y: corp.curve.calibrated_prob,
+      name: "CORP",
+      line: { color: "#f0b264", width: 2.5 },
+      marker: { color: "#f0b264", size: 6 },
+      hovertemplate: "p_fcst %{x:.2f}<br>p_cal %{y:.2f}<extra></extra>",
+    });
+  }
+
+  const layout = mergeLayout(PLOT_LAYOUT, {
+    xaxis: {
+      title: { text: "forecast probability", font: { size: 11, color: "#a8a291" } },
+      range: [0, 1],
+    },
+    yaxis: {
+      title: { text: "observed / calibrated", font: { size: 11, color: "#a8a291" } },
+      range: [0, 1],
+    },
+    yaxis2: {
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+      showticklabels: false,
+      zeroline: false,
+      showline: false,
+    },
+    margin: { l: 56, r: 30, t: 18, b: 48 },
+    showlegend: false,
+    bargap: 0.02,
+  });
+
+  const div = $("plot-corp");
+  Plotly.react(div, traces, layout, PLOT_CONFIG);
+  rememberPlot(div);
+
+  // Caption
+  const tau = corp.tau;
+  const n = corp.n;
+  const res = corp.identity_residual;
+  const resStr = (res === null || res === undefined || Number.isNaN(res))
+    ? "—"
+    : Number(res).toExponential(1);
+  $("corp-caption").textContent = `τ = ${tau ?? "—"} · N = ${n ?? "—"} · residual = ${resStr}`;
+
+  // Breakdown
+  const breakdown = $("corp-breakdown");
+  breakdown.innerHTML = "";
+  const items = [
+    ["bs", corp.mean_score],
+    ["mcb", corp.mcb],
+    ["dsc", corp.dsc],
+    ["unc", corp.unc],
+  ];
+  for (const [k, v] of items) {
+    const it = document.createElement("div");
+    it.className = "corp-item";
+    const l = document.createElement("span");
+    l.className = "corp-label";
+    l.textContent = k;
+    const val = document.createElement("span");
+    val.className = "corp-val";
+    val.textContent = fmt(v, 3);
+    it.appendChild(l);
+    it.appendChild(val);
+    breakdown.appendChild(it);
+  }
+}
+
+/* -- CRPS field -- */
+
+function renderCrps(crps) {
+  const f = crps.field || {};
+  const traces = [{
+    type: "heatmap",
+    x: f.lon,
+    y: f.lat,
+    z: f.values,
+    colorscale: "Magma",
+    colorbar: {
+      title: { text: "CRPS (days)", font: { size: 10, color: "#a8a291" } },
+      thickness: 10,
+      len: 0.75,
+      tickfont: { size: 9, color: "#a8a291" },
+    },
+    hovertemplate: "lon %{x:.2f} · lat %{y:.2f}<br>CRPS %{z:.2f} d<extra></extra>",
+  }];
+
+  const layout = mergeLayout(PLOT_LAYOUT, {
+    xaxis: { title: { text: "Longitude", font: { size: 11, color: "#a8a291" } }, scaleanchor: "y" },
+    yaxis: { title: { text: "Latitude", font: { size: 11, color: "#a8a291" } } },
+    margin: { l: 56, r: 80, t: 18, b: 48 },
+  });
+  layout.xaxis.scaleanchor = "y";
+
+  const div = $("plot-crps");
+  Plotly.react(div, traces, layout, PLOT_CONFIG);
+  rememberPlot(div);
+
+  $("crps-caption").textContent =
+    `mean ${fmt(crps.mean, 1)} d · max ${fmt(crps.max, 1)} d · N ${crps.n_finite ?? "—"} finite cells`;
+}
+
+/* -- Displacement dual-axis -- */
+
+function renderDisplacement(disp) {
+  const x = disp.thresholds || [];
+  const km = disp.great_circle_km || [];
+  const bias = (disp.area_bias_fraction || []).map(v => (v === null ? null : v * 100));
+
+  const traces = [
+    {
+      type: "scatter",
+      mode: "lines+markers",
+      x,
+      y: km,
+      name: "great-circle (km)",
+      line: { color: "#6eb7ff", width: 2 },
+      marker: { size: 5, color: "#6eb7ff" },
+      yaxis: "y",
+      hovertemplate: "DOY %{x}<br>shift %{y:.1f} km<extra></extra>",
+    },
+    {
+      type: "scatter",
+      mode: "lines+markers",
+      x,
+      y: bias,
+      name: "area bias (%)",
+      line: { color: "#f0b264", width: 2, dash: "dot" },
+      marker: { size: 5, color: "#f0b264" },
+      yaxis: "y2",
+      hovertemplate: "DOY %{x}<br>area bias %{y:.1f}%<extra></extra>",
+    },
+  ];
+
+  const layout = mergeLayout(PLOT_LAYOUT, {
+    xaxis: { title: { text: "Threshold (DOY)", font: { size: 11, color: "#a8a291" } } },
+    yaxis: {
+      title: { text: "km", font: { size: 11, color: "#6eb7ff" } },
+      tickfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: "#6eb7ff" },
+    },
+    yaxis2: {
+      title: { text: "% area bias", font: { size: 11, color: "#f0b264" } },
+      overlaying: "y",
+      side: "right",
+      showgrid: false,
+      zeroline: false,
+      tickfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: "#f0b264" },
+    },
+    legend: { orientation: "h", y: -0.28 },
+    margin: { l: 56, r: 60, t: 18, b: 60 },
+  });
+
+  const div = $("plot-displacement");
+  Plotly.react(div, traces, layout, PLOT_CONFIG);
+  rememberPlot(div);
+}
+
+/* -- FSS matrix -- */
+
+function renderFss(fss) {
+  const thresholds = fss.thresholds || [];
+  const nbhds = fss.neighborhoods || [];
+  const z = fss.fss || [];
+
+  // annotations for non-null cells
+  const annotations = [];
+  for (let i = 0; i < z.length; i++) {
+    for (let j = 0; j < (z[i] || []).length; j++) {
+      const v = z[i][j];
+      if (v === null || v === undefined || Number.isNaN(v)) continue;
+      annotations.push({
+        x: nbhds[j],
+        y: thresholds[i],
+        text: v.toFixed(2),
+        font: {
+          family: "IBM Plex Mono, ui-monospace",
+          size: 10,
+          color: v > 0.6 ? "#0a1119" : "#e4ddc9",
+        },
+        showarrow: false,
+      });
+    }
+  }
+
+  const traces = [{
+    type: "heatmap",
+    x: nbhds,
+    y: thresholds,
+    z,
+    colorscale: FSS_COLORSCALE,
+    zmin: 0,
+    zmax: 1,
+    colorbar: {
+      title: { text: "FSS", font: { size: 10, color: "#a8a291" } },
+      thickness: 10,
+      len: 0.8,
+      tickfont: { size: 9, color: "#a8a291" },
+    },
+    hovertemplate: "thr DOY %{y} · nbhd %{x}<br>FSS %{z:.3f}<extra></extra>",
+  }];
+
+  const layout = mergeLayout(PLOT_LAYOUT, {
+    xaxis: {
+      title: { text: "Neighborhood (cells)", font: { size: 11, color: "#a8a291" } },
+      type: "category",
+    },
+    yaxis: {
+      title: { text: "Threshold (DOY)", font: { size: 11, color: "#a8a291" } },
+      type: "category",
+      autorange: "reversed",
+    },
+    annotations,
+    margin: { l: 64, r: 70, t: 18, b: 52 },
+  });
+
+  const div = $("plot-fss");
+  Plotly.react(div, traces, layout, PLOT_CONFIG);
+  rememberPlot(div);
+}
+
+/* ------------------------------------------------------------------ *
+ * Orchestration
+ * ------------------------------------------------------------------ */
+
+async function loadCatalog() {
+  setStatus("loading catalog…");
+  const cat = await apiGet("/api/catalog");
+  state.catalog = cat;
+
+  // Seed models
+  state.models = (cat.models || []).map((m, i) => ({
+    key: m.key,
+    label: m.label,
+    is_ensemble: !!m.is_ensemble,
+    n_members: m.n_members || 0,
+    years: m.years || [],
+    on: i < 2,      // auto-enable first two
+    primary: i === 0,
+  }));
+  state.models.forEach(m => colorForModel(m.key));
+
+  // Meta strings
+  const nModels = state.models.length;
+  $("meta-catalog").textContent = `${cat.obs?.label ?? "obs"} · ${nModels} model${nModels === 1 ? "" : "s"}`;
+
+  const obsYears = cat.obs?.years || [];
+  const yrLo = obsYears.length ? Math.min(...obsYears) : "—";
+  const yrHi = obsYears.length ? Math.max(...obsYears) : "—";
+  $("meta-obs").textContent = `IMD ${yrLo}–${yrHi} · ${obsYears.length} years`;
+
+  // Colophon root
+  const colo = $("colophon-root");
+  if (colo) colo.textContent = cat.root || "—";
+
+  populateYearSelect();
+  renderModelChips();
+  renderParamInputs();
+  wireRegionInputs();
+
+  setStatus("ready", "ok");
+}
+
+function markPanelsLoading(on) {
+  [
+    "plot-isochrones",
+    "plot-progression",
+    "plot-corp",
+    "plot-crps",
+    "plot-displacement",
+    "plot-fss",
+  ].forEach(id => setLoading($(id), on));
+  setLoading($("summary-table"), on);
+}
+
+async function refresh() {
+  if (state.busy) return;
+  state.busy = true;
+  $("apply").disabled = true;
+  $("apply").classList.remove("is-dirty");
+
+  try {
+    state.year = Number($("year").value);
+    state.init = $("init").value || "auto";
+
+    const primary = primaryModelKey();
+    const actives = activeModelKeys();
+
+    markPanelsLoading(true);
+
+    if (!primary) {
+      setStatus("pick at least one model", "err");
+      $("summary-table").innerHTML = '<div class="summary-placeholder">select a model</div>';
+      markPanelsLoading(false);
+      return;
+    }
+
+    // Update init dropdown for primary/year first
+    await refreshInitOptions(primary, state.year);
+    state.init = $("init").value || "auto";
+
+    // Common params
+    const baseParams = buildParams();
+    const primaryParams = qs(Object.assign(
+      { model: primary, year: state.year, init: state.init },
+      state.params,
+      cleanRegion(state.region),
+    ));
+
+    setStatus("fetching…");
+
+    // 1) compare (summary + progression)
+    const comparePromise = apiGet(
+      "/api/compare",
+      qs(Object.assign(
+        { models: actives.join(","), year: state.year },
+        state.params,
+        cleanRegion(state.region),
+      )),
+    )
+      .then(cmp => {
+        renderSummaryTable(cmp);
+        renderProgression(cmp);
+      })
+      .catch(err => {
+        console.error("compare failed", err);
+        $("summary-table").innerHTML =
+          `<div class="summary-placeholder">compare failed: ${err.message}</div>`;
+      })
+      .finally(() => {
+        setLoading($("summary-table"), false);
+        setLoading($("plot-progression"), false);
+      });
+
+    // Primary-only endpoints in parallel
+    const statePromise = apiGet("/api/state", primaryParams)
+      .then(s => {
+        // Kick off isochrones too (they need state for obs-onset background)
+        return apiGet("/api/metrics/isochrones", primaryParams).then(iso => ({ s, iso }));
+      })
+      .then(({ s, iso }) => {
+        const pLabel = (state.models.find(m => m.key === primary) || {}).label || primary;
+        renderIsochrones(s, iso, pLabel);
+      })
+      .catch(err => {
+        console.error("isochrones/state failed", err);
+        $("iso-distances").textContent = `error: ${err.message}`;
+      })
+      .finally(() => setLoading($("plot-isochrones"), false));
+
+    const crpsPromise = apiGet("/api/metrics/crps", primaryParams)
+      .then(renderCrps)
+      .catch(err => {
+        console.error("crps failed", err);
+        $("crps-caption").textContent = `error: ${err.message}`;
+      })
+      .finally(() => setLoading($("plot-crps"), false));
+
+    const dispPromise = apiGet("/api/metrics/displacement", primaryParams)
+      .then(renderDisplacement)
+      .catch(err => console.error("displacement failed", err))
+      .finally(() => setLoading($("plot-displacement"), false));
+
+    const corpPromise = apiGet(
+      "/api/metrics/corp",
+      qs(Object.assign({ model: primary, year: state.year, init: state.init, tau: 170 },
+        state.params, cleanRegion(state.region))),
+    )
+      .then(corp => renderCorp(corp))
+      .catch(err => {
+        console.error("corp failed", err);
+        $("corp-caption").textContent = `error: ${err.message}`;
+      })
+      .finally(() => setLoading($("plot-corp"), false));
+
+    const fssPromise = apiGet(
+      "/api/metrics/fss",
+      qs(Object.assign(
+        { model: primary, year: state.year, init: state.init,
+          thresholds: "150,160,170,180", neighborhoods: "1,3,5,7" },
+        state.params, cleanRegion(state.region),
+      )),
+    )
+      .then(renderFss)
+      .catch(err => console.error("fss failed", err))
+      .finally(() => setLoading($("plot-fss"), false));
+
+    await Promise.allSettled([
+      comparePromise, statePromise, crpsPromise, dispPromise, corpPromise, fssPromise,
+    ]);
+
+    setStatus("ready", "ok");
+  } catch (err) {
+    console.error("refresh fatal", err);
+    setStatus(`error: ${err.message}`, "err");
+  } finally {
+    markPanelsLoading(false);
+    state.busy = false;
+    $("apply").disabled = false;
+  }
+}
+
+function cleanRegion(r) {
+  const out = {};
+  for (const k of REGION_KEYS) {
+    if (r[k] !== "" && r[k] !== null && r[k] !== undefined) out[k] = r[k];
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Bindings
+ * ------------------------------------------------------------------ */
+
+function bindControls() {
+  $("year").addEventListener("change", () => {
+    state.year = Number($("year").value);
+    refresh();
+  });
+
+  $("apply").addEventListener("click", () => { refresh(); });
+
+  $("init").addEventListener("change", () => {
+    state.init = $("init").value || "auto";
+    // Re-fetch primary-dependent panels only. Simplest: full refresh.
+    refresh();
+  });
+
+  window.addEventListener("resize", () => {
+    for (const d of state.plotDivs) {
+      try { Plotly.Plots.resize(d); } catch (e) { /* ignore */ }
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Boot
+ * ------------------------------------------------------------------ */
+
+async function init() {
+  try {
+    await loadCatalog();
+  } catch (err) {
+    console.error("catalog failed", err);
+    setStatus(`catalog error: ${err.message}`, "err");
+    return;
+  }
+  bindControls();
+  refresh();
+}
+
+document.addEventListener("DOMContentLoaded", init);
