@@ -1138,7 +1138,8 @@ async function refresh() {
   $("apply").classList.remove("is-dirty");
 
   try {
-    state.year = Number($("year").value);
+    // Pull the latest control values into state. Year-range and iso-year
+    // are wired separately; here we just sync init.
     state.init = $("init").value || "auto";
 
     const primary = primaryModelKey();
