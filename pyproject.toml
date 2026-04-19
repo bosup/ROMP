@@ -26,7 +26,8 @@ dependencies = [
   "regionmask",
   "zarr",
   "cartopy",
-  "fsspec==2025.3.2.*"
+  "fsspec==2025.3.2.*",
+  "shapely"
 ]
 
 
@@ -56,4 +57,10 @@ dev = [
 
 [project.scripts]
 momp-run = "momp.driver:run_momp"
+momp-run-progression = "momp.driver_progression:run_progression"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: end-to-end checks against real demo data; skip by default in CI",
+]
 
