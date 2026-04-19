@@ -108,6 +108,47 @@ def compute_isochrones(fcst: xr.DataArray, obs: xr.DataArray, *, days) -> dict:
     }
 
 
+def corp_inputs(ens: xr.DataArray | None, fcst: xr.DataArray,
+                obs: xr.DataArray, *, tau: int, season_end: int):
+    """Return raw (forecast probability, observed binary) arrays at threshold τ
+    so multiple years can be pooled before the CORP decomposition."""
+    if ens is not None:
+        m = ens.values
+        p = np.where(np.isnan(m) | (m > season_end), 0.0,
+                     (m <= tau).astype(float)).mean(axis=0)
+    else:
+        f = fcst.values
+        p = np.where(np.isnan(f) | (f > season_end), 0.0,
+                     (f <= tau).astype(float))
+    y = np.where(np.isfinite(obs.values) & (obs.values <= tau), 1.0, 0.0)
+    return p.ravel(), y.ravel()
+
+
+def compute_corp_pooled(p: np.ndarray, y: np.ndarray, *, tau: int) -> dict:
+    """CORP decomposition on already-pooled (p, y) arrays."""
+    from momp.graphics.corp_reliability import (
+        corp_decompose_brier, _consolidate_curve,
+    )
+    decomp = corp_decompose_brier(p, y)
+    f_rep, c_rep = _consolidate_curve(decomp.forecast_prob, decomp.calibrated_y)
+    return {
+        "tau": int(tau),
+        "mean_score": float(decomp.mean_score),
+        "mcb": float(decomp.mcb),
+        "dsc": float(decomp.dsc),
+        "unc": float(decomp.unc),
+        "identity_residual": float(
+            (decomp.mcb - decomp.dsc + decomp.unc) - decomp.mean_score
+        ),
+        "n": int(decomp.n),
+        "curve": {
+            "forecast_prob": [float(x) for x in f_rep],
+            "calibrated_prob": [float(x) for x in c_rep],
+        },
+        "forecast_prob_histogram": _as_list(decomp.forecast_prob),
+    }
+
+
 def compute_corp(ens: xr.DataArray | None, fcst: xr.DataArray,
                  obs: xr.DataArray, *, tau: int, season_end: int) -> dict:
     """Build a probability of 'onset <= tau' and decompose its Brier score."""

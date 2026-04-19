@@ -38,10 +38,21 @@
         <section class="cntrl">
           <h2 class="cntrl-head">Comparison</h2>
 
-          <label class="field">
-            <span>Year</span>
-            <select id="year"></select>
-          </label>
+          <div class="field">
+            <span>Year range</span>
+            <div class="year-range">
+              <select id="year_from"></select>
+              <span class="year-range-sep">→</span>
+              <select id="year_to"></select>
+            </div>
+            <div class="year-range-actions">
+              <button type="button" class="mini-btn" data-yr="1">single</button>
+              <button type="button" class="mini-btn" data-yr="5">last 5</button>
+              <button type="button" class="mini-btn" data-yr="10">last 10</button>
+              <button type="button" class="mini-btn" data-yr="all">all</button>
+            </div>
+            <div class="field-hint" id="year-hint">aggregates per-year metrics across the range</div>
+          </div>
 
           <div class="field">
             <span>Models</span>
@@ -49,7 +60,13 @@
           </div>
 
           <label class="field">
-            <span>Init for primary model</span>
+            <span>Iso year (hero only)</span>
+            <select id="iso_year"></select>
+            <div class="field-hint">single year for the isochrone overlay; defaults to the middle of the range</div>
+          </label>
+
+          <label class="field">
+            <span>Init for iso year</span>
             <select id="init"><option value="auto">auto-select overlap</option></select>
             <div class="field-hint" id="init-hint">auto picks the init whose onset range overlaps obs</div>
           </label>
@@ -125,6 +142,13 @@
             </div>
           </header>
           <div id="plot-isochrones" class="plot-hero"></div>
+          <footer class="card-foot interp" id="iso-interp">
+            Each color is one DOY. Solid lines are the forecast onset front
+            for that day; dashed are observed. <strong>Smaller gap between
+            same-color lines = better spatial agreement.</strong>
+            Hausdorff distance (worst-point), Fréchet distance (path-aware)
+            and segment counts per day below.
+          </footer>
           <footer class="card-foot" id="iso-distances"></footer>
         </section>
 
@@ -153,6 +177,11 @@
               <div class="card-meta"><span id="crps-caption">—</span></div>
             </header>
             <div id="plot-crps" class="plot"></div>
+            <footer class="card-foot interp" id="crps-interp">
+              Per-cell censored CRPS in days. <strong>Lower is better</strong>;
+              0 is perfect. Brighter cells = larger forecast error.
+              No-onset cells handled via the Hemri sentinel.
+            </footer>
           </section>
 
           <section class="card">
@@ -165,8 +194,17 @@
           <section class="card card-wide">
             <header class="card-head">
               <div><span class="eyebrow">roberts &amp; lean</span><h3>Fractions skill · threshold × neighborhood</h3></div>
+              <div class="card-meta"><span id="fss-caption">—</span></div>
             </header>
             <div id="plot-fss" class="plot plot-short"></div>
+            <footer class="card-foot interp" id="fss-interp">
+              FSS = 1 perfect · ≥ 0.5 useful at that scale · below the per-row
+              <strong>no-skill threshold</strong> (<code>2p(1−p)/(p²+(1−p)²)</code>, shown
+              right of each row as <code>ns=…</code>) means the forecast adds nothing
+              over a random forecast at the obs base rate <code>p</code>.
+              Cells marked <code>✕</code> are below no-skill;
+              <code>·</code> means above no-skill but below the useful (0.5) threshold.
+            </footer>
           </section>
 
         </section>

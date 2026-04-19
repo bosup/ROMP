@@ -132,7 +132,9 @@ function qs(obj) {
 
 const state = {
   catalog: null,
-  year: null,
+  yearFrom: null,
+  yearTo: null,
+  isoYear: null,
   init: "auto",
   initIdx: null,
   models: [],           // array of {key,label,is_ensemble,n_members,on,primary}
@@ -143,6 +145,16 @@ const state = {
   progressionShowDecomp: false,
   plotDivs: new Set(),
 };
+
+function selectedYears() {
+  // Inclusive [from, to] within the primary model's available years.
+  const avail = yearsForActiveSelection();
+  if (!avail.length) return [];
+  const a = state.yearFrom ?? avail[0];
+  const b = state.yearTo ?? avail[avail.length - 1];
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  return avail.filter(y => y >= lo && y <= hi);
+}
 
 /* ------------------------------------------------------------------ *
  * Small UI helpers
@@ -232,6 +244,21 @@ function buildParams(extra) {
   return qs(Object.assign({}, p, r, extra || {}));
 }
 
+function metricParamsCSV(extra) {
+  // years range for aggregated metrics (CRPS / FSS / displacement / progression / corp / compare)
+  const years = selectedYears();
+  const yearsArg = years.length
+    ? (years.length === 1 ? { year: years[0] } : { years: `${years[0]}-${years[years.length - 1]}` })
+    : {};
+  return buildParams(Object.assign({}, yearsArg, extra || {}));
+}
+
+function isoParamsCSV(extra) {
+  // single year for the isochrone hero
+  const yr = state.isoYear ?? selectedYears().slice(-1)[0];
+  return buildParams(Object.assign({ year: yr, init: state.init || "auto" }, extra || {}));
+}
+
 /* ------------------------------------------------------------------ *
  * Sidebar population
  * ------------------------------------------------------------------ */
@@ -249,35 +276,57 @@ function yearsForActiveSelection() {
   return filtered;
 }
 
-function populateYearSelect() {
-  const sel = $("year");
-  const prevValue = sel.value || (state.year !== null ? String(state.year) : "");
+function fillYearOptions(sel, years, currentValue) {
   sel.innerHTML = "";
-  const years = yearsForActiveSelection();
   if (!years.length) {
     const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "no overlap with primary model";
-    opt.disabled = true;
+    opt.value = ""; opt.textContent = "—"; opt.disabled = true;
     sel.appendChild(opt);
-    state.year = null;
-    return;
+    return null;
   }
   for (const y of years) {
     const opt = document.createElement("option");
-    opt.value = String(y);
-    opt.textContent = String(y);
+    opt.value = String(y); opt.textContent = String(y);
     sel.appendChild(opt);
   }
-  // Preserve current pick if still valid; otherwise default to most recent.
-  if (prevValue && years.map(String).includes(prevValue)) {
-    sel.value = prevValue;
-    state.year = Number(prevValue);
-  } else {
-    const last = years[years.length - 1];
-    sel.value = String(last);
-    state.year = last;
+  const has = (v) => years.map(String).includes(String(v));
+  if (currentValue !== null && currentValue !== undefined && has(currentValue)) {
+    sel.value = String(currentValue);
+    return Number(currentValue);
   }
+  return Number(sel.value);
+}
+
+function populateYearSelect() {
+  const years = yearsForActiveSelection();
+  const fromSel = $("year_from"), toSel = $("year_to"), isoSel = $("iso_year");
+  if (!years.length) {
+    [fromSel, toSel, isoSel].forEach(s => {
+      s.innerHTML = '<option value="" disabled>no overlap</option>';
+    });
+    state.yearFrom = state.yearTo = state.isoYear = null;
+    return;
+  }
+  // default range: last 5 years (or all if fewer)
+  const defFrom = state.yearFrom ?? years[Math.max(0, years.length - 5)];
+  const defTo   = state.yearTo   ?? years[years.length - 1];
+  state.yearFrom = fillYearOptions(fromSel, years, defFrom);
+  state.yearTo   = fillYearOptions(toSel, years, defTo);
+  // iso year: middle of currently-selected range
+  const sel = selectedYears();
+  const defIso = state.isoYear && sel.includes(state.isoYear)
+    ? state.isoYear : sel[Math.floor(sel.length / 2)];
+  state.isoYear = fillYearOptions(isoSel, sel.length ? sel : years, defIso);
+  refreshYearHint();
+}
+
+function refreshYearHint() {
+  const yrs = selectedYears();
+  const el = $("year-hint");
+  if (!el) return;
+  if (!yrs.length) { el.textContent = "no overlap with primary model"; return; }
+  if (yrs.length === 1) el.textContent = "single year — no aggregation";
+  else el.textContent = `aggregating ${yrs.length} years (${yrs[0]}–${yrs[yrs.length - 1]}); medians + IQR`;
 }
 
 function renderModelChips() {
@@ -424,7 +473,7 @@ function renderSummaryTable(compare) {
   tbl.innerHTML = "";
   $("summary-year").textContent = compare && compare.year ? compare.year : "—";
 
-  const heads = ["Model", "Members", "IOE · 10⁶km²d", "SPS · 10⁶km²d", "CRPS · d", "Brier", "MCB / DSC"];
+  const heads = ["Model", "yrs / mem", "IOE · 10⁶km²d", "SPS · 10⁶km²d", "CRPS · d", "Brier", "MCB / DSC"];
   for (const h of heads) {
     const d = document.createElement("div");
     d.className = "col-head";
@@ -447,19 +496,32 @@ function renderSummaryTable(compare) {
 
     const members = document.createElement("div");
     members.className = "cell";
-    members.textContent = row.is_ensemble ? `${row.n_members}` : "det";
+    const memTxt = row.is_ensemble ? `${row.n_members}m` : "det";
+    members.textContent = (row.n_years && row.n_years > 1)
+      ? `${row.n_years}y / ${memTxt}` : memTxt;
     tbl.appendChild(members);
 
+    const season = (row.progression && row.progression.season) || {};
     const ioeCell = document.createElement("div");
     ioeCell.className = "cell" + (idx === 0 ? " primary" : "");
-    const ioe = row.progression && row.progression.season ? row.progression.season.ioe_km2_day : null;
-    ioeCell.textContent = fmtE6(ioe, 1);
+    const ioe = season.ioe_km2_day;
+    const ioeQ25 = season.ioe_km2_day_q25, ioeQ75 = season.ioe_km2_day_q75;
+    ioeCell.innerHTML = fmtE6(ioe, 1) +
+      (ioeQ25 !== undefined && ioeQ25 !== null
+        ? ` <span class="cell-iqr">[${fmtE6(ioeQ25,1)}–${fmtE6(ioeQ75,1)}]</span>` : "");
     tbl.appendChild(ioeCell);
 
     const spsCell = document.createElement("div");
     spsCell.className = "cell";
-    const sps = row.progression && row.progression.season ? row.progression.season.sps_km2_day : null;
-    spsCell.textContent = row.is_ensemble ? fmtE6(sps, 1) : "—";
+    const sps = season.sps_km2_day;
+    const spsQ25 = season.sps_km2_day_q25, spsQ75 = season.sps_km2_day_q75;
+    if (!row.is_ensemble || sps === null || sps === undefined) {
+      spsCell.textContent = "—";
+    } else {
+      spsCell.innerHTML = fmtE6(sps, 1) +
+        (spsQ25 !== undefined && spsQ25 !== null
+          ? ` <span class="cell-iqr">[${fmtE6(spsQ25,1)}–${fmtE6(spsQ75,1)}]</span>` : "");
+    }
     tbl.appendChild(spsCell);
 
     const crpsCell = document.createElement("div");
@@ -533,11 +595,12 @@ function renderIsochrones(state_, iso, primaryLabel) {
         const xs = seg.map(pt => pt[0]);
         const ys = seg.map(pt => pt[1]);
         traces.push({
-          type: "scattergl",
+          type: "scatter",
           mode: "lines",
           x: xs,
           y: ys,
-          line: { color, width: 2, dash },
+          line: { color, width: dash === "dash" ? 2.5 : 3.2, dash },
+          opacity: dash === "dash" ? 0.95 : 1,
           name: `DOY ${entry.day} · ${tag}`,
           legendgroup: grp,
           showlegend: j === 0,
@@ -551,7 +614,9 @@ function renderIsochrones(state_, iso, primaryLabel) {
 
   const layout = mergeLayout(PLOT_LAYOUT, {
     title: {
-      text: primaryLabel ? `isochrones · ${primaryLabel}` : "isochrones",
+      text: primaryLabel
+        ? `${primaryLabel} · ${(iso && iso.year) || ""} · obs DOY behind, contours = onset front by day`
+        : "isochrones",
       font: { family: "Fraunces, serif", color: "#e8e1cf", size: 14 },
       x: 0.01,
       xanchor: "left",
@@ -588,18 +653,45 @@ function renderIsochrones(state_, iso, primaryLabel) {
 function renderProgression(compare) {
   const traces = [];
   const rows = (compare && compare.rows) || [];
+  const multiYear = (compare && compare.n_years > 1);
+
+  function rgba(hex, a) {
+    const h = hex.replace("#", "");
+    const r = parseInt(h.slice(0, 2), 16),
+          g = parseInt(h.slice(2, 4), 16),
+          b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
 
   rows.forEach((row) => {
     const color = colorForModel(row.model);
     const p = row.progression || {};
     const days = p.days || [];
+
     if (Array.isArray(p.ioe_km2)) {
+      // IQR band first (so the median line draws on top)
+      if (multiYear && Array.isArray(p.ioe_km2_q25) && Array.isArray(p.ioe_km2_q75)) {
+        traces.push({
+          type: "scatter", x: days,
+          y: p.ioe_km2_q75.map(v => (v === null ? null : v / 1e6)),
+          mode: "lines", line: { width: 0, color },
+          showlegend: false, hoverinfo: "skip",
+        });
+        traces.push({
+          type: "scatter", x: days,
+          y: p.ioe_km2_q25.map(v => (v === null ? null : v / 1e6)),
+          mode: "lines", line: { width: 0, color },
+          fill: "tonexty", fillcolor: rgba(color, 0.15),
+          name: `${row.label} · IQR`,
+          showlegend: false, hoverinfo: "skip",
+        });
+      }
       traces.push({
         type: "scatter",
-        mode: "lines+markers",
+        mode: multiYear ? "lines" : "lines+markers",
         x: days,
         y: p.ioe_km2.map(v => (v === null ? null : v / 1e6)),
-        name: `${row.label} · IOE`,
+        name: `${row.label} · IOE${multiYear ? " (median)" : ""}`,
         line: { color, width: 2 },
         marker: { size: 4, color },
         connectgaps: false,
@@ -607,12 +699,27 @@ function renderProgression(compare) {
       });
     }
     if (Array.isArray(p.sps_km2) && p.sps_km2.some(v => v !== null && v !== undefined)) {
+      if (multiYear && Array.isArray(p.sps_km2_q25) && Array.isArray(p.sps_km2_q75)) {
+        traces.push({
+          type: "scatter", x: days,
+          y: p.sps_km2_q75.map(v => (v === null ? null : v / 1e6)),
+          mode: "lines", line: { width: 0, color },
+          showlegend: false, hoverinfo: "skip",
+        });
+        traces.push({
+          type: "scatter", x: days,
+          y: p.sps_km2_q25.map(v => (v === null ? null : v / 1e6)),
+          mode: "lines", line: { width: 0, color },
+          fill: "tonexty", fillcolor: rgba(color, 0.10),
+          showlegend: false, hoverinfo: "skip",
+        });
+      }
       traces.push({
         type: "scatter",
         mode: "lines",
         x: days,
         y: p.sps_km2.map(v => (v === null ? null : v / 1e6)),
-        name: `${row.label} · SPS`,
+        name: `${row.label} · SPS${multiYear ? " (median)" : ""}`,
         line: { color, width: 1.5, dash: "dot" },
         connectgaps: false,
         hovertemplate: `${row.label} SPS<br>DOY %{x}<br>%{y:.2f}·10⁶ km²<extra></extra>`,
@@ -684,12 +791,13 @@ function renderProgression(compare) {
     .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
   const txt = document.createElement("span");
   txt.className = "caption-text";
+  const yrLabel = multiYear ? ` · ${compare.n_years} yrs (median + IQR shading)` : "";
   if (seasons.length) {
     const lo = Math.min(...seasons) / 1e6;
     const hi = Math.max(...seasons) / 1e6;
-    txt.textContent = `${rows.length} model${rows.length === 1 ? "" : "s"} · season IOE range ${lo.toFixed(1)}–${hi.toFixed(1)} · 10⁶ km²·d`;
+    txt.textContent = `${rows.length} model${rows.length === 1 ? "" : "s"}${yrLabel} · season IOE range ${lo.toFixed(1)}–${hi.toFixed(1)} · 10⁶ km²·d`;
   } else {
-    txt.textContent = `${rows.length} model${rows.length === 1 ? "" : "s"}`;
+    txt.textContent = `${rows.length} model${rows.length === 1 ? "" : "s"}${yrLabel}`;
   }
   capEl.appendChild(txt);
 }
@@ -831,8 +939,13 @@ function renderCrps(crps) {
   Plotly.react(div, traces, layout, PLOT_CONFIG);
   rememberPlot(div);
 
+  const yrs = (crps.n_years && crps.n_years > 1) ? ` · ${crps.n_years}-yr per-cell mean` : "";
+  let extras = "";
+  if (crps.median !== undefined && crps.median !== null) {
+    extras = ` · median ${fmt(crps.median, 1)}d · IQR ${fmt(crps.q25, 1)}–${fmt(crps.q75, 1)}d`;
+  }
   $("crps-caption").textContent =
-    `mean ${fmt(crps.mean, 1)} d · max ${fmt(crps.max, 1)} d · N ${crps.n_finite ?? "—"} finite cells`;
+    `mean ${fmt(crps.mean, 1)}d · max ${fmt(crps.max, 1)}d · ${crps.n_finite ?? "—"} cells${extras}${yrs}`;
 }
 
 /* -- Displacement dual-axis -- */
@@ -896,22 +1009,38 @@ function renderFss(fss) {
   const thresholds = fss.thresholds || [];
   const nbhds = fss.neighborhoods || [];
   const z = fss.fss || [];
+  const baseRate = fss.base_rate || [];
+  const noSkill = fss.no_skill_threshold || [];
 
-  // annotations for non-null cells
+  // annotations: per-cell value, color-coded by useful (>= 0.5) / no-skill / above no-skill
   const annotations = [];
   for (let i = 0; i < z.length; i++) {
+    const ns = noSkill[i];
     for (let j = 0; j < (z[i] || []).length; j++) {
       const v = z[i][j];
       if (v === null || v === undefined || Number.isNaN(v)) continue;
+      let color = "#e4ddc9";
+      let suffix = "";
+      if (v > 0.6) color = "#0a1119";
+      if (ns !== null && ns !== undefined) {
+        if (v >= 0.5) suffix = "";
+        else if (v >= ns) suffix = "·";   // above no-skill but below "useful"
+        else suffix = "✕";                 // below no-skill
+      }
       annotations.push({
-        x: nbhds[j],
-        y: thresholds[i],
-        text: v.toFixed(2),
-        font: {
-          family: "IBM Plex Mono, ui-monospace",
-          size: 10,
-          color: v > 0.6 ? "#0a1119" : "#e4ddc9",
-        },
+        x: nbhds[j], y: thresholds[i],
+        text: v.toFixed(2) + (suffix ? `\n${suffix}` : ""),
+        font: { family: "IBM Plex Mono, ui-monospace", size: 10, color },
+        showarrow: false,
+      });
+    }
+    // Side annotation: base rate + no-skill value, on the right of the matrix
+    if (baseRate[i] !== null && baseRate[i] !== undefined) {
+      const txt = `p=${baseRate[i].toFixed(2)} · ns=${(noSkill[i] ?? 0).toFixed(2)}`;
+      annotations.push({
+        xref: "paper", x: 1.02, y: thresholds[i], yref: "y",
+        text: txt, xanchor: "left",
+        font: { family: "IBM Plex Mono, ui-monospace", size: 9, color: "#a8a291" },
         showarrow: false,
       });
     }
@@ -919,33 +1048,28 @@ function renderFss(fss) {
 
   const traces = [{
     type: "heatmap",
-    x: nbhds,
-    y: thresholds,
-    z,
+    x: nbhds, y: thresholds, z,
     colorscale: FSS_COLORSCALE,
-    zmin: 0,
-    zmax: 1,
+    zmin: 0, zmax: 1,
     colorbar: {
       title: { text: "FSS", font: { size: 10, color: "#a8a291" } },
-      thickness: 10,
-      len: 0.8,
+      thickness: 10, len: 0.8,
       tickfont: { size: 9, color: "#a8a291" },
+      x: 1.18,
     },
-    hovertemplate: "thr DOY %{y} · nbhd %{x}<br>FSS %{z:.3f}<extra></extra>",
+    hovertemplate: (
+      "thr DOY %{y} · nbhd %{x}<br>" +
+      "FSS %{z:.3f}<extra></extra>"
+    ),
   }];
 
   const layout = mergeLayout(PLOT_LAYOUT, {
-    xaxis: {
-      title: { text: "Neighborhood (cells)", font: { size: 11, color: "#a8a291" } },
-      type: "category",
-    },
-    yaxis: {
-      title: { text: "Threshold (DOY)", font: { size: 11, color: "#a8a291" } },
-      type: "category",
-      autorange: "reversed",
-    },
+    xaxis: { title: { text: "Neighborhood (cells)", font: { size: 11, color: "#a8a291" } },
+             type: "category" },
+    yaxis: { title: { text: "Threshold (DOY)", font: { size: 11, color: "#a8a291" } },
+             type: "category", autorange: "reversed" },
     annotations,
-    margin: { l: 64, r: 70, t: 18, b: 52 },
+    margin: { l: 64, r: 220, t: 30, b: 52 },
   });
 
   const div = $("plot-fss");
@@ -1029,29 +1153,21 @@ async function refresh() {
       return;
     }
 
-    // Update init dropdown for primary/year first
-    await refreshInitOptions(primary, state.year);
+    // Init options use the iso year (the only place a specific init makes sense)
+    const isoYr = state.isoYear ?? selectedYears().slice(-1)[0];
+    await refreshInitOptions(primary, isoYr);
     state.init = $("init").value || "auto";
 
-    // Common params
-    const baseParams = buildParams();
-    const primaryParams = qs(Object.assign(
-      { model: primary, year: state.year, init: state.init },
-      state.params,
-      cleanRegion(state.region),
-    ));
+    // Param strings
+    const metricArgs   = (extra) => metricParamsCSV(Object.assign({ model: primary }, extra || {}));
+    const isoArgs      = (extra) => isoParamsCSV(Object.assign({ model: primary }, extra || {}));
+    const compareArgs  = metricParamsCSV({ models: actives.join(",") });
+    const statePArgs   = isoParamsCSV({ model: primary });   // for hero state + isochrones
 
     setStatus("fetching…");
 
-    // 1) compare (summary + progression)
-    const comparePromise = apiGet(
-      "/api/compare",
-      qs(Object.assign(
-        { models: actives.join(","), year: state.year },
-        state.params,
-        cleanRegion(state.region),
-      )),
-    )
+    // 1) compare (summary + progression) — multi-year aggregation
+    const comparePromise = apiGet("/api/compare", compareArgs)
       .then(cmp => {
         renderSummaryTable(cmp);
         renderProgression(cmp);
@@ -1066,12 +1182,9 @@ async function refresh() {
         setLoading($("plot-progression"), false);
       });
 
-    // Primary-only endpoints in parallel
-    const statePromise = apiGet("/api/state", primaryParams)
-      .then(s => {
-        // Kick off isochrones too (they need state for obs-onset background)
-        return apiGet("/api/metrics/isochrones", primaryParams).then(iso => ({ s, iso }));
-      })
+    // Hero panel: single-year state + isochrones for the iso year
+    const statePromise = apiGet("/api/state", statePArgs)
+      .then(s => apiGet("/api/metrics/isochrones", statePArgs).then(iso => ({ s, iso })))
       .then(({ s, iso }) => {
         const pLabel = (state.models.find(m => m.key === primary) || {}).label || primary;
         renderIsochrones(s, iso, pLabel);
@@ -1082,7 +1195,7 @@ async function refresh() {
       })
       .finally(() => setLoading($("plot-isochrones"), false));
 
-    const crpsPromise = apiGet("/api/metrics/crps", primaryParams)
+    const crpsPromise = apiGet("/api/metrics/crps", metricArgs())
       .then(renderCrps)
       .catch(err => {
         console.error("crps failed", err);
@@ -1090,31 +1203,21 @@ async function refresh() {
       })
       .finally(() => setLoading($("plot-crps"), false));
 
-    const dispPromise = apiGet("/api/metrics/displacement", primaryParams)
+    const dispPromise = apiGet("/api/metrics/displacement", metricArgs())
       .then(renderDisplacement)
       .catch(err => console.error("displacement failed", err))
       .finally(() => setLoading($("plot-displacement"), false));
 
-    const corpPromise = apiGet(
-      "/api/metrics/corp",
-      qs(Object.assign({ model: primary, year: state.year, init: state.init, tau: 170 },
-        state.params, cleanRegion(state.region))),
-    )
-      .then(corp => renderCorp(corp))
+    const corpPromise = apiGet("/api/metrics/corp", metricArgs())
+      .then(renderCorp)
       .catch(err => {
         console.error("corp failed", err);
         $("corp-caption").textContent = `error: ${err.message}`;
       })
       .finally(() => setLoading($("plot-corp"), false));
 
-    const fssPromise = apiGet(
-      "/api/metrics/fss",
-      qs(Object.assign(
-        { model: primary, year: state.year, init: state.init,
-          thresholds: "150,160,170,180", neighborhoods: "1,3,5,7" },
-        state.params, cleanRegion(state.region),
-      )),
-    )
+    const fssPromise = apiGet("/api/metrics/fss",
+        metricArgs({ neighborhoods: "1,3,5,7,9" }))
       .then(renderFss)
       .catch(err => console.error("fss failed", err))
       .finally(() => setLoading($("plot-fss"), false));
@@ -1147,8 +1250,33 @@ function cleanRegion(r) {
  * ------------------------------------------------------------------ */
 
 function bindControls() {
-  $("year").addEventListener("change", () => {
-    state.year = Number($("year").value);
+  const onYearChange = () => {
+    state.yearFrom = Number($("year_from").value);
+    state.yearTo   = Number($("year_to").value);
+    populateYearSelect();
+    refresh();
+  };
+  $("year_from").addEventListener("change", onYearChange);
+  $("year_to").addEventListener("change", onYearChange);
+
+  document.querySelectorAll(".year-range-actions .mini-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const yrs = yearsForActiveSelection();
+      if (!yrs.length) return;
+      const tag = btn.dataset.yr;
+      const toIdx = yrs.length - 1;
+      let fromIdx = 0;
+      if (tag === "single") fromIdx = toIdx;
+      else if (tag === "all") fromIdx = 0;
+      else fromIdx = Math.max(0, toIdx - (Number(tag) - 1));
+      state.yearFrom = yrs[fromIdx]; state.yearTo = yrs[toIdx];
+      populateYearSelect();
+      refresh();
+    });
+  });
+
+  $("iso_year").addEventListener("change", () => {
+    state.isoYear = Number($("iso_year").value);
     refresh();
   });
 
@@ -1156,7 +1284,6 @@ function bindControls() {
 
   $("init").addEventListener("change", () => {
     state.init = $("init").value || "auto";
-    // Re-fetch primary-dependent panels only. Simplest: full refresh.
     refresh();
   });
 

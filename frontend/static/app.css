@@ -266,6 +266,41 @@ select {
   padding-right: 30px;
 }
 
+.year-range {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.year-range-sep {
+  color: var(--paper-faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.year-range-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.mini-btn {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 5px 6px;
+  background: var(--ink-2);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.mini-btn:hover {
+  color: var(--paper);
+  border-color: var(--amber);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -460,6 +495,22 @@ select {
   color: var(--text-dim);
   line-height: 1.6;
 }
+.card-foot.interp {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.card-foot.interp strong { color: var(--paper); font-style: normal; font-weight: 500; }
+.card-foot.interp code {
+  font-family: var(--font-mono);
+  font-style: normal;
+  background: var(--ink-2);
+  color: var(--paper);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 11px;
+}
 
 .corp-breakdown {
   display: grid;
@@ -637,6 +688,12 @@ select {
 .summary-table .cell.primary {
   color: var(--amber);
   font-weight: 500;
+}
+.cell-iqr {
+  color: var(--paper-faint);
+  font-size: 10.5px;
+  font-weight: 400;
+  margin-left: 6px;
 }
 .summary-placeholder {
   font-family: var(--font-mono);
