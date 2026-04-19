@@ -43,7 +43,8 @@ body {
     radial-gradient(ellipse at 18% -10%, rgba(110, 183, 255, 0.10), transparent 40%),
     radial-gradient(ellipse at 110% 20%, rgba(240, 178, 100, 0.07), transparent 45%),
     linear-gradient(180deg, #0a131d 0%, #080e16 100%);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "ss01", "ss02", "cv03", "cv04";
 }
@@ -57,7 +58,13 @@ body {
   mix-blend-mode: screen;
 }
 
-.frame { position: relative; z-index: 1; min-height: 100vh; }
+.frame {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ----- masthead -------------------------------------------------------- */
 .masthead {
@@ -158,23 +165,38 @@ body {
 
 /* ----- layout --------------------------------------------------------- */
 .layout {
+  flex: 1;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 28px;
   max-width: 1680px;
+  width: 100%;
   margin: 0 auto;
-  padding: 28px 48px 52px;
+  padding: 28px 48px 0;
+  min-height: 0;             /* lets children's overflow:auto kick in */
 }
 
 /* ----- sidebar controls ---------------------------------------------- */
 .sidebar {
-  position: sticky;
-  top: 18px;
-  align-self: flex-start;
   display: flex;
   flex-direction: column;
   gap: 22px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  padding-bottom: 28px;
+  min-height: 0;
+  /* subtle scrollbar styling — keeps the observatory aesthetic */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .cntrl {
   background: var(--surface);
@@ -424,7 +446,26 @@ select {
 .swatch.ens { background: var(--violet); }
 
 /* ----- main column ---------------------------------------------------- */
-.main { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+  padding-bottom: 32px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.main::-webkit-scrollbar { width: 10px; }
+.main::-webkit-scrollbar-track { background: transparent; }
+.main::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 5px;
+}
+.main::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .eyebrow {
   font-family: var(--font-mono);
@@ -773,9 +814,20 @@ select {
 
 /* ----- responsive ----------------------------------------------------- */
 @media (max-width: 1180px) {
+  /* Narrow: revert to single-column body scroll. */
+  body { height: auto; overflow: auto; }
+  .frame { height: auto; display: block; }
+  .layout {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .sidebar, .main {
+    overflow: visible;
+    padding-right: 0;
+    padding-bottom: 0;
+    min-height: 0;
+  }
   .card-grid { grid-template-columns: 1fr; }
-  .layout { grid-template-columns: 1fr; }
-  .sidebar { position: static; }
   .wordmark h1 { font-size: 48px; }
   .summary-table { font-size: 11px; grid-template-columns: 1.2fr repeat(3, 1fr); }
   .summary-table .col-head:nth-child(n+5),
