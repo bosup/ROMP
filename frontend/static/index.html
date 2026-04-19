@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ROMP · Onset Metrics Explorer</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>ROMP — Onset Metrics Explorer</h1>
+      <p>Rainy-season onset as an advancing front. Demo data: AIFS (deterministic),
+         NGCM (51-member ensemble), IMD 2015.</p>
+    </div>
+    <div class="status" id="status">loading…</div>
+  </header>
+
+  <main>
+    <section class="summary">
+      <div class="card" id="card-init">
+        <h3>Auto-selected init</h3>
+        <p id="init-info">—</p>
+      </div>
+      <div class="card" id="card-range">
+        <h3>Shared onset-DOY range</h3>
+        <p id="range-info">—</p>
+      </div>
+      <div class="card" id="card-iso-days">
+        <h3>Isochrone days</h3>
+        <p id="iso-info">—</p>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel panel-wide">
+        <div class="panel-head">
+          <h2>Isochrone overlay</h2>
+          <span class="sub">forecast (solid) vs. observed (dashed)</span>
+        </div>
+        <div id="plot-isochrones" class="plot"></div>
+        <div class="footnote" id="iso-distances"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>IOE / SPS through the season</h2>
+          <span class="sub">Goessling-IIEE adapted</span>
+        </div>
+        <div id="plot-progression" class="plot"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>CORP reliability</h2>
+          <span class="sub">MCB − DSC + UNC = BS</span>
+        </div>
+        <div id="plot-corp" class="plot"></div>
+        <div class="footnote" id="corp-numbers"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Censored CRPS</h2>
+          <span class="sub">per cell, mixed no-onset atom handled</span>
+        </div>
+        <div id="plot-crps" class="plot"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Centroid displacement</h2>
+          <span class="sub">forecast region centroid shift vs. obs</span>
+        </div>
+        <div id="plot-displacement" class="plot"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
