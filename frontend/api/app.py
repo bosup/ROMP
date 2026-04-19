@@ -129,12 +129,31 @@ def _resolve_init(model_key: str, year: int, init: int | Literal["auto"] | None,
         raise HTTPException(400, f"invalid init '{init}'")
 
 
+def _align_obs_to(obs, reference):
+    """If obs and reference disagree on lat/lon, resample obs to the
+    reference grid with nearest-neighbor. Onset-DOY fields are piecewise
+    constant so nearest is the right call."""
+    import numpy as np
+    if (obs.sizes.get("lat") == reference.sizes.get("lat") and
+            obs.sizes.get("lon") == reference.sizes.get("lon") and
+            np.array_equal(obs["lat"].values, reference["lat"].values) and
+            np.array_equal(obs["lon"].values, reference["lon"].values)):
+        return obs
+    # Drop any ensemble dim before interp_like.
+    ref = reference
+    if "member" in ref.dims:
+        ref = ref.isel(member=0, drop=True)
+    return obs.interp_like(ref, method="nearest")
+
+
 def _fields_for(model_key: str, year: int, init: int | str | None,
                 params: OnsetParams, region: Region):
     obs = get_obs_onset(year, params)
     obs_lo, obs_hi = onset_range(obs)
     idx = _resolve_init(model_key, year, init, params, obs_lo, obs_hi)
     fcst = get_forecast_onset(model_key, year, idx, params)
+    # align obs to model grid if they differ (e.g. 4p0 obs vs 2p0 ensembles).
+    obs = _align_obs_to(obs, fcst)
     if not region.is_empty():
         obs = region.crop(obs)
         fcst = region.crop(fcst)

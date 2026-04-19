@@ -18,6 +18,11 @@ REPO_ROOT="$(pwd)"
 HOST="${ROMP_FRONTEND_HOST:-127.0.0.1}"
 PORT="${ROMP_FRONTEND_PORT:-8000}"
 
+# auto-pick richer data root if present (from ./frontend/link_aice_data.sh)
+if [ -z "${ROMP_DATA_ROOT:-}" ] && [ -d "$REPO_ROOT/.data_aice/obs" ]; then
+    export ROMP_DATA_ROOT="$REPO_ROOT/.data_aice"
+fi
+
 # --- pick an interpreter that has uvicorn + momp available ---
 pick_python() {
     if [ -n "${PY:-}" ] && "$PY" -c "import uvicorn, momp" >/dev/null 2>&1; then
