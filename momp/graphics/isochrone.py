@@ -31,7 +31,15 @@ KM_PER_DEG = 111.19492664455873  # pi * R / 180, R = 6371.0088 km
 def _extract_segments(
     field: xr.DataArray, day: float, *, lat_coord: str, lon_coord: str
 ) -> list[np.ndarray]:
-    """Return list of (n, 2) arrays of (lon, lat) vertices on the iso-DOY contour."""
+    """Return list of (n, 2) arrays of (lon, lat) vertices on the iso-DOY contour.
+
+    NaN cells (no observed onset) are replaced with a sentinel value well
+    above any reasonable threshold before contouring; otherwise matplotlib
+    treats NaN as a hole and traces a spurious contour ring around every
+    isolated finite cell at every threshold below its value. The Goessling
+    convention used elsewhere in ROMP (``_binary_by_day``) treats NaT as
+    "never onset" — i.e. above any threshold — so we use the same here.
+    """
     if lat_coord not in field.coords or lon_coord not in field.coords:
         raise ValueError(
             f"field missing lat/lon coords '{lat_coord}' / '{lon_coord}'"
@@ -39,6 +47,9 @@ def _extract_segments(
     lat = field[lat_coord].values.astype(float)
     lon = field[lon_coord].values.astype(float)
     Z = field.values.astype(float)
+
+    NAN_SENTINEL = 1.0e6  # any value comfortably above the max real DOY
+    Z = np.where(np.isfinite(Z), Z, NAN_SENTINEL)
 
     fig = plt.figure()
     try:

@@ -563,7 +563,8 @@ function rememberPlot(div) { state.plotDivs.add(div); }
 function renderIsochrones(state_, iso, primaryLabel) {
   const traces = [];
 
-  // Background: observed-onset DOY heatmap
+  // Background: observed-onset DOY heatmap (dimmed; tooltip muted so it doesn't
+  // trigger over the whole pane while you're trying to read contours).
   if (state_ && state_.obs_onset) {
     traces.push({
       type: "heatmap",
@@ -571,62 +572,108 @@ function renderIsochrones(state_, iso, primaryLabel) {
       y: state_.obs_onset.lat,
       z: state_.obs_onset.values,
       colorscale: "Viridis",
-      opacity: 0.55,
+      opacity: 0.32,
       colorbar: {
-        title: { text: "Obs DOY", font: { size: 10, color: "#a8a291" } },
-        thickness: 10,
-        len: 0.6,
-        x: 1.02,
+        title: { text: "obs DOY", font: { size: 10, color: "#a8a291" } },
+        thickness: 8, len: 0.55, x: 1.02,
         tickfont: { size: 9, color: "#a8a291" },
       },
-      hovertemplate: "lon %{x:.2f} · lat %{y:.2f}<br>obs DOY %{z:.1f}<extra></extra>",
+      hoverinfo: "skip",
       showscale: true,
       name: "obs DOY",
     });
   }
 
+  // Build per-day contour traces + endpoint label trace.
   const days = (iso && iso.isochrones) || [];
+  const labelXs = [], labelYs = [], labelTxt = [];
+
   days.forEach((entry, i) => {
     const color = ISO_DAY_PALETTE[i % ISO_DAY_PALETTE.length];
     const grp = `day-${entry.day}`;
+
+    // longest forecast segment determines where to put the DOY label
+    let bestSeg = null, bestLen = 0;
+
     const pushSegs = (segs, dash, tag) => {
       (segs || []).forEach((seg, j) => {
         if (!seg || !seg.length) return;
         const xs = seg.map(pt => pt[0]);
         const ys = seg.map(pt => pt[1]);
         traces.push({
-          type: "scatter",
-          mode: "lines",
-          x: xs,
-          y: ys,
-          line: { color, width: dash === "dash" ? 2.5 : 3.2, dash },
-          opacity: dash === "dash" ? 0.95 : 1,
+          type: "scatter", mode: "lines",
+          x: xs, y: ys,
+          line: { color, width: dash === "dash" ? 2.6 : 3.2, dash },
+          opacity: dash === "dash" ? 0.92 : 1,
           name: `DOY ${entry.day} · ${tag}`,
-          legendgroup: grp,
-          showlegend: j === 0,
+          legendgroup: grp, showlegend: j === 0,
           hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
         });
+        if (dash !== "dash" && xs.length > bestLen) {
+          bestLen = xs.length;
+          bestSeg = { x: xs, y: ys };
+        }
       });
     };
     pushSegs(entry.forecast, "solid", "fcst");
     pushSegs(entry.observed, "dash", "obs");
+
+    if (bestSeg) {
+      // Anchor at the easternmost point of the longest forecast contour.
+      let idx = 0;
+      for (let k = 1; k < bestSeg.x.length; k++) {
+        if (bestSeg.x[k] > bestSeg.x[idx]) idx = k;
+      }
+      labelXs.push(bestSeg.x[idx]);
+      labelYs.push(bestSeg.y[idx]);
+      labelTxt.push(`DOY ${entry.day}`);
+    }
   });
+
+  if (labelTxt.length) {
+    traces.push({
+      type: "scatter",
+      mode: "text",
+      x: labelXs, y: labelYs, text: labelTxt,
+      textposition: "middle right",
+      textfont: { family: "IBM Plex Mono, ui-monospace", size: 10, color: "#e8e1cf" },
+      hoverinfo: "skip", showlegend: false,
+    });
+  }
+
+  // Subtitle: onset criteria + iso-day spacing context.
+  const params = (state.params && Object.keys(state.params).length)
+    ? state.params
+    : (state.catalog && state.catalog.onset_defaults) || {};
+  const wi = params.wet_init, ws = params.wet_spell, wt = params.wet_threshold;
+  const isoDays = (iso && iso.days) || [];
+  const spacing = isoDays.length >= 2 ? (isoDays[1] - isoDays[0]) : null;
+  const subtitleBits = [];
+  if (wi != null && ws != null && wt != null) {
+    subtitleBits.push(`onset = first ${ws}-day spell ≥ ${wi} mm/d, ∑ ≥ ${wt} mm`);
+  }
+  if (spacing != null) {
+    subtitleBits.push(`${isoDays.length} thresholds, ${spacing}-day spacing across the shared onset window`);
+  }
+  const subtitle = subtitleBits.join(" · ");
+
+  const titleText = primaryLabel
+    ? `${primaryLabel} · ${(iso && iso.year) || ""}<br>` +
+      `<span style="font-family: IBM Plex Mono; font-size: 11px; color: #a8a291;">${subtitle}</span>`
+    : "isochrones";
 
   const layout = mergeLayout(PLOT_LAYOUT, {
     title: {
-      text: primaryLabel
-        ? `${primaryLabel} · ${(iso && iso.year) || ""} · obs DOY behind, contours = onset front by day`
-        : "isochrones",
-      font: { family: "Fraunces, serif", color: "#e8e1cf", size: 14 },
-      x: 0.01,
-      xanchor: "left",
+      text: titleText,
+      font: { family: "Fraunces, serif", color: "#e8e1cf", size: 16 },
+      x: 0.01, xanchor: "left",
     },
-    xaxis: { title: { text: "Longitude", font: { size: 11, color: "#a8a291" } }, scaleanchor: "y" },
-    yaxis: { title: { text: "Latitude", font: { size: 11, color: "#a8a291" } } },
-    margin: { l: 58, r: 90, t: 46, b: 54 },
+    xaxis: { title: { text: "Longitude", font: { size: 11, color: "#a8a291" } } },
+    yaxis: { title: { text: "Latitude",  font: { size: 11, color: "#a8a291" } } },
+    margin: { l: 58, r: 90, t: 64, b: 54 },
     showlegend: true,
+    hovermode: "closest",
   });
-  // enforce scaleanchor via xaxis -> y (Plotly uses scaleanchor on x referencing y)
   layout.xaxis.scaleanchor = "y";
 
   const div = $("plot-isochrones");
