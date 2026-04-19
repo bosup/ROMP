@@ -86,6 +86,23 @@
 
       <main class="main">
 
+        <section class="usage-hint" id="usage-hint">
+          <div class="usage-row">
+            <span class="usage-step"><span class="usage-num">1</span> pick models</span>
+            <span class="usage-arrow">→</span>
+            <span class="usage-step"><span class="usage-num">2</span> tune onset criteria</span>
+            <span class="usage-arrow">→</span>
+            <span class="usage-step"><span class="usage-num">3</span> recompute</span>
+          </div>
+          <p class="usage-body">
+            Chips are <strong>multi-select</strong>. The leftmost active chip is the
+            <span class="usage-primary">primary model</span> — it drives the hero isochrone,
+            CRPS field, CORP diagram, displacement, and FSS matrix. Every active model
+            appears as a row in the summary table and a line in the progression curve.
+            <span class="usage-note">First request takes ~3–10 s while the onset detector runs; subsequent requests are cached.</span>
+          </p>
+        </section>
+
         <section class="summary" id="summary-section">
           <div class="summary-head">
             <span class="eyebrow">bench summary</span>

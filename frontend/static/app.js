@@ -262,6 +262,9 @@ function renderModelChips() {
     b.className = "chip";
     b.dataset.key = m.key;
     b.textContent = m.label + (m.is_ensemble ? ` · ${m.n_members}m` : "");
+    b.title = m.is_ensemble
+      ? `${m.label}: ${m.n_members}-member ensemble. Click to include/exclude. Leftmost active chip is the primary model (hero panels only use primary).`
+      : `${m.label}: deterministic. Click to include/exclude. Leftmost active chip is the primary model.`;
     b.addEventListener("click", () => {
       const model = state.models.find(x => x.key === m.key);
       model.on = !model.on;
@@ -364,7 +367,9 @@ async function refreshInitOptions(primaryKey, year) {
     (data.inits || []).forEach((iso, i) => {
       const opt = document.createElement("option");
       opt.value = String(i);
-      opt.textContent = `#${i} · ${iso}`;
+      // "2015-04-01T00:00:00" -> "#03 · 2015-04-01"
+      const pretty = iso.slice(0, 10);
+      opt.textContent = `#${String(i).padStart(2, "0")} · ${pretty}`;
       sel.appendChild(opt);
     });
     // preserve selection if still valid, else reset to auto
@@ -390,7 +395,7 @@ function renderSummaryTable(compare) {
   tbl.innerHTML = "";
   $("summary-year").textContent = compare && compare.year ? compare.year : "—";
 
-  const heads = ["Model", "Members", "Season IOE (10⁶ km²·d)", "Season SPS", "CRPS mean (d)", "CORP BS", "MCB / DSC"];
+  const heads = ["Model", "Members", "IOE · 10⁶km²d", "SPS · 10⁶km²d", "CRPS · d", "Brier", "MCB / DSC"];
   for (const h of heads) {
     const d = document.createElement("div");
     d.className = "col-head";
@@ -404,8 +409,11 @@ function renderSummaryTable(compare) {
     const accent = colorForModel(row.model);
     const rowHead = document.createElement("div");
     rowHead.className = "row-head";
-    rowHead.textContent = row.label || row.model;
     rowHead.style.setProperty("--row-accent", accent);
+    const rowHeadText = document.createElement("span");
+    rowHeadText.className = "row-head-text";
+    rowHeadText.textContent = row.label || row.model;
+    rowHead.appendChild(rowHeadText);
     tbl.appendChild(rowHead);
 
     const members = document.createElement("div");
