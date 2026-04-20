@@ -659,6 +659,30 @@ select {
   letter-spacing: 0.02em;
 }
 
+/* ----- low-n banner --------------------------------------------------- */
+.low-n-banner {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--paper);
+  background: linear-gradient(90deg,
+    rgba(232, 123, 133, 0.12) 0%,
+    rgba(19, 30, 42, 0.3) 100%);
+  border: 1px solid rgba(232, 123, 133, 0.35);
+  border-left: 3px solid var(--rose);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+.low-n-banner strong {
+  color: var(--rose);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  margin-right: 8px;
+}
+
 /* ----- summary table -------------------------------------------------- */
 .summary { padding: 18px 24px 14px; }
 .summary-head {

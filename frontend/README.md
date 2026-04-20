@@ -46,6 +46,18 @@ By default the app reads from `demo/data/` in the repo. Override with:
 export ROMP_DATA_ROOT=/path/to/some/model_tree
 ```
 
+Optionally restrict every metric to land cells of a named country by
+setting `ROMP_LAND_MASK` (Natural Earth 1:10m country name or substring):
+
+```bash
+export ROMP_LAND_MASK=India
+```
+
+When set, obs and forecast onset-DOY fields are masked to land-only
+before every metric is computed. Unset or empty (the default) leaves
+all cells in play. The catalog surfaces the current value so the UI
+can show a `Mask: India` indicator in the masthead.
+
 The expected layout is:
 
 ```

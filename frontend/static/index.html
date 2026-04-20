@@ -25,6 +25,7 @@
         <dl class="meta-dl">
           <dt>Catalog</dt><dd id="meta-catalog">…</dd>
           <dt>Obs</dt><dd id="meta-obs">—</dd>
+          <dt>Mask</dt><dd id="meta-mask">—</dd>
           <dt>Status</dt><dd id="meta-status" class="status">loading</dd>
         </dl>
       </div>
@@ -120,6 +121,11 @@
           </p>
         </section>
 
+        <div class="low-n-banner" id="low-n-banner" hidden>
+          <strong>Low-n caveat:</strong>
+          <span id="low-n-text">—</span>
+        </div>
+
         <section class="summary" id="summary-section">
           <div class="summary-head">
             <span class="eyebrow">bench summary</span>
@@ -177,14 +183,23 @@
 
           <section class="card">
             <header class="card-head">
-              <div><span class="eyebrow">censored · hemri</span><h3>CRPS field</h3></div>
+              <div><span class="eyebrow">mixed · sentinel-augmented</span><h3>CRPS field</h3></div>
               <div class="card-meta"><span id="crps-caption">—</span></div>
             </header>
             <div id="plot-crps" class="plot"></div>
             <footer class="card-foot interp" id="crps-interp">
-              Per-cell censored CRPS in days. <strong>Lower is better</strong>;
-              0 is perfect. Brighter cells = larger forecast error.
-              No-onset cells handled via the Hemri sentinel.
+              Per-cell CRPS in days, <strong>lower is better</strong>
+              (0 = perfect). The "no-onset" atom is handled by mapping
+              NaT to a sentinel beyond the season window before the
+              Hersbach ensemble CRPS is evaluated — a proper score for
+              the mixed atom+continuous distribution, related to but
+              not identical with Hemri et al. 2014's analytical
+              censored-Gaussian CRPS. For ≥ 2-member ensembles we use
+              the <strong>Ferro 2014 fair correction</strong> so the
+              finite-ensemble bias doesn't penalise small ensembles
+              (e.g. IFS-S2S's 11 members) relative to large ones.
+              Single-member (deterministic) forecasts reduce to
+              sentinel-augmented MAE.
             </footer>
           </section>
 

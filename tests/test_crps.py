@@ -38,6 +38,39 @@ def test_crps_nonnegative_random():
         assert float(val) >= -1e-12
 
 
+def test_fair_crps_below_raw_for_finite_ensemble():
+    """Raw ensemble CRPS is known to OVERestimate the true CRPS of the
+    underlying distribution; Ferro 2014 fair CRPS corrects the bias
+    downward. For a non-degenerate ensemble (spread > 0) the fair score
+    is therefore strictly less than the raw score."""
+    m = 11
+    ens = RNG.uniform(100, 200, size=m)
+    y = 150.0
+    raw = float(crps_ensemble(ens, y, fair=False))
+    fair = float(crps_ensemble(ens, y, fair=True))
+    assert fair <= raw + 1e-12
+    assert raw - fair > 0      # strictly positive on a non-degenerate sample
+
+
+def test_fair_crps_converges_to_raw_as_m_grows():
+    """The bias term (1/m² vs 1/m(m-1)) vanishes as m → ∞."""
+    samples_from = RNG.normal(150, 10, size=2000)
+    y = 150.0
+    diffs = []
+    for m in (5, 20, 200, 1500):
+        ens = samples_from[:m]
+        raw = float(crps_ensemble(ens, y, fair=False))
+        fair = float(crps_ensemble(ens, y, fair=True))
+        diffs.append(abs(fair - raw))
+    assert diffs[0] > diffs[1] > diffs[2] > diffs[3]
+    assert diffs[-1] < 1e-2
+
+
+def test_fair_crps_requires_at_least_two_members():
+    with pytest.raises(ValueError):
+        crps_ensemble(np.array([150.0]), 155.0, fair=True)
+
+
 def test_crps_closed_form_matches_pairwise_formula():
     # Brute-force CRPS via the definitional Hersbach formula, cross-check.
     m = 7

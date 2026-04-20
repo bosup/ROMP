@@ -109,6 +109,7 @@ def health():
 
 @app.get("/api/catalog")
 def catalog():
+    import os
     cat = load_catalog()
     return {
         "root": cat["root"],
@@ -117,6 +118,7 @@ def catalog():
         "shared_years": list(shared_years()),
         "onset_defaults": {k: v[0] for k, v in OnsetQuery.items()},
         "onset_docs": {k: v[1] for k, v in OnsetQuery.items()},
+        "land_mask": os.environ.get("ROMP_LAND_MASK", "") or None,
     }
 
 
@@ -141,21 +143,71 @@ def _resolve_init(model_key: str, year: int, init: int | Literal["auto"] | None,
         raise HTTPException(400, f"invalid init '{init}'")
 
 
-def _align_obs_to(obs, reference):
-    """If obs and reference disagree on lat/lon, resample obs to the
-    reference grid with nearest-neighbor. Onset-DOY fields are piecewise
-    constant so nearest is the right call."""
+def _align_fcst_to(fcst, obs):
+    """Conform the forecast to the obs grid when they differ. Obs is the
+    authoritative measurement; downsampling the model to the obs grid
+    avoids inflating area-weighted metrics by N where N is the upsample
+    ratio. For ensembles, we keep the member dim and interp per-member."""
     import numpy as np
-    if (obs.sizes.get("lat") == reference.sizes.get("lat") and
-            obs.sizes.get("lon") == reference.sizes.get("lon") and
-            np.array_equal(obs["lat"].values, reference["lat"].values) and
-            np.array_equal(obs["lon"].values, reference["lon"].values)):
-        return obs
-    # Drop any ensemble dim before interp_like.
-    ref = reference
-    if "member" in ref.dims:
-        ref = ref.isel(member=0, drop=True)
-    return obs.interp_like(ref, method="nearest")
+    if (fcst.sizes.get("lat") == obs.sizes.get("lat") and
+            fcst.sizes.get("lon") == obs.sizes.get("lon") and
+            np.array_equal(fcst["lat"].values, obs["lat"].values) and
+            np.array_equal(fcst["lon"].values, obs["lon"].values)):
+        return fcst
+    # interp_like preserves extra dims (including 'member'), using nearest.
+    return fcst.interp_like(obs, method="nearest")
+
+
+_LAND_MASK_CACHE: dict = {}
+
+
+def _land_mask_for(da):
+    """Return a (lat, lon) boolean mask of land cells for the region set
+    via the ``ROMP_LAND_MASK`` env var (e.g. ``India``). False elsewhere
+    (ocean) so masked fields become NaN there. No-op if unset."""
+    import os
+    region = os.environ.get("ROMP_LAND_MASK", "").strip()
+    if not region:
+        return None
+    lat_key = tuple(da["lat"].values.round(4).tolist())
+    lon_key = tuple(da["lon"].values.round(4).tolist())
+    key = (region, lat_key, lon_key)
+    if key in _LAND_MASK_CACHE:
+        return _LAND_MASK_CACHE[key]
+    import numpy as np
+    try:
+        import regionmask
+        # Use natural_earth's countries; region kwarg names the country.
+        countries = regionmask.defined_regions.natural_earth_v5_0_0.countries_10
+        idx = None
+        for i, nm in enumerate(countries.names):
+            if region.lower() == nm.lower() or region.lower() in nm.lower():
+                idx = i; break
+        if idx is None:
+            raise ValueError(f"region {region!r} not found in natural_earth countries")
+        mask2d = countries.mask(da["lon"], da["lat"]) == idx
+        arr = np.asarray(mask2d.values, dtype=bool)
+    except Exception as exc:  # fall back to no mask on failure
+        import sys
+        print(f"[warn] land mask for {region!r} failed: {exc}", file=sys.stderr)
+        arr = None
+    _LAND_MASK_CACHE[key] = arr
+    return arr
+
+
+def _apply_land_mask(da):
+    import numpy as np
+    mask = _land_mask_for(da)
+    if mask is None:
+        return da
+    # Broadcast to extra dims and set non-land to NaN.
+    if "member" in da.dims:
+        mfull = mask[np.newaxis, :, :] | np.zeros(
+            (da.sizes["member"], 1, 1), dtype=bool
+        )
+    else:
+        mfull = mask
+    return da.where(mfull)
 
 
 def _fields_for(model_key: str, year: int, init: int | str | None,
@@ -164,8 +216,11 @@ def _fields_for(model_key: str, year: int, init: int | str | None,
     obs_lo, obs_hi = onset_range(obs)
     idx = _resolve_init(model_key, year, init, params, obs_lo, obs_hi)
     fcst = get_forecast_onset(model_key, year, idx, params)
-    # align obs to model grid if they differ (e.g. 4p0 obs vs 2p0 ensembles).
-    obs = _align_obs_to(obs, fcst)
+    # Conform forecast -> obs (obs is the authoritative grid).
+    fcst = _align_fcst_to(fcst, obs)
+    # Optional land-only masking: cells outside the named country go NaN.
+    obs = _apply_land_mask(obs)
+    fcst = _apply_land_mask(fcst)
     if not region.is_empty():
         obs = region.crop(obs)
         fcst = region.crop(fcst)

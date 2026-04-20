@@ -22,14 +22,24 @@ def field_payload(da: xr.DataArray) -> dict:
 
 
 def compute_crps(ens: xr.DataArray, obs: xr.DataArray, *, season_end: int) -> dict:
+    """Sentinel-augmented mixed-distribution CRPS.
+
+    Uses the fair (Ferro 2014) finite-ensemble bias correction whenever
+    the ensemble has ≥ 2 members; reduces to the raw Hersbach form for a
+    single-member (deterministic) forecast where the fair correction is
+    undefined.
+    """
     from momp.metrics.crps import censored_crps_field
-    crps = censored_crps_field(ens, obs, season_end=season_end)
+    use_fair = "member" in ens.dims and int(ens.sizes["member"]) >= 2
+    crps = censored_crps_field(ens, obs, season_end=season_end, fair=use_fair)
     v = crps.values
     return {
         "field": field_payload(crps),
         "mean": float(np.nanmean(v)) if np.isfinite(v).any() else None,
         "max": float(np.nanmax(v)) if np.isfinite(v).any() else None,
         "n_finite": int(np.isfinite(v).sum()),
+        "fair": bool(use_fair),
+        "n_members": int(ens.sizes["member"]) if "member" in ens.dims else 1,
     }
 
 

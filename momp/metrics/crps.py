@@ -63,7 +63,7 @@ def _apply_sentinel(arr: np.ndarray, *, season_end: int) -> np.ndarray:
     return out
 
 
-def crps_ensemble(ensemble: np.ndarray, obs) -> np.ndarray:
+def crps_ensemble(ensemble: np.ndarray, obs, *, fair: bool = False) -> np.ndarray:
     """Hersbach (2000) ensemble CRPS.
 
     Parameters
@@ -71,6 +71,13 @@ def crps_ensemble(ensemble: np.ndarray, obs) -> np.ndarray:
     ensemble : array, shape (m, ...)
         Ensemble members along axis 0. Must be numeric (NaN not allowed).
     obs : scalar or array matching ``ensemble.shape[1:]``.
+    fair : bool, default False
+        If ``True``, apply the Ferro (2014) / Leutbecher (2019) bias
+        correction. The raw ensemble CRPS is known to overestimate the
+        true CRPS of the underlying distribution by a term proportional
+        to ``1/m``. The fair variant divides the pairwise-spread term by
+        ``m (m - 1)`` instead of ``m²``, yielding an unbiased estimator
+        at the cost of undefined output for a 1-member ensemble.
 
     Returns
     -------
@@ -79,8 +86,17 @@ def crps_ensemble(ensemble: np.ndarray, obs) -> np.ndarray:
 
     Implementation uses the sorted-ensemble closed form
 
-        CRPS = (1/m) sum_i |x_i - y|
-             - (1/m^2) sum_{k=1}^m (2k - m - 1) x_(k).
+        CRPS_raw  = (1/m)   sum_i |x_i - y|
+                  - (1/m²)  sum_{k=1}^m (2k - m - 1) x_(k)
+        CRPS_fair = (1/m)   sum_i |x_i - y|
+                  - (1/m(m-1)) sum_{k=1}^m (2k - m - 1) x_(k)
+
+    References
+    ----------
+    Ferro, C. A. T. (2014). Fair scores for ensemble forecasts.
+    Quart. J. Roy. Meteor. Soc., 140, 1917-1923. doi:10.1002/qj.2270.
+    Leutbecher, M. (2019). Ensemble size: How suboptimal is less than
+    infinity? Quart. J. Roy. Meteor. Soc., 145 (Suppl. 1), 107-128.
     """
     ens = np.asarray(ensemble, dtype=float)
     if ens.ndim < 1:
@@ -92,13 +108,16 @@ def crps_ensemble(ensemble: np.ndarray, obs) -> np.ndarray:
         raise ValueError("obs must not contain NaN or inf; map no-onset to a sentinel first")
 
     m = ens.shape[0]
+    if fair and m < 2:
+        raise ValueError("fair CRPS is undefined for a single-member ensemble (m=1)")
     mae = np.mean(np.abs(ens - y), axis=0)
 
     sorted_ens = np.sort(ens, axis=0)
     k = np.arange(1, m + 1)
     shape = [m] + [1] * (sorted_ens.ndim - 1)
     coeff = (2 * k - m - 1).reshape(shape).astype(float)
-    spread = (coeff * sorted_ens).sum(axis=0) / (m * m)
+    denom = m * (m - 1) if fair else m * m
+    spread = (coeff * sorted_ens).sum(axis=0) / denom
 
     return mae - spread
 
@@ -108,8 +127,19 @@ def censored_crps(
     obs,
     *,
     season_end: int,
+    fair: bool = False,
 ) -> np.ndarray:
     """Proper CRPS for the mixed onset distribution with a "no-onset" atom.
+
+    NOTE ON TERMINOLOGY: This is a **sentinel-augmented ensemble CRPS** for
+    the mixed atom-plus-continuous onset distribution. It is *related to*
+    but *not identical with* the analytical censored-Gaussian CRPS of
+    Hemri et al. (2014, GRL) — that paper derives a closed form for a
+    Gaussian forecast censored at a known threshold, which is a distinct
+    object. The construction here maps the "no-onset" atom to a sentinel
+    placed beyond the verification window and evaluates the Hersbach
+    ensemble CRPS in the augmented sample space; this remains a proper
+    score for the mixed distribution by Gneiting & Raftery (2007).
 
     Parameters
     ----------
@@ -121,12 +151,14 @@ def censored_crps(
     season_end : int
         DOY upper bound of the onset verification window. No-onset entries
         are mapped to the sentinel ``season_end + 1``.
+    fair : bool, default False
+        If True, apply the Ferro (2014) finite-ensemble bias correction.
     """
     ens = _to_doy(np.asarray(ensemble), season_end=season_end)
     obs_arr = _to_doy(np.asarray(obs), season_end=season_end)
     ens_aug = _apply_sentinel(ens, season_end=season_end)
     obs_aug = _apply_sentinel(obs_arr, season_end=season_end)
-    return crps_ensemble(ens_aug, obs_aug)
+    return crps_ensemble(ens_aug, obs_aug, fair=fair)
 
 
 @dataclass(frozen=True)
@@ -199,8 +231,9 @@ def censored_crps_field(
     *,
     season_end: int,
     member_dim: str = "member",
+    fair: bool = False,
 ) -> xr.DataArray:
-    """Apply censored CRPS over a gridded onset field.
+    """Apply sentinel-augmented mixed CRPS over a gridded onset field.
 
     Parameters
     ----------
@@ -211,16 +244,17 @@ def censored_crps_field(
         Onset values sharing the non-member dims of ``ensemble``.
     season_end : int
         DOY upper bound of the onset window.
-
-    Returns
-    -------
-    xr.DataArray
-        CRPS per grid cell / year (same dims as ``observed``).
+    fair : bool, default False
+        If True, apply the Ferro (2014) fair-CRPS finite-ensemble bias
+        correction. Recommended for small ensembles (m < 30). Undefined
+        for a single-member (deterministic) forecast.
     """
     if member_dim not in ensemble.dims:
         raise ValueError(f"ensemble is missing member dim '{member_dim}'")
     ens = ensemble.transpose(member_dim, ...)
-    values = censored_crps(ens.values, observed.values, season_end=season_end)
+    values = censored_crps(
+        ens.values, observed.values, season_end=season_end, fair=fair,
+    )
     out_dims = tuple(d for d in ens.dims if d != member_dim)
     return xr.DataArray(
         values,
@@ -229,9 +263,11 @@ def censored_crps_field(
         name="censored_crps",
         attrs={
             "description": (
-                "Censored CRPS for mixed onset distribution. "
-                "No-onset atom mapped to sentinel = season_end + 1."
+                "Sentinel-augmented mixed-distribution CRPS. "
+                "No-onset atom mapped to sentinel = season_end + 1. "
+                f"Fair (Ferro 2014) correction: {'applied' if fair else 'not applied'}."
             ),
             "season_end": int(season_end),
+            "fair": bool(fair),
         },
     )

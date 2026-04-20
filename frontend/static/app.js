@@ -323,10 +323,32 @@ function populateYearSelect() {
 function refreshYearHint() {
   const yrs = selectedYears();
   const el = $("year-hint");
-  if (!el) return;
-  if (!yrs.length) { el.textContent = "no overlap with primary model"; return; }
-  if (yrs.length === 1) el.textContent = "single year — no aggregation";
-  else el.textContent = `aggregating ${yrs.length} years (${yrs[0]}–${yrs[yrs.length - 1]}); medians + IQR`;
+  if (el) {
+    if (!yrs.length) el.textContent = "no overlap with primary model";
+    else if (yrs.length === 1) el.textContent = "single year — no aggregation";
+    else el.textContent = `aggregating ${yrs.length} years (${yrs[0]}–${yrs[yrs.length - 1]}); medians + IQR`;
+  }
+
+  // Low-n banner: warn loudly below 20 years (design-doc sampling guardrail).
+  const banner = $("low-n-banner");
+  const text = $("low-n-text");
+  if (!banner || !text) return;
+  if (yrs.length === 0 || yrs.length >= 20) {
+    banner.hidden = true;
+    return;
+  }
+  banner.hidden = false;
+  if (yrs.length === 1) {
+    text.textContent =
+      "single year — medians / IQR are not meaningful; every metric is a point " +
+      "estimate with unknown sampling variability.";
+  } else {
+    text.textContent =
+      `${yrs.length} years is below the 20-year rule-of-thumb for stable ` +
+      `onset-verification statistics. The IQR shading is descriptive of the ` +
+      `years sampled, not a statistical confidence interval; treat narrow ` +
+      `IQRs as provisional.`;
+  }
 }
 
 function renderModelChips() {
@@ -1207,6 +1229,8 @@ async function loadCatalog() {
   const yrLo = obsYears.length ? Math.min(...obsYears) : "—";
   const yrHi = obsYears.length ? Math.max(...obsYears) : "—";
   $("meta-obs").textContent = `IMD ${yrLo}–${yrHi} · ${obsYears.length} years`;
+  const maskLabel = cat.land_mask || "off";
+  $("meta-mask").textContent = maskLabel;
 
   // Colophon root
   const colo = $("colophon-root");

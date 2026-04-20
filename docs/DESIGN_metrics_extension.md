@@ -33,11 +33,25 @@ Strengthens the existing core. Ships as ROMP 0.1.0.
 
 **Why:** Currently, years or grid cells with "no onset" either drop out of CRPS via masking or get scored by an ad-hoc fill value. Neither is a proper scoring rule. The mixed-CRPS formulation rewards both the onset probability and the DOY distribution jointly, is a proper score by construction, and is the mathematically correct object for onset verification.
 
+**Implementation note on terminology.** The construction used here is a
+**sentinel-augmented ensemble CRPS** for the mixed atom-plus-continuous
+distribution: no-onset outcomes are mapped to a sentinel value beyond the
+verification window and the Hersbach (2000) ensemble CRPS is then evaluated
+in the augmented sample space. By Gneiting & Raftery (2007) this is a
+proper score for the mixed distribution. It is *related to but not
+identical with* the analytical censored-Gaussian CRPS of Hemri et al.
+(2014, GRL), which derives a closed form for a Gaussian forecast
+censored at a known threshold — a distinct object. We should not claim
+equivalence with Hemri 2014. The fair (Ferro 2014) finite-ensemble bias
+correction is also applied by default for ensembles with m ≥ 2.
+
 **References:**
-- Hemri et al. 2014, *GRL* — censored CRPS.
-- Scheuerer & Hamill 2015, *MWR* — CSGD framework.
-- Jordan, Krüger, Lerch 2019, *J. Stat. Softw.* — scoringRules.
+- Hersbach 2000, *Wea. Forecasting* — ensemble CRPS closed form.
 - Gneiting & Raftery 2007, *JASA* — proper scoring rules tutorial.
+- Ferro 2014, *QJRMS* — fair scores for ensemble forecasts.
+- Leutbecher 2019, *QJRMS* — ensemble size and scoring-rule bias.
+- Hemri et al. 2014, *GRL* — analytical censored-Gaussian CRPS (related,
+  different construction).
 
 **Module:** `momp/metrics/crps.py`
 
@@ -58,10 +72,16 @@ def censored_crps_skill_score(
 ```
 
 **Implementation notes:**
-- Use the two-part decomposition: `CRPS_mixed = BS(π_fcst, 1_{no onset}) + (1 − 1_{no onset}) · CRPS_G(forecast DOY members, obs DOY)`. The first term is a Brier score on the onset-occurrence atom; the second is the standard continuous CRPS on DOY where onset occurred.
-- Reuse `scoringrules.crps_ensemble` for the continuous part.
-- Per-lead-bin output via the existing `momp/stats/bins.py` machinery.
-- Fair (bias-corrected) variant following Ferro 2014 / Leutbecher 2019.
+- Sentinel augmentation: ``no_onset → season_end + 1``, then Hersbach
+  ensemble CRPS over the augmented sample space. The Brier-on-atom vs
+  continuous-CRPS decomposition is exposed by ``censored_crps_decomposition``
+  as a diagnostic (note: the two pieces do *not* exactly sum to the mixed
+  CRPS; they are different proper-score constructions).
+- Fair (Ferro 2014) finite-ensemble bias correction: enabled by default
+  through ``crps_ensemble(..., fair=True)`` / ``censored_crps(..., fair=True)``
+  whenever ``m ≥ 2``. Single-member forecasts fall back to the raw form
+  (for which fair is undefined).
+- Per-lead-bin output via the existing ``momp/stats/bins.py`` machinery.
 
 **Tests:**
 - Degenerate ensemble → reduces to absolute error where onset occurs, to Brier term where it does not.
@@ -239,7 +259,23 @@ Milestone 2 is the novel scientific capability and carries the methods paper: *"
 
 ## 9. Open questions
 
-- **Fair censored CRPS.** Ferro 2014 / Leutbecher 2019 bias-correction may need rederivation for the mixed distribution. Punt to an appendix or follow-on note.
-- **Choice of `days` grid for IOE.** Daily is natural but expensive. 5-day stepping may suffice; needs empirical check.
-- **Isochrone selection convention.** Climatological onset quantiles? Fixed calendar dates? Region-specific defaults?
-- **Region-masking conventions.** Does IOE need a land-only mask for coastal grids? Yes — thread through `regionmask` as ROMP already does elsewhere.
+- **Fair censored CRPS.** *Resolved in the frontend implementation.* The
+  Ferro 2014 correction transfers cleanly to the sentinel-augmented
+  mixed CRPS: apply the 1/(m(m−1)) denominator on the spread term in
+  the augmented sample space. Enabled by default for m ≥ 2 ensembles.
+- **Region-masking conventions.** *Resolved in the frontend.* The
+  ``ROMP_LAND_MASK`` environment variable accepts a country name
+  (e.g. ``India``); when set, both the obs and forecast onset-DOY
+  fields are masked via ``regionmask.defined_regions.natural_earth_v5_0_0``
+  before every metric is computed. Unset by default.
+- **Obs/forecast grid alignment.** *Resolved in the frontend.* When
+  obs and model grids differ (e.g. 4° IMD vs 2° ensembles), the
+  forecast is nearest-neighbour conformed to the obs grid rather than
+  the other way around — obs is the authoritative measurement and
+  upsampling obs would inflate area-weighted metrics by the upsample
+  ratio.
+- **Choice of `days` grid for IOE.** Daily is natural but expensive.
+  5-day stepping may suffice; still needs empirical check.
+- **Isochrone selection convention.** Climatological onset quantiles?
+  Fixed calendar dates? Region-specific defaults? Current frontend
+  heuristic: 4 equal-spaced DOYs in the shared obs–fcst onset range.
