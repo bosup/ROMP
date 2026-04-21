@@ -11,7 +11,7 @@ from typing import Literal
 
 import xarray as xr
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -730,4 +730,12 @@ if STATIC_DIR.exists():
 
     @app.get("/")
     def index():
-        return FileResponse(STATIC_DIR / "index.html")
+        # Append ?v=<app.version> to the static script + stylesheet refs so
+        # the browser can't reuse a cached app.js / app.css across a server
+        # restart that changed the server code. StaticFiles ignores the
+        # query string when resolving the path.
+        v = app.version
+        html = (STATIC_DIR / "index.html").read_text()
+        html = html.replace('"/static/app.css"', f'"/static/app.css?v={v}"')
+        html = html.replace('"/static/app.js"',  f'"/static/app.js?v={v}"')
+        return HTMLResponse(content=html)
