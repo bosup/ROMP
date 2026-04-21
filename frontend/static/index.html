@@ -143,18 +143,20 @@
               <h3>Isochrone overlay</h3>
             </div>
             <div class="card-meta">
-              <span class="legend-row"><span class="swatch solid"></span>forecast (solid)</span>
-              <span class="legend-row"><span class="swatch dashed"></span>observed (dashed)</span>
+              <span class="legend-row"><span class="swatch solid-marked"></span>forecast · solid + circles</span>
+              <span class="legend-row"><span class="swatch dashed"></span>observed · dashed halo</span>
             </div>
           </header>
           <div id="plot-isochrones" class="plot-hero"></div>
           <footer class="card-foot interp" id="iso-interp">
-            Each color is one DOY. The <strong>crisp solid line</strong>
-            is the forecast onset front for that day; the <strong>wider,
-            softer dashed halo</strong> beneath it is the observed front.
-            When they agree exactly, you'll see the solid line riding
-            inside a faint dashed halo. When they diverge, the solid
-            line sits in one place and the dashed halo in another.
+            Each color is one DOY. Three visual cues per day, always
+            legible even when fcst and obs coincide exactly:
+            <strong>the crisp solid line with open circles</strong>
+            is the forecast onset front; <strong>the wider, softer
+            dashed halo</strong> beneath it is the observed front.
+            Where they agree exactly you'll see the circles riding
+            inside the halo; where they diverge the circles sit in
+            one place and the halo in another — unambiguous.
             <strong>Smaller gap = better spatial agreement.</strong>
             Hausdorff (worst-point) and Fréchet (path-aware) distances
             per day below. Gray cells in the background are

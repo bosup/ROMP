@@ -645,28 +645,63 @@ function renderIsochrones(state_, iso, primaryLabel) {
     const grp = `day-${entry.day}`;
     let bestSeg = null, bestLen = 0;
 
-    // Draw dashed (obs) FIRST with a wider, softer stroke so it becomes a
-    // halo; then solid (fcst) on top with a narrower crisp stroke.
-    // Where the two agree you see the crisp solid line riding inside the
-    // dashed halo (both visible). Where they diverge you see a thin solid
-    // line in one place and a wider dashed line in another — obvious.
+    // Three-layer convention per DOY to keep both lines legible
+    // everywhere — including when they perfectly coincide:
+    //
+    //   obs:   wider soft dashed halo (bottom)     "lines", dash, width 6
+    //   obs:   hairline centered inside the halo   "lines", dash, width 1
+    //   fcst:  crisp solid with open-circle mark.  "lines+markers", size 4
+    //
+    // Exact agreement → crisp solid + open circles riding inside the halo
+    //                   (all three cues visible).
+    // Divergence      → halo floats alone somewhere, circles floating alone
+    //                   elsewhere — unambiguous.
     const pushSegs = (segs, dash, tag) => {
       let drawn = 0;
-      const width = dash === "dash" ? 5.0 : 2.5;
-      const opacity = dash === "dash" ? 0.55 : 1.0;
       (segs || []).forEach((seg) => {
         if (!seg || seg.length < MIN_SEG_VERTICES) return;
         const xs = seg.map(pt => pt[0]);
         const ys = seg.map(pt => pt[1]);
-        traces.push({
-          type: "scatter", mode: "lines",
-          x: xs, y: ys,
-          line: { color, width, dash },
-          opacity,
-          name: `DOY ${entry.day} · ${tag}`,
-          legendgroup: grp, showlegend: drawn === 0,
-          hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
-        });
+        if (dash === "dash") {
+          // Halo
+          traces.push({
+            type: "scatter", mode: "lines",
+            x: xs, y: ys,
+            line: { color, width: 6, dash: "solid" },
+            opacity: 0.28,
+            name: `DOY ${entry.day} · ${tag}`,
+            legendgroup: grp, showlegend: drawn === 0,
+            hoverinfo: "skip",
+          });
+          // Dashed centerline for clear "this is observed" pattern
+          traces.push({
+            type: "scatter", mode: "lines",
+            x: xs, y: ys,
+            line: { color, width: 1.2, dash: "dash" },
+            opacity: 0.9,
+            legendgroup: grp, showlegend: false,
+            hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
+          });
+        } else {
+          // Forecast: crisp solid line with open-circle markers at each
+          // contour vertex so the line is identifiable even when it
+          // lies exactly on the obs halo.
+          traces.push({
+            type: "scatter", mode: "lines+markers",
+            x: xs, y: ys,
+            line: { color, width: 2.2 },
+            marker: {
+              color: "rgba(0,0,0,0)",
+              size: 5,
+              line: { color, width: 1.4 },
+              symbol: "circle",
+            },
+            opacity: 1.0,
+            name: `DOY ${entry.day} · ${tag}`,
+            legendgroup: grp, showlegend: drawn === 0,
+            hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
+          });
+        }
         drawn += 1;
         if (dash !== "dash" && xs.length > bestLen) {
           bestLen = xs.length;

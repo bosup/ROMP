@@ -447,7 +447,7 @@ select {
 }
 .swatch {
   display: inline-block;
-  width: 28px;
+  width: 30px;
   height: 3px;
   background: var(--sky);
   vertical-align: middle;
@@ -455,10 +455,30 @@ select {
 }
 .swatch.dashed {
   background: none;
-  height: 5px;
+  height: 6px;
   border: none;
-  border-top: 5px dashed rgba(217, 225, 236, 0.55);
+  border-top: 6px dashed rgba(110, 183, 255, 0.28);
+  /* ^ matches halo: 6px wide + 0.28 opacity + DOY-palette-blue tone */
 }
+.swatch.solid-marked {
+  position: relative;
+  background: var(--sky);
+  width: 30px;
+  height: 2.2px;
+}
+.swatch.solid-marked::before,
+.swatch.solid-marked::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 5px; height: 5px;
+  border: 1.4px solid var(--sky);
+  background: transparent;
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+.swatch.solid-marked::before { left:  6px; }
+.swatch.solid-marked::after  { right: 6px; }
 .swatch.det { background: var(--amber); }
 .swatch.ens { background: var(--violet); }
 
