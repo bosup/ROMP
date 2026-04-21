@@ -69,10 +69,30 @@ class Region:
         return out
 
 
-def _first_onset_doy(rain: np.ndarray, start_doy: int, p: OnsetParams) -> float:
+# Monsoon-onset search window (matches detect_observed_onset start_date).
+# Forecast detection must respect the same window; otherwise a forecast
+# can "detect onset" on pre-monsoon April rainfall while obs cannot —
+# and the forecast / obs isochrones no longer track each other.
+MONSOON_START_MONTH = 5
+MONSOON_START_DAY = 1
+
+
+def _monsoon_start_doy(year: int) -> int:
+    return pd.Timestamp(year=int(year), month=MONSOON_START_MONTH,
+                        day=MONSOON_START_DAY).dayofyear
+
+
+def _first_onset_doy(rain: np.ndarray, start_doy: int, p: OnsetParams,
+                     *, min_doy: int) -> float:
+    """Return the DOY of the first qualifying wet spell in ``rain``, where
+    ``start_doy`` is the calendar DOY of ``rain[0]``. Offsets whose calendar
+    DOY is before ``min_doy`` are skipped so forecast detection uses the
+    same search window as the observed detector (monsoon onset cannot
+    occur before the configured start date, by convention)."""
     n = rain.size
     kw = p.detector_kwargs()
-    for offset in range(n - p.wet_spell + 1):
+    skip_below = max(0, min_doy - start_doy)
+    for offset in range(skip_below, n - p.wet_spell + 1):
         if detect_onset(day=offset + 1, forecast_series=rain,
                         thresh=p.wet_threshold, **kw):
             return float(start_doy + offset)
@@ -114,6 +134,7 @@ def _detect_forecast(model: ModelInfo, year: int, init_idx: int,
     da = load_rainfall_forecast(model, year)
     sel = da.isel(time=init_idx)
     start_doy = pd.Timestamp(da["time"].values[init_idx]).dayofyear
+    min_doy = _monsoon_start_doy(year)
     if "number" in sel.dims:
         arr = sel.transpose("number", "day", "lat", "lon").values
         M, _, Ny, Nx = arr.shape
@@ -121,7 +142,9 @@ def _detect_forecast(model: ModelInfo, year: int, init_idx: int,
         for m in range(M):
             for i in range(Ny):
                 for j in range(Nx):
-                    out[m, i, j] = _first_onset_doy(arr[m, :, i, j], start_doy, params)
+                    out[m, i, j] = _first_onset_doy(
+                        arr[m, :, i, j], start_doy, params, min_doy=min_doy,
+                    )
         return xr.DataArray(
             out, dims=("member", "lat", "lon"),
             coords={
@@ -135,7 +158,9 @@ def _detect_forecast(model: ModelInfo, year: int, init_idx: int,
     out = np.full(arr.shape[1:], np.nan)
     for i in range(out.shape[0]):
         for j in range(out.shape[1]):
-            out[i, j] = _first_onset_doy(arr[:, i, j], start_doy, params)
+            out[i, j] = _first_onset_doy(
+                arr[:, i, j], start_doy, params, min_doy=min_doy,
+            )
     return xr.DataArray(
         out, dims=("lat", "lon"),
         coords={"lat": sel["lat"].values, "lon": sel["lon"].values},
