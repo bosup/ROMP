@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ROMP metrics API", version="0.2.2-ens-median", lifespan=lifespan)
+app = FastAPI(title="ROMP metrics API", version="0.2.3-cache-bust", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
@@ -105,7 +105,47 @@ def region_deps(
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": app.version}
+    import os
+    return {
+        "status": "ok",
+        "version": app.version,
+        "pid": os.getpid(),
+        "data_root": os.environ.get("ROMP_DATA_ROOT", ""),
+        "land_mask": os.environ.get("ROMP_LAND_MASK", "") or None,
+    }
+
+
+@app.post("/api/cache/clear")
+def clear_cache():
+    """Clear all in-process onset / catalog / land-mask caches WITHOUT
+    restarting uvicorn. Useful after code changes when you'd otherwise
+    keep seeing stale detection output. Returns the number of entries
+    dropped from each cache for visibility."""
+    from .onset import _obs_cache, _fcst_cache, _init_cache
+    dropped = {
+        "obs_onset": len(_obs_cache),
+        "fcst_onset": len(_fcst_cache),
+        "init_list": len(_init_cache),
+        "land_mask": len(_LAND_MASK_CACHE),
+    }
+    _obs_cache.clear()
+    _fcst_cache.clear()
+    _init_cache.clear()
+    _LAND_MASK_CACHE.clear()
+    load_catalog.cache_clear()
+    return {"ok": True, "cleared": dropped}
+
+
+# Disable HTTP caching on static files and API responses to prevent the
+# browser / any intermediate cache from re-serving a stale frontend after
+# a code change.
+@app.middleware("http")
+async def _no_store(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 @app.get("/api/catalog")
