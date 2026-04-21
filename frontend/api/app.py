@@ -334,9 +334,21 @@ def _global_progression_window(bundles) -> tuple[int, int]:
     return int(lo), int(hi)
 
 
-def _resolve_years(years_arg: str | None, year: int | None) -> list[int]:
+def _resolve_years(years_arg: str | None, year: str | int | None) -> list[int]:
+    """Accept ``year`` as int OR str so an empty string from a URL returns
+    a clean 400 "malformed" alongside ``years=abc``, rather than the default
+    Pydantic 422 that FastAPI would hand out for ``year: int``."""
+    if year in ("", None):
+        year_int: int | None = None
+    elif isinstance(year, int):
+        year_int = year
+    else:
+        try:
+            year_int = int(year)
+        except (ValueError, TypeError):
+            raise HTTPException(400, f"malformed year {year!r}: expected integer")
     try:
-        return AGG.expand_years(years_arg, year)
+        return AGG.expand_years(years_arg, year_int)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -353,7 +365,7 @@ def _years_meta(bundles, requested) -> dict:
 @app.get("/api/metrics/crps")
 def crps(
     model: str,
-    year: int | None = None, years: str | None = None,
+    year: str | None = None, years: str | None = None,
     init: str | None = None, season_end: int = 220,
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
 ):
@@ -377,7 +389,7 @@ def crps(
 @app.get("/api/metrics/fss")
 def fss_route(
     model: str,
-    year: int | None = None, years: str | None = None, init: str | None = None,
+    year: str | None = None, years: str | None = None, init: str | None = None,
     thresholds: str | None = None,
     neighborhoods: str = "1,3,5,7,9",
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
@@ -428,7 +440,7 @@ def fss_route(
 @app.get("/api/metrics/displacement")
 def displacement(
     model: str,
-    year: int | None = None, years: str | None = None, init: str | None = None,
+    year: str | None = None, years: str | None = None, init: str | None = None,
     thresholds: str | None = None,
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
 ):
@@ -456,7 +468,7 @@ def displacement(
 @app.get("/api/metrics/progression")
 def progression(
     model: str,
-    year: int | None = None, years: str | None = None, init: str | None = None,
+    year: str | None = None, years: str | None = None, init: str | None = None,
     step: int = 3,
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
 ):
@@ -495,7 +507,7 @@ def isochrones(
 @app.get("/api/metrics/corp")
 def corp(
     model: str,
-    year: int | None = None, years: str | None = None, init: str | None = None,
+    year: str | None = None, years: str | None = None, init: str | None = None,
     tau: int | None = None, season_end: int = 220,
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
 ):
@@ -541,7 +553,7 @@ def corp(
 @app.get("/api/compare")
 def compare(
     models: str,
-    year: int | None = None, years: str | None = None, init: str | None = None,
+    year: str | None = None, years: str | None = None, init: str | None = None,
     season_end: int = 220,
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
 ):

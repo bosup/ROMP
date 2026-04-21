@@ -1349,7 +1349,13 @@ async function refresh() {
 
     const dispPromise = apiGet("/api/metrics/displacement", metricArgs())
       .then(renderDisplacement)
-      .catch(err => console.error("displacement failed", err))
+      .catch(err => {
+        console.error("displacement failed", err);
+        try { Plotly.purge($("plot-displacement")); } catch (_) {}
+        const div = $("plot-displacement");
+        if (div) div.innerHTML =
+          `<div class="plot-error">displacement: ${err.message}</div>`;
+      })
       .finally(() => setLoading($("plot-displacement"), false));
 
     const corpPromise = apiGet("/api/metrics/corp", metricArgs())
@@ -1363,7 +1369,14 @@ async function refresh() {
     const fssPromise = apiGet("/api/metrics/fss",
         metricArgs({ neighborhoods: "1,3,5,7,9" }))
       .then(renderFss)
-      .catch(err => console.error("fss failed", err))
+      .catch(err => {
+        console.error("fss failed", err);
+        try { Plotly.purge($("plot-fss")); } catch (_) {}
+        const div = $("plot-fss");
+        if (div) div.innerHTML =
+          `<div class="plot-error">FSS: ${err.message}</div>`;
+        const cap = $("fss-caption"); if (cap) cap.textContent = `error: ${err.message}`;
+      })
       .finally(() => setLoading($("plot-fss"), false));
 
     await Promise.allSettled([

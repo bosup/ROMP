@@ -344,8 +344,8 @@ select {
 .chip:hover { color: var(--paper); border-color: var(--muted); }
 .chip.is-on {
   color: var(--ink);
-  background: var(--paper);
-  border-color: var(--paper);
+  background: var(--chip-accent, var(--paper));
+  border-color: var(--chip-accent, var(--paper));
 }
 .chip.is-primary {
   color: var(--ink);
@@ -409,6 +409,19 @@ select {
 .apply-btn[disabled] {
   background: var(--surface-2); color: var(--muted); border-color: var(--line);
   cursor: wait;
+}
+.apply-btn.is-dirty {
+  /* User has changed an onset parameter or region bbox since the last
+     fetch — surface this so they know the Apply button needs a click. */
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(240, 178, 100, 0.22);
+  animation: dirty-pulse 1.6s ease-in-out infinite;
+}
+@keyframes dirty-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(240, 178, 100, 0.22); }
+  50%      { box-shadow: 0 0 0 5px rgba(240, 178, 100, 0.10); }
 }
 
 .footer-block { padding-bottom: 16px; }
@@ -525,6 +538,18 @@ select {
 }
 
 .plot { min-height: 300px; }
+.plot-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--rose);
+  text-align: center;
+  min-height: 220px;
+  opacity: 0.85;
+}
 .plot-short { min-height: 220px; }
 .plot-hero { min-height: 520px; }
 

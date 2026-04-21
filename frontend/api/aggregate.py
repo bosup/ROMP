@@ -62,6 +62,7 @@ def aggregate_crps(per_year: Sequence[dict]) -> dict:
     empty = {
         "field": None, "mean": None, "max": None, "n_finite": 0,
         "median": None, "q25": None, "q75": None,
+        "fair": None, "n_members": None,
     }
     if not per_year:
         return {**empty, "n_years": 0}
@@ -84,6 +85,11 @@ def aggregate_crps(per_year: Sequence[dict]) -> dict:
         for row in mean_field
     ]
     finite = mean_field[np.isfinite(mean_field)]
+    # Carry through the fair-CRPS flag + ensemble size from per-year dicts
+    # (they all share the same (fair, n_members) for a given model) so the
+    # multi-year CRPS schema matches the single-year schema.
+    fair_vals = {p.get("fair") for p in per_year if p.get("fair") is not None}
+    n_mem_vals = {p.get("n_members") for p in per_year if p.get("n_members") is not None}
     return {
         "field": {"lat": lat, "lon": lon, "values": out_values},
         "mean": float(finite.mean()) if finite.size else None,
@@ -93,6 +99,8 @@ def aggregate_crps(per_year: Sequence[dict]) -> dict:
         "median": float(np.nanmedian(finite)) if finite.size else None,
         "q25": float(np.nanquantile(finite, 0.25)) if finite.size else None,
         "q75": float(np.nanquantile(finite, 0.75)) if finite.size else None,
+        "fair": next(iter(fair_vals)) if len(fair_vals) == 1 else None,
+        "n_members": next(iter(n_mem_vals)) if len(n_mem_vals) == 1 else None,
     }
 
 

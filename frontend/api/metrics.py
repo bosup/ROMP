@@ -112,19 +112,20 @@ def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
     }
     if ens is not None:
         sps = spatial_probability_score(ens, obs, days=days)
-        out["sps_km2"] = _as_list(sps["sps_km2"].values)
-        out["sps_km2_q25"] = None
-        out["sps_km2_q75"] = None
-        out["season"]["sps_km2_day"] = float(sps["sps_season_km2_day"])
-        out["season"]["sps_km2_day_q25"] = None
-        out["season"]["sps_km2_day_q75"] = None
     else:
-        out["sps_km2"] = None
-        out["sps_km2_q25"] = None
-        out["sps_km2_q75"] = None
-        out["season"]["sps_km2_day"] = None
-        out["season"]["sps_km2_day_q25"] = None
-        out["season"]["sps_km2_day_q75"] = None
+        # For deterministic forecasts, wrap the det field as a 1-member
+        # ensemble and compute SPS anyway. By construction (see
+        # test_sps_reduces_to_ioe_for_single_deterministic_member) this
+        # gives SPS == IOE, keeping the response schema uniform across
+        # det and ensemble models so the frontend doesn't need two shapes.
+        det_ens = fcst.expand_dims({"member": [0]}).transpose("member", "lat", "lon")
+        sps = spatial_probability_score(det_ens, obs, days=days)
+    out["sps_km2"] = _as_list(sps["sps_km2"].values)
+    out["sps_km2_q25"] = None
+    out["sps_km2_q75"] = None
+    out["season"]["sps_km2_day"] = float(sps["sps_season_km2_day"])
+    out["season"]["sps_km2_day_q25"] = None
+    out["season"]["sps_km2_day_q75"] = None
     return out
 
 
