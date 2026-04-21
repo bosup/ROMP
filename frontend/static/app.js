@@ -645,8 +645,15 @@ function renderIsochrones(state_, iso, primaryLabel) {
     const grp = `day-${entry.day}`;
     let bestSeg = null, bestLen = 0;
 
+    // Draw dashed (obs) FIRST with a wider, softer stroke so it becomes a
+    // halo; then solid (fcst) on top with a narrower crisp stroke.
+    // Where the two agree you see the crisp solid line riding inside the
+    // dashed halo (both visible). Where they diverge you see a thin solid
+    // line in one place and a wider dashed line in another — obvious.
     const pushSegs = (segs, dash, tag) => {
       let drawn = 0;
+      const width = dash === "dash" ? 5.0 : 2.5;
+      const opacity = dash === "dash" ? 0.55 : 1.0;
       (segs || []).forEach((seg) => {
         if (!seg || seg.length < MIN_SEG_VERTICES) return;
         const xs = seg.map(pt => pt[0]);
@@ -654,8 +661,8 @@ function renderIsochrones(state_, iso, primaryLabel) {
         traces.push({
           type: "scatter", mode: "lines",
           x: xs, y: ys,
-          line: { color, width: 3.0, dash },
-          opacity: dash === "dash" ? 0.95 : 0.95,
+          line: { color, width, dash },
+          opacity,
           name: `DOY ${entry.day} · ${tag}`,
           legendgroup: grp, showlegend: drawn === 0,
           hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
@@ -667,8 +674,10 @@ function renderIsochrones(state_, iso, primaryLabel) {
         }
       });
     };
-    pushSegs(entry.forecast, "solid", "fcst");
+    // Observed (wider, softer, dashed) drawn first -> bottom layer;
+    // forecast (crisp, solid) drawn second -> rides on top.
     pushSegs(entry.observed, "dash", "obs");
+    pushSegs(entry.forecast, "solid", "fcst");
 
     if (bestSeg) {
       // Anchor at the easternmost point of the longest forecast contour.

@@ -149,15 +149,18 @@
           </header>
           <div id="plot-isochrones" class="plot-hero"></div>
           <footer class="card-foot interp" id="iso-interp">
-            Each color is one DOY. Solid lines are the forecast onset front
-            for that day; dashed are observed. <strong>Smaller gap between
-            same-color lines = better spatial agreement.</strong>
-            Hausdorff distance (worst-point), Fréchet distance (path-aware)
-            and segment counts per day below. Gray cells in the background
-            are <strong>no observed onset</strong> within the 1 May–30 Sep
+            Each color is one DOY. The <strong>crisp solid line</strong>
+            is the forecast onset front for that day; the <strong>wider,
+            softer dashed halo</strong> beneath it is the observed front.
+            When they agree exactly, you'll see the solid line riding
+            inside a faint dashed halo. When they diverge, the solid
+            line sits in one place and the dashed halo in another.
+            <strong>Smaller gap = better spatial agreement.</strong>
+            Hausdorff (worst-point) and Fréchet (path-aware) distances
+            per day below. Gray cells in the background are
+            <strong>no observed onset</strong> within the 1 May–30 Sep
             window — the dashed contour traces the data/no-data boundary
-            in those regions, not a real DOY transition. Contours that hit
-            the domain edge are clipped by the analysis box.
+            in those regions, not a real DOY transition.
           </footer>
           <footer class="card-foot" id="iso-distances"></footer>
         </section>

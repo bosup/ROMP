@@ -447,14 +447,17 @@ select {
 }
 .swatch {
   display: inline-block;
-  width: 24px;
-  height: 2px;
+  width: 28px;
+  height: 3px;
   background: var(--sky);
   vertical-align: middle;
+  border-radius: 2px;
 }
 .swatch.dashed {
   background: none;
-  border-top: 2px dashed var(--paper-dim);
+  height: 5px;
+  border: none;
+  border-top: 5px dashed rgba(217, 225, 236, 0.55);
 }
 .swatch.det { background: var(--amber); }
 .swatch.ens { background: var(--violet); }
