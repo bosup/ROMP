@@ -22,17 +22,25 @@ import numpy as np
 
 def _stack(lists, fill=np.nan) -> np.ndarray:
     """Stack a list of equal-length iterables into a 2-D array (years × N).
-    None entries become ``fill``."""
+    None entries become ``fill``. Raises if rows differ in length — our
+    aggregate callers always enforce a shared axis (global thresholds /
+    global days), so a ragged input is a bug upstream, not a case to
+    silently NaN-pad and misalign per-column quantiles."""
     rows = []
-    width = 0
     for r in lists:
         rows.append([fill if v is None else float(v) for v in (r or [])])
-        width = max(width, len(rows[-1]))
     if not rows:
         return np.zeros((0, 0))
+    widths = {len(r) for r in rows}
+    if len(widths) > 1:
+        raise ValueError(
+            f"cannot stack per-year lists with differing lengths {sorted(widths)}; "
+            f"callers must pass a common axis (thresholds/days) across years"
+        )
+    width = next(iter(widths))
     out = np.full((len(rows), width), fill, dtype=float)
     for i, row in enumerate(rows):
-        out[i, : len(row)] = row
+        out[i, :] = row
     return out
 
 
@@ -51,13 +59,15 @@ def _median(arr: np.ndarray) -> list:
 
 
 def aggregate_crps(per_year: Sequence[dict]) -> dict:
+    empty = {
+        "field": None, "mean": None, "max": None, "n_finite": 0,
+        "median": None, "q25": None, "q75": None,
+    }
     if not per_year:
-        return {"field": None, "mean": None, "max": None, "n_finite": 0,
-                "n_years": 0, "median": None, "q25": None, "q75": None}
+        return {**empty, "n_years": 0}
     fields = [p.get("field") for p in per_year if p.get("field")]
     if not fields:
-        return {"field": None, "mean": None, "max": None, "n_finite": 0,
-                "n_years": len(per_year)}
+        return {**empty, "n_years": len(per_year)}
     lat, lon = fields[0]["lat"], fields[0]["lon"]
     Ny, Nx = len(lat), len(lon)
     stack = np.full((len(fields), Ny, Nx), np.nan, dtype=float)
@@ -144,8 +154,10 @@ def aggregate_progression(per_year: Sequence[dict]) -> dict:
         out[f"{k}_q25"] = _quantiles(stk, 0.25)
         out[f"{k}_q75"] = _quantiles(stk, 0.75)
 
-    # Season-integrated scalars: median + IQR
-    season = {"n_years": len(per_year)}
+    # Season-integrated scalars: median + IQR. "n_years" is the count of
+    # years that actually contributed a finite value for the metric; the
+    # request count lives in out["n_years"] above.
+    season = {"n_years_requested": len(per_year)}
     for k in ("ioe_km2_day", "extent_km2_day", "misplacement_km2_day", "sps_km2_day"):
         vals = [p["season"].get(k) for p in per_year if p.get("season")]
         vals = [float(v) for v in vals if v is not None and np.isfinite(v)]
@@ -153,28 +165,49 @@ def aggregate_progression(per_year: Sequence[dict]) -> dict:
             season[k] = None
             season[f"{k}_q25"] = None
             season[f"{k}_q75"] = None
+            season[f"{k}_n_years"] = 0
         else:
             arr = np.asarray(vals, dtype=float)
             season[k] = float(np.median(arr))
             season[f"{k}_q25"] = float(np.quantile(arr, 0.25))
             season[f"{k}_q75"] = float(np.quantile(arr, 0.75))
+            season[f"{k}_n_years"] = int(arr.size)
+    # Backcompat alias
+    season["n_years"] = season["ioe_km2_day_n_years"]
     out["season"] = season
     return out
 
 
 def expand_years(years_arg: str | None, single_year: int | None) -> list[int]:
-    """Parse a CSV `years=2019,2020,2021` or fall back to `year=2023`."""
+    """Parse a CSV ``years=2019,2020,2021`` (or a range ``2019-2023``) or
+    fall back to ``year=2023``. Raises ValueError with a clear message on
+    malformed input; the caller maps that to HTTP 400."""
     if years_arg:
-        out = []
-        for tok in years_arg.split(","):
-            tok = tok.strip()
+        out: list[int] = []
+        for tok in (t.strip() for t in years_arg.split(",")):
             if not tok:
                 continue
             if "-" in tok and not tok.startswith("-"):
-                lo, hi = tok.split("-", 1)
-                out.extend(range(int(lo), int(hi) + 1))
+                lo_s, hi_s = tok.split("-", 1)
+                try:
+                    lo, hi = int(lo_s), int(hi_s)
+                except ValueError:
+                    raise ValueError(
+                        f"malformed year range {tok!r}: expected YYYY-YYYY integers"
+                    )
+                if hi < lo:
+                    raise ValueError(
+                        f"year range {tok!r} is inverted (hi < lo); "
+                        f"use lo-hi with lo <= hi"
+                    )
+                out.extend(range(lo, hi + 1))
             else:
-                out.append(int(tok))
+                try:
+                    out.append(int(tok))
+                except ValueError:
+                    raise ValueError(f"malformed year token {tok!r}: expected integer")
+        if not out:
+            raise ValueError(f"no years parsed from {years_arg!r}")
         return sorted(set(out))
     if single_year is not None:
         return [int(single_year)]

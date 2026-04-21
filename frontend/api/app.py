@@ -178,11 +178,26 @@ def _land_mask_for(da):
     try:
         import regionmask
         # Use natural_earth's countries; region kwarg names the country.
+        # Exact case-insensitive match first so inputs like "Niger" don't
+        # silently pick up "Nigeria" (idx 99 vs 148) or "Korea" -> "South
+        # Korea" etc. Only fall back to unambiguous substring match.
         countries = regionmask.defined_regions.natural_earth_v5_0_0.countries_10
+        names_lower = [nm.lower() for nm in countries.names]
+        target = region.lower()
         idx = None
-        for i, nm in enumerate(countries.names):
-            if region.lower() == nm.lower() or region.lower() in nm.lower():
-                idx = i; break
+        if target in names_lower:
+            idx = names_lower.index(target)
+        else:
+            hits = [i for i, nm in enumerate(names_lower) if target in nm]
+            if len(hits) == 1:
+                idx = hits[0]
+            elif len(hits) > 1:
+                matches = ", ".join(repr(countries.names[i]) for i in hits[:5])
+                raise ValueError(
+                    f"region {region!r} is ambiguous — matches {matches}"
+                    + (" and more" if len(hits) > 5 else "")
+                    + "; use an exact country name"
+                )
         if idx is None:
             raise ValueError(f"region {region!r} not found in natural_earth countries")
         mask2d = countries.mask(da["lon"], da["lat"]) == idx
@@ -320,7 +335,10 @@ def _global_progression_window(bundles) -> tuple[int, int]:
 
 
 def _resolve_years(years_arg: str | None, year: int | None) -> list[int]:
-    return AGG.expand_years(years_arg, year)
+    try:
+        return AGG.expand_years(years_arg, year)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
 
 
 def _years_meta(bundles, requested) -> dict:
@@ -368,6 +386,13 @@ def fss_route(
     bundles = _multi_year_bundles(model, yrs, init, params, region)
     thr = ([int(t) for t in thresholds.split(",")] if thresholds
            else _global_thresholds(bundles, n=5))
+    if not thr:
+        raise HTTPException(
+            422,
+            "no valid FSS thresholds across the selected years — "
+            "the forecast / obs onset windows do not overlap. "
+            "Narrow the region, pick different years, or pass thresholds= explicitly."
+        )
     nbr = [int(n) for n in neighborhoods.split(",")]
     per_year = [M.compute_fss(b["fcst_det"], b["obs"], thresholds=thr, neighborhoods=nbr)
                 for _, b in bundles]
@@ -411,6 +436,12 @@ def displacement(
     bundles = _multi_year_bundles(model, yrs, init, params, region)
     thr = ([int(t) for t in thresholds.split(",")] if thresholds
            else _global_thresholds(bundles))
+    if not thr:
+        raise HTTPException(
+            422,
+            "no valid displacement thresholds across the selected years — "
+            "the forecast / obs onset windows do not overlap."
+        )
     per_year = [M.compute_displacement(b["fcst_det"], b["obs"], thresholds=thr)
                 for _, b in bundles]
     if len(per_year) == 1:
@@ -494,6 +525,7 @@ def corp(
 def compare(
     models: str,
     year: int | None = None, years: str | None = None, init: str | None = None,
+    season_end: int = 220,
     params: OnsetParams = Depends(onset_deps), region: Region = Depends(region_deps),
 ):
     """Cross-model summary table. Per-row season scalars are median-across-years
@@ -517,7 +549,7 @@ def compare(
         for _, b in bundles:
             ens_like = (b["ens"] if b["ens"] is not None
                         else b["fcst_det"].expand_dims({"member": [0]}).transpose("member", "lat", "lon"))
-            crps_per.append(M.compute_crps(ens_like, b["obs"], season_end=220))
+            crps_per.append(M.compute_crps(ens_like, b["obs"], season_end=season_end))
         crps_means = [c["mean"] for c in crps_per if c.get("mean") is not None]
         # CORP pooled across years
         thr = _global_thresholds(bundles)
@@ -526,7 +558,7 @@ def compare(
         p_parts, y_parts = [], []
         for _, b in bundles:
             p, y_ = M.corp_inputs(b["ens"], b["fcst_det"], b["obs"],
-                                  tau=tau, season_end=220)
+                                  tau=tau, season_end=season_end)
             p_parts.append(p); y_parts.append(y_)
         corp_out = M.compute_corp_pooled(np.concatenate(p_parts),
                                          np.concatenate(y_parts), tau=tau)

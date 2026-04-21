@@ -28,16 +28,32 @@ def compute_crps(ens: xr.DataArray, obs: xr.DataArray, *, season_end: int) -> di
     the ensemble has ≥ 2 members; reduces to the raw Hersbach form for a
     single-member (deterministic) forecast where the fair correction is
     undefined.
+
+    Cells where both obs and every ensemble member are missing (e.g.
+    ocean cells culled by ``ROMP_LAND_MASK``) would otherwise map both
+    sides to the same sentinel and yield a spurious CRPS = 0. We mask
+    those cells to NaN in the output so the reported ``mean`` / ``n_finite``
+    exclude them rather than treating them as perfect forecasts.
     """
     from momp.metrics.crps import censored_crps_field
     use_fair = "member" in ens.dims and int(ens.sizes["member"]) >= 2
     crps = censored_crps_field(ens, obs, season_end=season_end, fair=use_fair)
-    v = crps.values
+    # Identify cells where obs is missing AND every ensemble member is missing.
+    # For those, CRPS collapses to 0 (both sides hit the sentinel); that 0 is
+    # not a real skill signal, so null it out.
+    obs_missing = ~np.isfinite(np.asarray(obs.values, dtype=float))
+    ens_vals = np.asarray(ens.values, dtype=float)
+    ens_all_missing = (~np.isfinite(ens_vals)).all(axis=0) if ens_vals.ndim == 3 \
+        else ~np.isfinite(ens_vals)
+    no_data = obs_missing & ens_all_missing
+    crps_out = crps.where(~xr.DataArray(no_data, coords=crps.coords, dims=crps.dims))
+    v = crps_out.values
+    finite_mask = np.isfinite(v)
     return {
-        "field": field_payload(crps),
-        "mean": float(np.nanmean(v)) if np.isfinite(v).any() else None,
-        "max": float(np.nanmax(v)) if np.isfinite(v).any() else None,
-        "n_finite": int(np.isfinite(v).sum()),
+        "field": field_payload(crps_out),
+        "mean": float(v[finite_mask].mean()) if finite_mask.any() else None,
+        "max": float(v[finite_mask].max()) if finite_mask.any() else None,
+        "n_finite": int(finite_mask.sum()),
         "fair": bool(use_fair),
         "n_members": int(ens.sizes["member"]) if "member" in ens.dims else 1,
     }
@@ -73,24 +89,42 @@ def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
         integrated_onset_error, spatial_probability_score,
     )
     ioe = integrated_onset_error(fcst, obs, days=days)
+    # Match the shape of aggregate_progression so single-year and multi-year
+    # responses share a single schema: every season scalar has matching
+    # _q25/_q75 keys (None in single-year).
     out = {
         "days": list(days),
         "ioe_km2": _as_list(ioe["ioe_km2"].values),
+        "ioe_km2_q25": None, "ioe_km2_q75": None,
         "extent_km2": _as_list(ioe["extent_km2"].values),
+        "extent_km2_q25": None, "extent_km2_q75": None,
         "misplacement_km2": _as_list(ioe["misplacement_km2"].values),
+        "misplacement_km2_q25": None, "misplacement_km2_q75": None,
         "season": {
+            "n_years": 1,
             "ioe_km2_day": float(ioe["ioe_season_km2_day"]),
+            "ioe_km2_day_q25": None, "ioe_km2_day_q75": None,
             "extent_km2_day": float(ioe["extent_season_km2_day"]),
+            "extent_km2_day_q25": None, "extent_km2_day_q75": None,
             "misplacement_km2_day": float(ioe["misplacement_season_km2_day"]),
+            "misplacement_km2_day_q25": None, "misplacement_km2_day_q75": None,
         },
     }
     if ens is not None:
         sps = spatial_probability_score(ens, obs, days=days)
         out["sps_km2"] = _as_list(sps["sps_km2"].values)
+        out["sps_km2_q25"] = None
+        out["sps_km2_q75"] = None
         out["season"]["sps_km2_day"] = float(sps["sps_season_km2_day"])
+        out["season"]["sps_km2_day_q25"] = None
+        out["season"]["sps_km2_day_q75"] = None
     else:
         out["sps_km2"] = None
+        out["sps_km2_q25"] = None
+        out["sps_km2_q75"] = None
         out["season"]["sps_km2_day"] = None
+        out["season"]["sps_km2_day_q25"] = None
+        out["season"]["sps_km2_day_q75"] = None
     return out
 
 

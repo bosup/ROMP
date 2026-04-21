@@ -305,18 +305,27 @@ function populateYearSelect() {
       s.innerHTML = '<option value="" disabled>no overlap</option>';
     });
     state.yearFrom = state.yearTo = state.isoYear = null;
+    refreshYearHint();
     return;
   }
-  // default range: last 5 years (or all if fewer)
-  const defFrom = state.yearFrom ?? years[Math.max(0, years.length - 5)];
-  const defTo   = state.yearTo   ?? years[years.length - 1];
+  // Default range: last 5 years (or all if fewer). If the previously-
+  // stashed state value is still in the current year set, honor it;
+  // otherwise fall through to the default. A raw `??` misses the case
+  // where the stashed value was set by a prior primary model and is no
+  // longer valid for the new primary — explicit membership check instead.
+  const validFrom = Number.isFinite(state.yearFrom) && years.includes(state.yearFrom);
+  const validTo   = Number.isFinite(state.yearTo)   && years.includes(state.yearTo);
+  const defFrom = validFrom ? state.yearFrom : years[Math.max(0, years.length - 5)];
+  const defTo   = validTo   ? state.yearTo   : years[years.length - 1];
   state.yearFrom = fillYearOptions(fromSel, years, defFrom);
   state.yearTo   = fillYearOptions(toSel, years, defTo);
-  // iso year: middle of currently-selected range
+  // iso year: middle of currently-selected range, or middle of all years
+  // when the selection is empty (avoids NaN).
   const sel = selectedYears();
-  const defIso = state.isoYear && sel.includes(state.isoYear)
-    ? state.isoYear : sel[Math.floor(sel.length / 2)];
-  state.isoYear = fillYearOptions(isoSel, sel.length ? sel : years, defIso);
+  const pool = sel.length ? sel : years;
+  const validIso = Number.isFinite(state.isoYear) && pool.includes(state.isoYear);
+  const defIso = validIso ? state.isoYear : pool[Math.floor(pool.length / 2)];
+  state.isoYear = fillYearOptions(isoSel, pool, defIso);
   refreshYearHint();
 }
 
@@ -608,9 +617,11 @@ function renderIsochrones(state_, iso, primaryLabel) {
     // "No data" cells: render NaN cells as a single distinct gray so the
     // reader can see where the obs field is missing — this resolves the
     // ambiguity of contours appearing to pass through "empty" regions
-    // (they're really tracing the data/no-data boundary).
+    // (they're really tracing the data/no-data boundary). Test for both
+    // JSON null (FastAPI's default) and literal NaN (stdlib json with
+    // allow_nan=True) so we catch either serialization path.
     const nanZ = state_.obs_onset.values.map(row =>
-      row.map(v => (v === null ? 1 : null))
+      row.map(v => (v === null || (typeof v === "number" && Number.isNaN(v)) ? 1 : null))
     );
     traces.push({
       type: "heatmap",
@@ -1317,6 +1328,7 @@ async function refresh() {
       })
       .catch(err => {
         console.error("isochrones/state failed", err);
+        try { Plotly.purge($("plot-isochrones")); } catch (e) { /* ignore */ }
         $("iso-distances").textContent = `error: ${err.message}`;
       })
       .finally(() => setLoading($("plot-isochrones"), false));
@@ -1376,9 +1388,20 @@ function cleanRegion(r) {
  * ------------------------------------------------------------------ */
 
 function bindControls() {
+  const readYearSel = (id) => {
+    // Guard against the disabled "no overlap" placeholder (value = "") so
+    // we don't poison state.yearFrom/yearTo with a literal 0 that would
+    // block the default-recomputation path in populateYearSelect.
+    const raw = $(id).value;
+    if (raw === "" || raw === null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
   const onYearChange = () => {
-    state.yearFrom = Number($("year_from").value);
-    state.yearTo   = Number($("year_to").value);
+    const from = readYearSel("year_from");
+    const to   = readYearSel("year_to");
+    if (from !== null) state.yearFrom = from;
+    if (to   !== null) state.yearTo   = to;
     populateYearSelect();
     refresh();
   };
@@ -1402,7 +1425,8 @@ function bindControls() {
   });
 
   $("iso_year").addEventListener("change", () => {
-    state.isoYear = Number($("iso_year").value);
+    const v = readYearSel("iso_year");
+    if (v !== null) state.isoYear = v;
     refresh();
   });
 

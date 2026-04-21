@@ -12,9 +12,12 @@ SENTINEL = ``season_end + 1`` represents "no onset in the window." The
 ensemble members and the observation are each mapped into this space and the
 Hersbach (2000) ensemble CRPS is evaluated there.
 
-This augmentation is equivalent to the censored-CRPS construction of Hemri
-et al. (2014, GRL) for left-or-right censoring at a known threshold, and it
-yields a proper scoring rule for the mixed onset distribution.
+This construction is *related to but not identical with* the analytical
+censored-Gaussian CRPS of Hemri et al. (2014, GRL) — their closed form is
+specific to censored Gaussian forecasts, whereas the sentinel-augmented
+ensemble construction here works for any ensemble distribution and remains
+a proper scoring rule for the mixed onset distribution by Gneiting &
+Raftery (2007).
 
 A diagnostic ``censored_crps_decomposition`` splits the score into a Brier
 term for the onset-occurrence atom and a continuous CRPS term on the
