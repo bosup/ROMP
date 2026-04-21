@@ -509,15 +509,32 @@ def corp(
         thr = _global_thresholds(bundles)
         tau = thr[len(thr) // 2] if thr else 170
     p_parts, y_parts = [], []
+    moran_vals = []  # per-year Moran's I on the obs indicator for effective-n
     for _, b in bundles:
         p, y_ = M.corp_inputs(b["ens"], b["fcst_det"], b["obs"],
                               tau=tau, season_end=season_end)
         p_parts.append(p); y_parts.append(y_)
+        # Moran's I on the 2D observed-by-τ indicator (finite cells only);
+        # treat obs-NaN cells as NaN so they don't contribute as "= 0".
+        obs_vals = np.asarray(b["obs"].values, dtype=float)
+        y_field = np.where(np.isfinite(obs_vals), (obs_vals <= tau).astype(float), np.nan)
+        mi = M.moran_i_2d(y_field)
+        if mi == mi:  # not NaN
+            moran_vals.append(mi)
     p_pool = np.concatenate(p_parts)
     y_pool = np.concatenate(y_parts)
     out = M.compute_corp_pooled(p_pool, y_pool, tau=tau)
     out["n_years"] = len(bundles)
     out["years"] = _years_meta(bundles, yrs)
+    # Spatial-autocorrelation correction: report effective n alongside raw n.
+    # Pooling independent-year CORP pairs is valid, but within a year the
+    # grid cells are spatially correlated; raw n overstates independence.
+    mean_mi = float(np.mean(moran_vals)) if moran_vals else float("nan")
+    n_eff_per_year = M.effective_sample_size(
+        int(out["n"] / max(1, len(bundles))), mean_mi
+    )
+    out["moran_i"] = None if mean_mi != mean_mi else mean_mi
+    out["n_effective"] = int(round(n_eff_per_year * len(bundles)))
     return out
 
 

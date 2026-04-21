@@ -991,7 +991,13 @@ function renderCorp(corp, primaryLabel) {
   const resStr = (res === null || res === undefined || Number.isNaN(res))
     ? "—"
     : Number(res).toExponential(1);
-  $("corp-caption").textContent = `τ = ${tau ?? "—"} · N = ${n ?? "—"} · residual = ${resStr}`;
+  const neff = corp.n_effective;
+  const mi = corp.moran_i;
+  const effPart = (neff != null && n != null && neff < n)
+    ? ` · N_eff = ${neff} (Moran I = ${mi != null ? mi.toFixed(2) : "—"})`
+    : "";
+  $("corp-caption").textContent =
+    `τ = ${tau ?? "—"} · N = ${n ?? "—"}${effPart} · residual = ${resStr}`;
 
   // Breakdown
   const breakdown = $("corp-breakdown");

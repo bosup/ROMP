@@ -179,6 +179,18 @@
             </header>
             <div id="plot-corp" class="plot"></div>
             <footer class="card-foot corp-breakdown" id="corp-breakdown"></footer>
+            <footer class="card-foot interp" id="corp-interp">
+              BS = MCB − DSC + UNC is a proper-score identity (residual
+              should be ~0). <strong>N</strong> counts pooled (forecast
+              probability, observation) pairs across cells × years.
+              <strong>N_eff</strong> corrects for spatial autocorrelation
+              (Dutilleul 1993: <code>n · (1 − I) / (1 + I)</code> where I
+              is the per-year rook-contiguity Moran's I on the observed
+              indicator); take N_eff as the honest independent-sample
+              count when reading confidence statements. N_eff = N would
+              mean zero spatial autocorrelation, which is effectively
+              never true on a contiguous onset field.
+            </footer>
           </section>
 
           <section class="card">

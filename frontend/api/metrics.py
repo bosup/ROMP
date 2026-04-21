@@ -152,6 +152,60 @@ def compute_isochrones(fcst: xr.DataArray, obs: xr.DataArray, *, days) -> dict:
     }
 
 
+def moran_i_2d(field) -> float:
+    """Queen-4 (rook) spatial autocorrelation on a 2-D field, NaN-safe.
+
+    Returns Moran's I in [−1, +1]; higher ⇒ stronger positive spatial
+    autocorrelation. Used to derive an effective sample size
+    ``n_eff = n · (1 − I) / (1 + I)`` (Dutilleul 1993 form) for pooled
+    statistics where neighbouring grid cells are not independent.
+
+    NaN cells are excluded from the mean, deviations, and from any
+    neighbour pair. Returns NaN if the field has fewer than 4 finite
+    cells, zero variance, or no valid neighbour pairs.
+    """
+    import numpy as np
+    v = np.asarray(field, dtype=float)
+    if v.ndim != 2:
+        raise ValueError("moran_i_2d expects a 2-D array")
+    finite = np.isfinite(v)
+    if int(finite.sum()) < 4:
+        return float("nan")
+
+    mean = float(v[finite].mean())
+    dev = np.where(finite, v - mean, 0.0)
+    denom = float((dev[finite] ** 2).sum())
+    if denom == 0:
+        return float("nan")
+
+    # Rook contiguity: each cell pairs with its (N,S,E,W) neighbours.
+    # Vertical pair set (i, i+1 along rows) + horizontal pair set.
+    cross = 0.0
+    W = 0
+    for a_idx, b_idx in (
+        (np.s_[:-1, :], np.s_[1:, :]),   # vertical
+        (np.s_[:, :-1], np.s_[:, 1:]),   # horizontal
+    ):
+        both = finite[a_idx] & finite[b_idx]
+        cross += 2.0 * float((dev[a_idx] * dev[b_idx])[both].sum())
+        W += 2 * int(both.sum())
+    if W == 0:
+        return float("nan")
+    n = int(finite.sum())
+    return (n / W) * cross / denom
+
+
+def effective_sample_size(n: int, moran_i: float) -> float:
+    """Dutilleul (1993) / Cressie (1993) effective-n correction for
+    spatially autocorrelated data. Returns `n` unchanged for I ≤ 0;
+    otherwise `n · (1 − I) / (1 + I)`. Floors at 1."""
+    if moran_i is None or not (moran_i == moran_i):  # NaN check
+        return float(n)
+    if moran_i <= 0:
+        return float(n)
+    return max(1.0, float(n) * (1.0 - moran_i) / (1.0 + moran_i))
+
+
 def corp_inputs(ens: xr.DataArray | None, fcst: xr.DataArray,
                 obs: xr.DataArray, *, tau: int, season_end: int):
     """Return raw (forecast probability, observed binary) arrays at threshold τ

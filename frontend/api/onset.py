@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from momp.stats.detect import detect_onset
+from momp.stats.detect import detect_onset, detect_observed_onset
 
 from .catalog import ModelInfo, ObsInfo, model_by_key, obs_source
 
@@ -144,21 +144,50 @@ def _detect_forecast(model: ModelInfo, year: int, init_idx: int,
 
 
 def _detect_obs(obs: ObsInfo, year: int, params: OnsetParams) -> xr.DataArray:
+    """Detect observed onset via ``momp.stats.detect.detect_observed_onset``.
+
+    This is the same vectorized implementation that ``momp-run`` uses
+    against obs data, so the frontend's obs onset DOYs match production
+    ROMP output for the same onset-criteria values — previously this
+    routine used a simpler May–Sep per-cell loop and could disagree on
+    edge-case years.
+    """
     with xr.open_dataset(obs.path / f"{year}.nc") as ds:
         rain = ds[obs.var_name]
-        time_coord = "TIME" if "TIME" in rain.dims else "time"
-        times = pd.to_datetime(rain[time_coord].values)
-        mask = (times.month >= 5) & (times.month <= 9)
-        sub = rain.isel({time_coord: np.where(mask)[0]})
-        start_doy = int(pd.Timestamp(sub[time_coord].values[0]).dayofyear)
-        vals = sub.values
-    out = np.full(vals.shape[1:], np.nan)
-    for i in range(out.shape[0]):
-        for j in range(out.shape[1]):
-            out[i, j] = _first_onset_doy(vals[:, i, j], start_doy, params)
+        # detect_observed_onset expects a dim named "time".
+        if "TIME" in rain.dims:
+            rain = rain.rename({"TIME": "time"})
+        rain = rain.load()
+
+    onset_da = detect_observed_onset(
+        rain_slice=rain,
+        thresh_slice=params.wet_threshold,  # scalar threshold, broadcasts
+        year=int(year),
+        wet_init=params.wet_init,
+        wet_spell=params.wet_spell,
+        dry_spell=params.dry_spell,
+        dry_threshold=params.dry_threshold,
+        dry_extent=params.dry_extent,
+        start_date=(int(year), 5, 1),    # May 1
+        end_date=(int(year), 9, 30),     # Sep 30 + 47 days slack
+        fallback_date=None,
+        mok=None,
+        extend_end_day=47,
+    )
+
+    # Convert datetime64 onset dates to DOY floats, NaT -> NaN.
+    dt_flat = pd.to_datetime(onset_da.values.ravel())
+    doy = np.asarray(
+        [float(t.dayofyear) if t is not pd.NaT and not pd.isna(t) else np.nan
+         for t in dt_flat],
+        dtype=float,
+    ).reshape(onset_da.shape)
     return xr.DataArray(
-        out, coords={"lat": sub["lat"].values, "lon": sub["lon"].values},
-        dims=("lat", "lon"), name="onset_doy",
+        doy,
+        coords={"lat": onset_da["lat"].values, "lon": onset_da["lon"].values},
+        dims=("lat", "lon"),
+        name="onset_doy",
+        attrs={"source": "momp.stats.detect.detect_observed_onset"},
     )
 
 

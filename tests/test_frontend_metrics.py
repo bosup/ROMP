@@ -205,6 +205,58 @@ def test_land_mask_ambiguous_substring_rejected():
     assert mask is None, "ambiguous 'Korea' should be rejected, not silently picked"
 
 
+# ---------------------------------------------------------------------------
+# Moran's I + effective sample size (audit follow-up)
+# ---------------------------------------------------------------------------
+
+from frontend.api.metrics import moran_i_2d, effective_sample_size
+
+
+def test_moran_i_random_field_near_zero():
+    rng = np.random.default_rng(42)
+    field = rng.standard_normal((20, 20))
+    i = moran_i_2d(field)
+    assert -0.2 < i < 0.2, f"random field Moran I should be near 0, got {i}"
+
+
+def test_moran_i_gradient_field_strongly_positive():
+    """A smooth north-south gradient is strongly spatially autocorrelated."""
+    lat = np.arange(0.0, 20.0)
+    field = np.broadcast_to(lat[:, None], (20, 20)).astype(float)
+    i = moran_i_2d(field)
+    assert i > 0.8, f"gradient field Moran I should be > 0.8, got {i}"
+
+
+def test_moran_i_checkerboard_strongly_negative():
+    ii, jj = np.indices((10, 10))
+    field = ((ii + jj) % 2).astype(float)   # +1, 0 alternating
+    i = moran_i_2d(field)
+    assert i < -0.8, f"checkerboard Moran I should be < -0.8, got {i}"
+
+
+def test_moran_i_nan_safety():
+    field = np.full((6, 6), np.nan)
+    field[0, 0] = 1.0
+    field[0, 1] = 2.0
+    field[1, 0] = 3.0
+    field[1, 1] = 4.0
+    # 4 finite cells, but contiguous — should return a real I.
+    i = moran_i_2d(field)
+    assert not np.isnan(i)
+    # Too few finite cells -> NaN
+    tiny = np.full((3, 3), np.nan)
+    tiny[0, 0] = 1.0
+    assert np.isnan(moran_i_2d(tiny))
+
+
+def test_effective_sample_size_shrinks_with_positive_autocorrelation():
+    assert effective_sample_size(100, 0.0) == 100.0
+    assert effective_sample_size(100, -0.2) == 100.0   # negative I clamped to no-shrink
+    eff = effective_sample_size(100, 0.5)
+    assert eff == pytest.approx(100 * 0.5 / 1.5, rel=1e-9)
+    assert effective_sample_size(100, 0.99) >= 1.0     # floored at 1
+
+
 def test_pooled_corp_identity_holds():
     lats = np.array([0.0, 1.0, 2.0])
     lons = np.array([0.0, 1.0, 2.0])
