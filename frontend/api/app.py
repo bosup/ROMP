@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
+import xarray as xr
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,7 +34,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ROMP metrics API", version="0.2.1-mindoy", lifespan=lifespan)
+app = FastAPI(title="ROMP metrics API", version="0.2.2-ens-median", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
@@ -225,6 +226,38 @@ def _apply_land_mask(da):
     return da.where(mfull)
 
 
+def _ensemble_deterministic(ens, season_end: int = 220):
+    """Collapse an ensemble DOY field to a single deterministic DOY field
+    for IOE / isochrones, using a *sentinel-substituted median*:
+
+    - Replace no-onset members (NaN) with a late sentinel (season_end+1).
+    - Take the median across members.
+    - If the resulting median lands on/above the sentinel (⇒ ≥50% of
+      members saw no onset), mark that cell as no-onset (NaN) again.
+
+    This is the honest deterministic projection of a probabilistic forecast:
+    a cell gets a finite onset DOY iff the *majority* of members agree on
+    onset. Using ``ens.mean(skipna=True)`` silently excludes no-onset
+    members, so a cell where only 1 of 51 members fires early shows up
+    with that one member's DOY as the "forecast" — dramatically biasing
+    isochrones toward early-firing outliers. Median-with-sentinel matches
+    the treatment SPS gives no-onset members (probability 0)."""
+    import numpy as np
+    sentinel = float(season_end) + 1.0
+    vals = np.asarray(ens.values, dtype=float)
+    vals = np.where(np.isfinite(vals), vals, sentinel)
+    median = np.median(vals, axis=0)
+    # A cell whose median is the sentinel means ≥50% of members saw no
+    # onset ⇒ treat as no onset.
+    median = np.where(median >= sentinel - 0.5, np.nan, median)
+    return xr.DataArray(
+        median, dims=("lat", "lon"),
+        coords={"lat": ens["lat"].values, "lon": ens["lon"].values},
+        name="onset_doy",
+        attrs={"summary": "ensemble-median onset with sentinel for no-onset members"},
+    )
+
+
 def _fields_for(model_key: str, year: int, init: int | str | None,
                 params: OnsetParams, region: Region):
     obs = get_obs_onset(year, params)
@@ -240,7 +273,7 @@ def _fields_for(model_key: str, year: int, init: int | str | None,
         obs = region.crop(obs)
         fcst = region.crop(fcst)
     ens = fcst if "member" in fcst.dims else None
-    det = ens.mean("member", skipna=True) if ens is not None else fcst
+    det = _ensemble_deterministic(ens) if ens is not None else fcst
     return {"obs": obs, "fcst_det": det, "ens": ens, "init_idx": idx}
 
 
