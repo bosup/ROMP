@@ -914,8 +914,11 @@ function renderProgression(compare) {
   const layout = mergeLayout(PLOT_LAYOUT, {
     xaxis: { title: { text: "Day of year", font: { size: 11, color: "#a8a291" } } },
     yaxis: { title: { text: "10⁶ km²", font: { size: 11, color: "#a8a291" } } },
-    margin: { l: 56, r: 22, t: 22, b: 60 },
-    legend: { orientation: "h", y: -0.26 },
+    // Larger bottom margin + lower legend Y so the legend (can be 4-8
+    // traces for multi-model + IQR bands) never overlaps the x-axis
+    // ticks or the card's interpretation footer below.
+    margin: { l: 56, r: 22, t: 22, b: 110 },
+    legend: { orientation: "h", y: -0.35, yanchor: "top" },
   });
 
   const div = $("plot-progression");
