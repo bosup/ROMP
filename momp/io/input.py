@@ -35,10 +35,14 @@ def load_thresh_file(*, thresh_file, thresh_var, wet_threshold, region, **kwargs
     return thresh_da
 
 
-def get_initialization_dates(year, *, date_filter_year, init_days, start_date, end_date, **kwargs):
+#def get_initialization_dates(year, *, date_filter_year, init_days, start_date, end_date, **kwargs):
+def get_initialization_dates(year, *, date_filter_year, init_days, start_date, end_date, init_type="weekly", **kwargs):
     """
     Get initialization dates (Mondays and Thursdays from May-July) for a given year.
     """
+    if init_type == "monthly":
+        return get_initialization_dates_monthly(year, start_date=start_date, end_date=end_date, init_days=init_days, **kwargs)
+    
     #date_filter_year = kwargs['date_filter_year']
     #init_days = kwargs["init_days"]
     #start_MMDD = kwargs["start_date"][1:]
@@ -55,6 +59,24 @@ def get_initialization_dates(year, *, date_filter_year, init_days, start_date, e
 
     # Convert to the requested year
     filtered_dates_yr = pd.to_datetime(filtered_dates.strftime(f'{year}-%m-%d'))
+
+    return filtered_dates_yr
+
+
+def get_initialization_dates_monthly(year, *, date_filter_year, init_days, start_date, end_date, **kwargs):
+    """
+    Get initialization dates 
+    Filters for the 1st, 7th, 13th, 19th, 25th of each month (approx. weekly) for a given year.
+    """
+
+    start_month = start_date[1]   # 5  (May)
+    end_month   = end_date[1]     # 7  (July)
+    
+    filtered_dates_yr = pd.DatetimeIndex([
+        pd.Timestamp(year, month, day)
+        for month in range(start_month, end_month + 1)
+        for day in init_days
+    ])
 
     return filtered_dates_yr
 
