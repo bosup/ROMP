@@ -82,6 +82,7 @@ class Setting:
     fallback_date: Optional[tuple[int, int]] = field(default=None)
 
     init_days: tuple = field(default=(0,3))
+    init_type: str = field(default="monthly")
     date_filter_year: int = field(default=2024)
 
     MAE: bool = field(default=False)

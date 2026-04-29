@@ -130,6 +130,7 @@ end_year_clim = 2024
 
 # List of forecast initialization days (day of week, 0->Monday).
 init_days = (0, 3)
+init_type = "weekly"
 
 # Year used for filtering or standardizing date formats.
 date_filter_year = 2024
