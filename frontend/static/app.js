@@ -191,6 +191,31 @@ function fmtKm(n) {
   return n.toFixed(1);
 }
 
+// Format the bracketed uncertainty annotation for a season-scalar key.
+// Prefers the 95% bootstrap CI (ci_lo / ci_hi); falls back to IQR
+// (q25 / q75) when CIs are absent or degenerate (single year). Returns
+// an empty string when neither is available.
+function bracketAnnotation(season, key) {
+  if (!season) return "";
+  const ciLo = season[`${key}_ci_lo`];
+  const ciHi = season[`${key}_ci_hi`];
+  if (ciLo !== undefined && ciLo !== null && ciHi !== undefined && ciHi !== null) {
+    // Single-year payloads collapse CI to a point mass; in that case
+    // the bracket is uninformative — fall through to IQR (also null
+    // in single-year, yielding no annotation).
+    if (ciLo !== ciHi) {
+      return ` <span class="cell-iqr" title="95% bootstrap CI on the median">`
+        + `[${fmtE6(ciLo, 1)}–${fmtE6(ciHi, 1)}]</span>`;
+    }
+  }
+  const q25 = season[`${key}_q25`], q75 = season[`${key}_q75`];
+  if (q25 !== undefined && q25 !== null && q75 !== undefined && q75 !== null) {
+    return ` <span class="cell-iqr" title="year-to-year IQR">`
+      + `[${fmtE6(q25, 1)}–${fmtE6(q75, 1)}]</span>`;
+  }
+  return "";
+}
+
 function colorForModel(key) {
   if (state.modelColor[key]) return state.modelColor[key];
   const idx = Object.keys(state.modelColor).length % MODEL_PALETTE.length;
@@ -335,7 +360,7 @@ function refreshYearHint() {
   if (el) {
     if (!yrs.length) el.textContent = "no overlap with primary model";
     else if (yrs.length === 1) el.textContent = "single year — no aggregation";
-    else el.textContent = `aggregating ${yrs.length} years (${yrs[0]}–${yrs[yrs.length - 1]}); medians + IQR`;
+    else el.textContent = `aggregating ${yrs.length} years (${yrs[0]}–${yrs[yrs.length - 1]}); median + 95% bootstrap CI`;
   }
 
   // Low-n banner: warn loudly below 20 years (design-doc sampling guardrail).
@@ -349,14 +374,15 @@ function refreshYearHint() {
   banner.hidden = false;
   if (yrs.length === 1) {
     text.textContent =
-      "single year — medians / IQR are not meaningful; every metric is a point " +
-      "estimate with unknown sampling variability.";
+      "single year — every metric is a point estimate; bootstrap CIs " +
+      "are degenerate (point mass) and not displayed.";
   } else {
     text.textContent =
       `${yrs.length} years is below the 20-year rule-of-thumb for stable ` +
-      `onset-verification statistics. The IQR shading is descriptive of the ` +
-      `years sampled, not a statistical confidence interval; treat narrow ` +
-      `IQRs as provisional.`;
+      `onset-verification statistics. The 95% CI bands shown are real ` +
+      `(percentile-method bootstrap on the year axis), but the underlying ` +
+      `bootstrap distribution is itself uncertain at this N — treat narrow ` +
+      `bands as provisional.`;
   }
 }
 
@@ -504,11 +530,23 @@ function renderSummaryTable(compare) {
   tbl.innerHTML = "";
   $("summary-year").textContent = compare && compare.year ? compare.year : "—";
 
-  const heads = ["Model", "yrs / mem", "IOE · 10⁶km²d", "SPS · 10⁶km²d", "CRPS · d", "Brier", "MCB / DSC"];
+  // Brackets in the IOE / SPS columns are 95% bootstrap CIs on the
+  // median when multi-year, IQR when single-year is the only thing
+  // available; the title tooltip names the active variant per cell.
+  const heads = [
+    {label: "Model"},
+    {label: "yrs / mem"},
+    {label: "IOE · 10⁶km²d", title: "median [95% bootstrap CI on median]"},
+    {label: "SPS · 10⁶km²d", title: "median [95% bootstrap CI on median]"},
+    {label: "CRPS · d"},
+    {label: "Brier"},
+    {label: "MCB / DSC"},
+  ];
   for (const h of heads) {
     const d = document.createElement("div");
     d.className = "col-head";
-    d.textContent = h;
+    d.textContent = h.label;
+    if (h.title) d.title = h.title;
     tbl.appendChild(d);
   }
 
@@ -533,25 +571,22 @@ function renderSummaryTable(compare) {
     tbl.appendChild(members);
 
     const season = (row.progression && row.progression.season) || {};
+    // Bracket display shows the 95% bootstrap CI on the median when
+    // available (multi-year), falling back to the IQR for single-year
+    // panels where CIs are degenerate (point mass at the observed value).
     const ioeCell = document.createElement("div");
     ioeCell.className = "cell" + (idx === 0 ? " primary" : "");
     const ioe = season.ioe_km2_day;
-    const ioeQ25 = season.ioe_km2_day_q25, ioeQ75 = season.ioe_km2_day_q75;
-    ioeCell.innerHTML = fmtE6(ioe, 1) +
-      (ioeQ25 !== undefined && ioeQ25 !== null
-        ? ` <span class="cell-iqr">[${fmtE6(ioeQ25,1)}–${fmtE6(ioeQ75,1)}]</span>` : "");
+    ioeCell.innerHTML = fmtE6(ioe, 1) + bracketAnnotation(season, "ioe_km2_day");
     tbl.appendChild(ioeCell);
 
     const spsCell = document.createElement("div");
     spsCell.className = "cell";
     const sps = season.sps_km2_day;
-    const spsQ25 = season.sps_km2_day_q25, spsQ75 = season.sps_km2_day_q75;
     if (!row.is_ensemble || sps === null || sps === undefined) {
       spsCell.textContent = "—";
     } else {
-      spsCell.innerHTML = fmtE6(sps, 1) +
-        (spsQ25 !== undefined && spsQ25 !== null
-          ? ` <span class="cell-iqr">[${fmtE6(spsQ25,1)}–${fmtE6(spsQ75,1)}]</span>` : "");
+      spsCell.innerHTML = fmtE6(sps, 1) + bracketAnnotation(season, "sps_km2_day");
     }
     tbl.appendChild(spsCell);
 
@@ -820,21 +855,38 @@ function renderProgression(compare) {
     const p = row.progression || {};
     const days = p.days || [];
 
+    // For multi-year aggregates we shade the 95% bootstrap CI on the
+    // median (the inferential quantity — overlap or non-overlap of two
+    // models' bands answers "is this difference real?"). The IQR is
+    // still in the JSON if needed; we drop it from the chart to avoid
+    // stacking two shaded layers per model, which gets unreadable for
+    // 4+ models.
+    function bandKeys(prefix) {
+      const lo = p[`${prefix}_ci_lo`], hi = p[`${prefix}_ci_hi`];
+      if (multiYear && Array.isArray(lo) && Array.isArray(hi)) {
+        return { lo, hi, label: "95% CI" };
+      }
+      // Single-year fallback: the JSON has CI = null and the chart
+      // simply gets no band (single-year uncertainty is meaningless
+      // without resampling — we don't fake one here).
+      return null;
+    }
+
     if (Array.isArray(p.ioe_km2)) {
-      // IQR band first (so the median line draws on top)
-      if (multiYear && Array.isArray(p.ioe_km2_q25) && Array.isArray(p.ioe_km2_q75)) {
+      const band = bandKeys("ioe_km2");
+      if (band) {
         traces.push({
           type: "scatter", x: days,
-          y: p.ioe_km2_q75.map(v => (v === null ? null : v / 1e6)),
+          y: band.hi.map(v => (v === null ? null : v / 1e6)),
           mode: "lines", line: { width: 0, color },
           showlegend: false, hoverinfo: "skip",
         });
         traces.push({
           type: "scatter", x: days,
-          y: p.ioe_km2_q25.map(v => (v === null ? null : v / 1e6)),
+          y: band.lo.map(v => (v === null ? null : v / 1e6)),
           mode: "lines", line: { width: 0, color },
-          fill: "tonexty", fillcolor: rgba(color, 0.15),
-          name: `${row.label} · IQR`,
+          fill: "tonexty", fillcolor: rgba(color, 0.18),
+          name: `${row.label} · ${band.label}`,
           showlegend: false, hoverinfo: "skip",
         });
       }
@@ -843,7 +895,7 @@ function renderProgression(compare) {
         mode: multiYear ? "lines" : "lines+markers",
         x: days,
         y: p.ioe_km2.map(v => (v === null ? null : v / 1e6)),
-        name: `${row.label} · IOE${multiYear ? " (median)" : ""}`,
+        name: `${row.label} · IOE${multiYear ? " (median + 95% CI)" : ""}`,
         line: { color, width: 2 },
         marker: { size: 4, color },
         connectgaps: false,
@@ -851,18 +903,19 @@ function renderProgression(compare) {
       });
     }
     if (Array.isArray(p.sps_km2) && p.sps_km2.some(v => v !== null && v !== undefined)) {
-      if (multiYear && Array.isArray(p.sps_km2_q25) && Array.isArray(p.sps_km2_q75)) {
+      const band = bandKeys("sps_km2");
+      if (band) {
         traces.push({
           type: "scatter", x: days,
-          y: p.sps_km2_q75.map(v => (v === null ? null : v / 1e6)),
+          y: band.hi.map(v => (v === null ? null : v / 1e6)),
           mode: "lines", line: { width: 0, color },
           showlegend: false, hoverinfo: "skip",
         });
         traces.push({
           type: "scatter", x: days,
-          y: p.sps_km2_q25.map(v => (v === null ? null : v / 1e6)),
+          y: band.lo.map(v => (v === null ? null : v / 1e6)),
           mode: "lines", line: { width: 0, color },
-          fill: "tonexty", fillcolor: rgba(color, 0.10),
+          fill: "tonexty", fillcolor: rgba(color, 0.12),
           showlegend: false, hoverinfo: "skip",
         });
       }
@@ -871,7 +924,7 @@ function renderProgression(compare) {
         mode: "lines",
         x: days,
         y: p.sps_km2.map(v => (v === null ? null : v / 1e6)),
-        name: `${row.label} · SPS${multiYear ? " (median)" : ""}`,
+        name: `${row.label} · SPS${multiYear ? " (median + 95% CI)" : ""}`,
         line: { color, width: 1.5, dash: "dot" },
         connectgaps: false,
         hovertemplate: `${row.label} SPS<br>DOY %{x}<br>%{y:.2f}·10⁶ km²<extra></extra>`,
@@ -946,7 +999,17 @@ function renderProgression(compare) {
     .filter(v => v !== null && v !== undefined && !Number.isNaN(v));
   const txt = document.createElement("span");
   txt.className = "caption-text";
-  const yrLabel = multiYear ? ` · ${compare.n_years} yrs (median + IQR shading)` : "";
+  // Read the bootstrap config off the primary model's progression block
+  // (all models share the same aggregator settings within one /api/compare
+  // call) so the caption can name the actual CI level used.
+  const primaryProg = rows[0] && rows[0].progression;
+  const ciLevel = primaryProg && primaryProg.ci_level
+    ? Math.round(primaryProg.ci_level * 100) : 95;
+  const nResamples = primaryProg && primaryProg.n_resamples
+    ? primaryProg.n_resamples : null;
+  const yrLabel = multiYear
+    ? ` · ${compare.n_years} yrs (median line, ${ciLevel}% bootstrap CI shading${nResamples ? `, B=${nResamples}` : ""})`
+    : "";
   if (seasons.length) {
     const lo = Math.min(...seasons) / 1e6;
     const hi = Math.max(...seasons) / 1e6;

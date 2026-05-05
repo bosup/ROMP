@@ -95,12 +95,129 @@ def test_single_and_multi_year_progression_share_season_schema():
     single = compute_progression(fcst, None, obs, days=[140, 150, 160])
     multi = aggregate_progression([single, single, single])
 
-    # Every *_q25 / *_q75 key present in multi must also be present in single.
+    # Every uncertainty-band key present in multi must also be present in
+    # single (q25 / q75 / ci_lo / ci_hi). The single-year payload uses
+    # None placeholders; what matters is shape parity for the frontend.
     multi_season_keys = set(multi["season"].keys())
     single_season_keys = set(single["season"].keys())
-    quantile_keys = {k for k in multi_season_keys if k.endswith("_q25") or k.endswith("_q75")}
-    missing = quantile_keys - single_season_keys
+    suffixes = ("_q25", "_q75", "_ci_lo", "_ci_hi")
+    band_keys = {k for k in multi_season_keys if k.endswith(suffixes)}
+    missing = band_keys - single_season_keys
     assert not missing, f"single-year season is missing {missing}"
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap CIs on the multi-year progression aggregate
+# ---------------------------------------------------------------------------
+
+def _make_progression_payload(*, ioe_curve, season_ioe, days=(140, 150, 160)):
+    """Build a stub per-year progression payload with the schema shape that
+    aggregate_progression expects."""
+    days = list(days)
+    n = len(days)
+    return {
+        "days": days,
+        "ioe_km2":          list(ioe_curve),
+        "extent_km2":       [0.0] * n,
+        "misplacement_km2": list(ioe_curve),
+        "sps_km2":          list(ioe_curve),
+        "season": {
+            "ioe_km2_day":          float(season_ioe),
+            "extent_km2_day":       0.0,
+            "misplacement_km2_day": float(season_ioe),
+            "sps_km2_day":          float(season_ioe),
+        },
+    }
+
+
+def test_aggregate_progression_emits_ci_keys():
+    payloads = [
+        _make_progression_payload(ioe_curve=[1.0, 2.0, 3.0], season_ioe=2.0),
+        _make_progression_payload(ioe_curve=[1.5, 2.5, 3.5], season_ioe=2.5),
+        _make_progression_payload(ioe_curve=[2.0, 3.0, 4.0], season_ioe=3.0),
+        _make_progression_payload(ioe_curve=[2.5, 3.5, 4.5], season_ioe=3.5),
+        _make_progression_payload(ioe_curve=[3.0, 4.0, 5.0], season_ioe=4.0),
+    ]
+    out = aggregate_progression(payloads, n_resamples=200)
+
+    # Curve-level CIs.
+    for k in ("ioe_km2", "extent_km2", "misplacement_km2", "sps_km2"):
+        assert f"{k}_ci_lo" in out, k
+        assert f"{k}_ci_hi" in out, k
+        # ci_lo <= median <= ci_hi at every position where finite.
+        for med, lo, hi in zip(out[k], out[f"{k}_ci_lo"], out[f"{k}_ci_hi"]):
+            if med is None:
+                continue
+            assert lo is None or lo <= med + 1e-9
+            assert hi is None or med <= hi + 1e-9
+
+    # Season-level CIs.
+    season = out["season"]
+    for k in ("ioe_km2_day", "extent_km2_day",
+              "misplacement_km2_day", "sps_km2_day"):
+        med = season[k]
+        lo = season[f"{k}_ci_lo"]
+        hi = season[f"{k}_ci_hi"]
+        if med is None:
+            continue
+        assert lo is None or lo <= med + 1e-9
+        assert hi is None or med <= hi + 1e-9
+
+    assert out["bootstrap_method"] == "percentile-pair-bootstrap-median"
+    assert out["ci_level"] == 0.95
+    assert out["n_resamples"] == 200
+
+
+def test_aggregate_progression_single_year_ci_collapses_to_point():
+    payload = _make_progression_payload(
+        ioe_curve=[1.0, 2.0, 3.0], season_ioe=2.0,
+    )
+    out = aggregate_progression([payload], n_resamples=100)
+    # With one year, the bootstrap distribution is a point mass; the
+    # IQR collapses (q25 == q75 == median) and so does the CI.
+    for med, lo, hi in zip(out["ioe_km2"], out["ioe_km2_ci_lo"], out["ioe_km2_ci_hi"]):
+        assert lo == med
+        assert hi == med
+    season = out["season"]
+    assert season["ioe_km2_day_ci_lo"] == season["ioe_km2_day"]
+    assert season["ioe_km2_day_ci_hi"] == season["ioe_km2_day"]
+
+
+def test_aggregate_progression_seed_is_deterministic():
+    payloads = [
+        _make_progression_payload(ioe_curve=[1.0, 2.0], season_ioe=1.0,
+                                  days=(140, 150)),
+        _make_progression_payload(ioe_curve=[2.0, 4.0], season_ioe=3.0,
+                                  days=(140, 150)),
+        _make_progression_payload(ioe_curve=[3.0, 6.0], season_ioe=5.0,
+                                  days=(140, 150)),
+        _make_progression_payload(ioe_curve=[4.0, 8.0], season_ioe=7.0,
+                                  days=(140, 150)),
+    ]
+    a = aggregate_progression(payloads, n_resamples=300, seed=12345)
+    b = aggregate_progression(payloads, n_resamples=300, seed=12345)
+    assert a["ioe_km2_ci_lo"] == b["ioe_km2_ci_lo"]
+    assert a["ioe_km2_ci_hi"] == b["ioe_km2_ci_hi"]
+    assert a["season"]["ioe_km2_day_ci_lo"] == b["season"]["ioe_km2_day_ci_lo"]
+
+
+def test_aggregate_progression_iqr_and_ci_are_distinct_concepts():
+    # With many years from a wide-spread distribution, the IQR (year-to-year
+    # spread) should be wider than the CI (uncertainty in the median).
+    rng = np.random.default_rng(0)
+    payloads = []
+    for _ in range(40):
+        v = float(rng.normal(100.0, 25.0))
+        payloads.append(_make_progression_payload(
+            ioe_curve=[v, v, v], season_ioe=v,
+        ))
+    out = aggregate_progression(payloads, n_resamples=1000)
+    season = out["season"]
+    iqr = season["ioe_km2_day_q75"] - season["ioe_km2_day_q25"]
+    ci_width = season["ioe_km2_day_ci_hi"] - season["ioe_km2_day_ci_lo"]
+    # 95% CI on the median of N=40 should be much narrower than the IQR
+    # by roughly a factor of sqrt(N) (asymptotic median-CI scaling).
+    assert ci_width < iqr
 
 
 # ---------------------------------------------------------------------------

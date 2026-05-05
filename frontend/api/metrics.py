@@ -96,18 +96,24 @@ def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
         "days": list(days),
         "ioe_km2": _as_list(ioe["ioe_km2"].values),
         "ioe_km2_q25": None, "ioe_km2_q75": None,
+        "ioe_km2_ci_lo": None, "ioe_km2_ci_hi": None,
         "extent_km2": _as_list(ioe["extent_km2"].values),
         "extent_km2_q25": None, "extent_km2_q75": None,
+        "extent_km2_ci_lo": None, "extent_km2_ci_hi": None,
         "misplacement_km2": _as_list(ioe["misplacement_km2"].values),
         "misplacement_km2_q25": None, "misplacement_km2_q75": None,
+        "misplacement_km2_ci_lo": None, "misplacement_km2_ci_hi": None,
         "season": {
             "n_years": 1,
             "ioe_km2_day": float(ioe["ioe_season_km2_day"]),
             "ioe_km2_day_q25": None, "ioe_km2_day_q75": None,
+            "ioe_km2_day_ci_lo": None, "ioe_km2_day_ci_hi": None,
             "extent_km2_day": float(ioe["extent_season_km2_day"]),
             "extent_km2_day_q25": None, "extent_km2_day_q75": None,
+            "extent_km2_day_ci_lo": None, "extent_km2_day_ci_hi": None,
             "misplacement_km2_day": float(ioe["misplacement_season_km2_day"]),
             "misplacement_km2_day_q25": None, "misplacement_km2_day_q75": None,
+            "misplacement_km2_day_ci_lo": None, "misplacement_km2_day_ci_hi": None,
         },
     }
     if ens is not None:
@@ -123,9 +129,13 @@ def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
     out["sps_km2"] = _as_list(sps["sps_km2"].values)
     out["sps_km2_q25"] = None
     out["sps_km2_q75"] = None
+    out["sps_km2_ci_lo"] = None
+    out["sps_km2_ci_hi"] = None
     out["season"]["sps_km2_day"] = float(sps["sps_season_km2_day"])
     out["season"]["sps_km2_day_q25"] = None
     out["season"]["sps_km2_day_q75"] = None
+    out["season"]["sps_km2_day_ci_lo"] = None
+    out["season"]["sps_km2_day_ci_hi"] = None
     return out
 
 

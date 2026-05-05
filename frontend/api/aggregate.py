@@ -7,7 +7,12 @@ is per-metric:
 - CRPS field          : per-cell mean across years (nanmean)
 - FSS matrix          : per-(threshold, neighborhood) mean
 - Displacement sweep  : per-threshold median + IQR
-- Progression curves  : per-day median + IQR for ioe / extent / misp / sps
+- Progression curves  : per-day median + IQR + 95% bootstrap CI on the
+                         median, for ioe / extent / misp / sps. The IQR
+                         is descriptive of year-to-year spread; the CI
+                         is the inferential quantity (uncertainty in
+                         the central tendency given N years). See
+                         momp.stats.bootstrap.
 - Isochrones          : NOT aggregated — one representative year only
 - CORP                : pool raw (p, y) pairs across years, then decompose
                          once. Implemented in metrics.py via a separate
@@ -18,6 +23,18 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
+
+from momp.stats.bootstrap import (
+    DEFAULT_CI_LEVEL,
+    DEFAULT_N_RESAMPLES,
+    bootstrap_median_ci,
+)
+
+# Reproducible-by-default seed for the year-resampling bootstrap. Using a
+# fixed seed at the aggregator means /api/metrics/progression is
+# deterministic given the same input years and config — matters for the
+# walkthrough where users want to reload and see identical bands.
+PROGRESSION_BOOTSTRAP_SEED = 20260505
 
 
 def _stack(lists, fill=np.nan) -> np.ndarray:
@@ -142,12 +159,34 @@ def aggregate_displacement(per_year: Sequence[dict]) -> dict:
     return out
 
 
-def aggregate_progression(per_year: Sequence[dict]) -> dict:
+def aggregate_progression(
+    per_year: Sequence[dict],
+    *,
+    n_resamples: int = DEFAULT_N_RESAMPLES,
+    ci_level: float = DEFAULT_CI_LEVEL,
+    seed: int | None = PROGRESSION_BOOTSTRAP_SEED,
+) -> dict:
+    """Aggregate per-year progression metrics across years.
+
+    Reports three uncertainty layers per per-day series and per
+    season-integrated scalar:
+
+    - point estimate: nanmedian across years
+    - IQR (q25 / q75): year-to-year spread, descriptive
+    - 95% bootstrap CI (ci_lo / ci_hi): uncertainty in the median
+      estimator, percentile-method pair bootstrap on the year axis
+
+    The bootstrap is deterministic given ``seed`` so refreshing the
+    panel does not jiggle the bands. Set ``seed=None`` to opt out.
+    """
     if not per_year:
-        return {"days": [], "n_years": 0}
+        return {"days": [], "n_years": 0,
+                "ci_level": float(ci_level), "n_resamples": 0}
     days = per_year[0]["days"]
     ks = ("ioe_km2", "extent_km2", "misplacement_km2", "sps_km2")
-    out = {"days": list(days), "n_years": len(per_year)}
+    out = {"days": list(days), "n_years": len(per_year),
+           "ci_level": float(ci_level), "n_resamples": int(n_resamples),
+           "bootstrap_method": "percentile-pair-bootstrap-median"}
     for k in ks:
         per_year_lists = [p.get(k) for p in per_year]
         # SPS may be None for det models; drop None lists
@@ -156,15 +195,23 @@ def aggregate_progression(per_year: Sequence[dict]) -> dict:
             out[k] = None
             out[f"{k}_q25"] = None
             out[f"{k}_q75"] = None
+            out[f"{k}_ci_lo"] = None
+            out[f"{k}_ci_hi"] = None
             continue
         stk = _stack(per_year_lists)
         out[k] = _median(stk)
         out[f"{k}_q25"] = _quantiles(stk, 0.25)
         out[f"{k}_q75"] = _quantiles(stk, 0.75)
+        boot = bootstrap_median_ci(
+            stk, axis=0, n_resamples=n_resamples,
+            ci_level=ci_level, rng=seed,
+        )
+        out[f"{k}_ci_lo"] = _to_jsonable_list(boot["ci_lo"])
+        out[f"{k}_ci_hi"] = _to_jsonable_list(boot["ci_hi"])
 
-    # Season-integrated scalars: median + IQR. "n_years" is the count of
-    # years that actually contributed a finite value for the metric; the
-    # request count lives in out["n_years"] above.
+    # Season-integrated scalars: median + IQR + bootstrap CI. "n_years"
+    # is the count of years that actually contributed a finite value
+    # for the metric; the request count lives in out["n_years"] above.
     season = {"n_years_requested": len(per_year)}
     for k in ("ioe_km2_day", "extent_km2_day", "misplacement_km2_day", "sps_km2_day"):
         vals = [p["season"].get(k) for p in per_year if p.get("season")]
@@ -173,17 +220,36 @@ def aggregate_progression(per_year: Sequence[dict]) -> dict:
             season[k] = None
             season[f"{k}_q25"] = None
             season[f"{k}_q75"] = None
+            season[f"{k}_ci_lo"] = None
+            season[f"{k}_ci_hi"] = None
             season[f"{k}_n_years"] = 0
         else:
             arr = np.asarray(vals, dtype=float)
             season[k] = float(np.median(arr))
             season[f"{k}_q25"] = float(np.quantile(arr, 0.25))
             season[f"{k}_q75"] = float(np.quantile(arr, 0.75))
+            boot = bootstrap_median_ci(
+                arr, axis=0, n_resamples=n_resamples,
+                ci_level=ci_level, rng=seed,
+            )
+            season[f"{k}_ci_lo"] = _scalar_or_none(boot["ci_lo"])
+            season[f"{k}_ci_hi"] = _scalar_or_none(boot["ci_hi"])
             season[f"{k}_n_years"] = int(arr.size)
     # Backcompat alias
     season["n_years"] = season["ioe_km2_day_n_years"]
+    season["ci_level"] = float(ci_level)
     out["season"] = season
     return out
+
+
+def _to_jsonable_list(arr) -> list:
+    """1-D ndarray -> list of float|None, NaN -> None."""
+    return [None if not np.isfinite(v) else float(v) for v in np.asarray(arr).ravel()]
+
+
+def _scalar_or_none(v) -> float | None:
+    fv = float(np.asarray(v).item())
+    return None if not np.isfinite(fv) else fv
 
 
 def expand_years(years_arg: str | None, single_year: int | None) -> list[int]:
