@@ -52,6 +52,47 @@ def _binary_by_day(field_vals: np.ndarray, day: float) -> np.ndarray:
     return ((field_vals <= day) & np.isfinite(field_vals)).astype(float)
 
 
+def peak_doy(curve_km2, days) -> tuple[float, float]:
+    """Return ``(peak_doy, peak_value)`` for a per-day progression curve.
+
+    The IOE / SPS curves have a characteristic hump: zero at season start
+    (no onset anywhere yet, no disagreement possible), rising as the
+    front advances and forecast / obs disagree on its leading edge,
+    falling back to zero once both fields say "onset everywhere." The
+    DOY of the maximum is a single-number diagnostic for *when* a model's
+    front is most wrong — a model that lags peaks later than one that
+    leads, even if their season-integrated totals match.
+
+    Tie convention: returns the earliest DOY whose value equals the
+    maximum (``np.argmax`` semantics). Useful when a curve plateaus.
+
+    Undefined cases (returns ``(nan, nan)``):
+      - ``curve_km2`` is empty or all NaN.
+      - The maximum is zero (perfect forecast, or no overlap window) —
+        peak DOY is genuinely undefined; reporting an arbitrary day
+        from a flat-zero curve would mislead.
+
+    Resolution caveat: the returned DOY is only as fine-grained as the
+    ``days`` grid passed to ``integrated_onset_error``. With the default
+    3-day stepping in the frontend the peak is resolved to ±1 day at
+    best. Sub-day parabolic interpolation around the argmax is a
+    documented follow-on for methods-paper-precision use.
+    """
+    a = np.asarray(curve_km2, dtype=float)
+    d = np.asarray(days, dtype=float)
+    if a.size == 0 or d.size != a.size:
+        return float("nan"), float("nan")
+    finite = np.isfinite(a)
+    if not finite.any():
+        return float("nan"), float("nan")
+    masked = np.where(finite, a, -np.inf)
+    peak_val = float(masked.max())
+    if not np.isfinite(peak_val) or peak_val <= 0:
+        return float("nan"), float("nan")
+    idx = int(np.argmax(masked))
+    return float(d[idx]), peak_val
+
+
 def _check_grids_match(forecast: xr.DataArray, observed: xr.DataArray,
                       lat_coord: str, lon_coord: str):
     lat_f, lon_f = _extract_coords(forecast, lat_coord, lon_coord)

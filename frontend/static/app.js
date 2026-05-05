@@ -538,6 +538,7 @@ function renderSummaryTable(compare) {
     {label: "yrs / mem"},
     {label: "IOE · 10⁶km²d", title: "median [95% bootstrap CI on median]"},
     {label: "SPS · 10⁶km²d", title: "median [95% bootstrap CI on median]"},
+    {label: "Peak day", title: "DOY at which IOE(d) is maximised — when the front is most wrong"},
     {label: "CRPS · d"},
     {label: "Brier"},
     {label: "MCB / DSC"},
@@ -589,6 +590,25 @@ function renderSummaryTable(compare) {
       spsCell.innerHTML = fmtE6(sps, 1) + bracketAnnotation(season, "sps_km2_day");
     }
     tbl.appendChild(spsCell);
+
+    // Peak day of IOE — single-number diagnostic for "when is this
+    // model's front most wrong?". A late-peaking model lags; an
+    // early-peaking model leads.
+    const peakCell = document.createElement("div");
+    peakCell.className = "cell";
+    const peak = (row.progression && row.progression.peak) || {};
+    const peakDoy = peak.ioe_doy;
+    if (peakDoy === null || peakDoy === undefined) {
+      peakCell.textContent = "—";
+    } else {
+      const d = Math.round(peakDoy);
+      const lo = peak.ioe_doy_ci_lo, hi = peak.ioe_doy_ci_hi;
+      const ciTxt = (lo !== null && lo !== undefined && hi !== null && hi !== undefined && lo !== hi)
+        ? ` <span class="cell-iqr" title="95% bootstrap CI on peak DOY">[${Math.round(lo)}–${Math.round(hi)}]</span>`
+        : "";
+      peakCell.innerHTML = `${d}${ciTxt}`;
+    }
+    tbl.appendChild(peakCell);
 
     const crpsCell = document.createElement("div");
     crpsCell.className = "cell";
@@ -964,6 +984,45 @@ function renderProgression(compare) {
     }
   }
 
+  // Peak-DOY annotation: faint vertical dashed line at the primary
+  // model's IOE peak, with a CI band shaded behind it when multi-year.
+  // We only draw this for the primary model — multi-model peak lines
+  // would clutter the chart and the cross-model peak comparison
+  // already lives in the bench summary table above.
+  const shapes = [];
+  const annotations = [];
+  if (rows.length) {
+    const primary = rows[0];
+    const peak = (primary.progression && primary.progression.peak) || {};
+    if (peak.ioe_doy !== null && peak.ioe_doy !== undefined) {
+      const color = colorForModel(primary.model);
+      const lo = peak.ioe_doy_ci_lo, hi = peak.ioe_doy_ci_hi;
+      if (multiYear && lo !== null && lo !== undefined &&
+          hi !== null && hi !== undefined && lo !== hi) {
+        shapes.push({
+          type: "rect", xref: "x", yref: "paper",
+          x0: lo, x1: hi, y0: 0, y1: 1,
+          fillcolor: rgba(color, 0.08), line: { width: 0 }, layer: "below",
+        });
+      }
+      shapes.push({
+        type: "line", xref: "x", yref: "paper",
+        x0: peak.ioe_doy, x1: peak.ioe_doy, y0: 0, y1: 1,
+        line: { color: rgba(color, 0.55), width: 1.2, dash: "dash" },
+      });
+      const ciTxt = (multiYear && lo !== null && lo !== undefined &&
+                     hi !== null && hi !== undefined && lo !== hi)
+        ? ` [${Math.round(lo)}–${Math.round(hi)}]` : "";
+      annotations.push({
+        x: peak.ioe_doy, y: 1, xref: "x", yref: "paper",
+        text: `peak DOY ${Math.round(peak.ioe_doy)}${ciTxt}`,
+        showarrow: false, xanchor: "left", yanchor: "top",
+        font: { size: 10, color: rgba(color, 0.85) },
+        bgcolor: "rgba(0,0,0,0)", xshift: 4,
+      });
+    }
+  }
+
   const layout = mergeLayout(PLOT_LAYOUT, {
     xaxis: { title: { text: "Day of year", font: { size: 11, color: "#a8a291" } } },
     yaxis: { title: { text: "10⁶ km²", font: { size: 11, color: "#a8a291" } } },
@@ -972,6 +1031,7 @@ function renderProgression(compare) {
     // ticks or the card's interpretation footer below.
     margin: { l: 56, r: 22, t: 22, b: 110 },
     legend: { orientation: "h", y: -0.35, yanchor: "top" },
+    shapes, annotations,
   });
 
   const div = $("plot-progression");

@@ -239,6 +239,73 @@ def aggregate_progression(
     season["n_years"] = season["ioe_km2_day_n_years"]
     season["ci_level"] = float(ci_level)
     out["season"] = season
+
+    # Peak-DOY diagnostic, with bootstrap CI on the peak DOY itself.
+    # Bootstrapping the peak position is the right object — bootstrapping
+    # the median curve and then taking its argmax loses the year-to-year
+    # variability in *where* the peak sits, which is exactly what we
+    # care about. Each replicate is a coherent year resample, peak found
+    # per replicate, percentile CI on the resulting peak DOYs.
+    out["peak"] = _aggregate_peaks(
+        per_year, days, n_resamples=n_resamples,
+        ci_level=ci_level, seed=seed,
+    )
+
+    return out
+
+
+def _aggregate_peaks(per_year, days, *, n_resamples, ci_level, seed):
+    """Compute median + bootstrap CI on the peak DOY for IOE and SPS."""
+    from momp.metrics.progression import peak_doy
+
+    days_arr = np.asarray(list(days), dtype=float)
+    out = {"days": list(days)}
+
+    for kind in ("ioe_km2", "sps_km2"):
+        per_year_lists = [p.get(kind) for p in per_year]
+        per_year_lists = [lst for lst in per_year_lists if lst is not None]
+        if not per_year_lists:
+            for k in ("doy", "value", "doy_ci_lo", "doy_ci_hi"):
+                out[f"{kind.replace('_km2', '')}_{k}"] = None
+            continue
+        stk = _stack(per_year_lists)  # shape (n_years, n_days)
+
+        # Per-year peak DOYs: argmax along day axis (with the same NaN
+        # / non-positive guard as the helper). Aggregate as median +
+        # bootstrap CI on those peak-DOY samples.
+        per_year_peak_doys = np.array(
+            [peak_doy(row, days_arr)[0] for row in stk], dtype=float,
+        )
+        per_year_peak_vals = np.array(
+            [peak_doy(row, days_arr)[1] for row in stk], dtype=float,
+        )
+
+        finite_doy = per_year_peak_doys[np.isfinite(per_year_peak_doys)]
+        if finite_doy.size == 0:
+            for k in ("doy", "value", "doy_ci_lo", "doy_ci_hi"):
+                out[f"{kind.replace('_km2', '')}_{k}"] = None
+            continue
+        med_doy = float(np.median(finite_doy))
+        finite_vals = per_year_peak_vals[np.isfinite(per_year_peak_vals)]
+        med_val = float(np.median(finite_vals)) if finite_vals.size else None
+
+        if finite_doy.size >= 2:
+            boot = bootstrap_median_ci(
+                finite_doy, axis=0, n_resamples=n_resamples,
+                ci_level=ci_level, rng=seed,
+            )
+            ci_lo = _scalar_or_none(boot["ci_lo"])
+            ci_hi = _scalar_or_none(boot["ci_hi"])
+        else:
+            ci_lo = ci_hi = med_doy
+
+        prefix = kind.replace("_km2", "")  # "ioe" / "sps"
+        out[f"{prefix}_doy"] = med_doy
+        out[f"{prefix}_value"] = med_val
+        out[f"{prefix}_doy_ci_lo"] = ci_lo
+        out[f"{prefix}_doy_ci_hi"] = ci_hi
+        out[f"{prefix}_n_years"] = int(finite_doy.size)
+
     return out
 
 

@@ -215,3 +215,106 @@ def test_sps_missing_member_dim_raises():
     obs = _field(np.full((4, 4), 140.0), lats, lons)
     with pytest.raises(ValueError):
         spatial_probability_score(ens, obs, days=[140])
+
+
+# ---------- peak_doy --------------------------------------------------------
+
+
+def test_peak_doy_bell_shape_returns_apex():
+    from momp.metrics.progression import peak_doy
+    days = [120, 130, 140, 150, 160, 170]
+    curve = [0.0, 1.0, 3.0, 5.0, 2.0, 0.0]  # apex at d=150
+    d, v = peak_doy(curve, days)
+    assert d == 150.0
+    assert v == 5.0
+
+
+def test_peak_doy_monotone_rising_returns_last_day():
+    from momp.metrics.progression import peak_doy
+    days = [120, 130, 140, 150]
+    curve = [0.0, 1.0, 2.0, 3.0]
+    d, v = peak_doy(curve, days)
+    assert d == 150.0
+    assert v == 3.0
+
+
+def test_peak_doy_tie_returns_earliest():
+    # Convention: earliest argmax wins. Useful when a curve plateaus.
+    from momp.metrics.progression import peak_doy
+    days = [120, 130, 140, 150]
+    curve = [1.0, 5.0, 5.0, 5.0]
+    d, _ = peak_doy(curve, days)
+    assert d == 130.0
+
+
+def test_peak_doy_all_zero_curve_returns_nan():
+    from momp.metrics.progression import peak_doy
+    days = [120, 130, 140]
+    curve = [0.0, 0.0, 0.0]
+    d, v = peak_doy(curve, days)
+    assert np.isnan(d)
+    assert np.isnan(v)
+
+
+def test_peak_doy_all_nan_returns_nan():
+    from momp.metrics.progression import peak_doy
+    days = [120, 130, 140]
+    curve = [np.nan, np.nan, np.nan]
+    d, v = peak_doy(curve, days)
+    assert np.isnan(d)
+    assert np.isnan(v)
+
+
+def test_peak_doy_skips_nan_to_finite_max():
+    from momp.metrics.progression import peak_doy
+    days = [120, 130, 140, 150]
+    curve = [np.nan, 1.0, 5.0, np.nan]
+    d, v = peak_doy(curve, days)
+    assert d == 140.0
+    assert v == 5.0
+
+
+def test_peak_doy_empty_returns_nan():
+    from momp.metrics.progression import peak_doy
+    d, v = peak_doy([], [])
+    assert np.isnan(d)
+    assert np.isnan(v)
+
+
+def test_peak_doy_mismatched_lengths_returns_nan():
+    from momp.metrics.progression import peak_doy
+    d, v = peak_doy([1.0, 2.0], [120, 130, 140])
+    assert np.isnan(d)
+    assert np.isnan(v)
+
+
+def test_peak_doy_ioe_advancing_front_lag_diagnostic():
+    # Two synthetic "models" with the same season-integrated IOE but
+    # one peaks earlier than the other — the headline diagnostic is
+    # the peak-DOY shift, which the season integral is blind to.
+    from momp.metrics.progression import (
+        integrated_onset_error, peak_doy,
+    )
+    lats = np.arange(0.0, 11.0)
+    lons = np.arange(0.0, 10.0)
+    base = np.broadcast_to(lats[:, None], (lats.size, lons.size)).astype(float)
+    obs_vals = 110.0 + base                      # obs front: 110 -> 120
+    early_vals = 100.0 + base                    # early model: leads by 10
+    late_vals  = 120.0 + base                    # late model: lags by 10
+    obs = _field(obs_vals, lats, lons)
+    early = _field(early_vals, lats, lons)
+    late  = _field(late_vals,  lats, lons)
+    days = list(range(95, 135))
+
+    ds_e = integrated_onset_error(early, obs, days=days)
+    ds_l = integrated_onset_error(late,  obs, days=days)
+    de, _ = peak_doy(ds_e["ioe_km2"].values, ds_e["day"].values)
+    dl, _ = peak_doy(ds_l["ioe_km2"].values, ds_l["day"].values)
+    # The late model's IOE peaks later than the early model's. By
+    # symmetry of the linear-front construction the season-integrated
+    # IOE is identical for both, so without peak-DOY this lag bias
+    # would be invisible.
+    assert dl > de
+    assert float(ds_e["ioe_season_km2_day"]) == pytest.approx(
+        float(ds_l["ioe_season_km2_day"]), rel=1e-12,
+    )

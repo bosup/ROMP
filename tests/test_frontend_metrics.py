@@ -201,6 +201,44 @@ def test_aggregate_progression_seed_is_deterministic():
     assert a["season"]["ioe_km2_day_ci_lo"] == b["season"]["ioe_km2_day_ci_lo"]
 
 
+def test_aggregate_progression_emits_peak_block():
+    payloads = [
+        _make_progression_payload(ioe_curve=[1.0, 5.0, 2.0], season_ioe=8.0),
+        _make_progression_payload(ioe_curve=[1.0, 5.0, 2.0], season_ioe=8.0),
+        _make_progression_payload(ioe_curve=[1.0, 5.0, 2.0], season_ioe=8.0),
+    ]
+    out = aggregate_progression(payloads, n_resamples=200)
+    peak = out.get("peak")
+    assert peak is not None
+    # Every per-year curve peaks at day 150 -> per-year peak DOYs are
+    # all 150, median is 150, CI collapses to 150.
+    assert peak["ioe_doy"] == 150.0
+    assert peak["ioe_doy_ci_lo"] == 150.0
+    assert peak["ioe_doy_ci_hi"] == 150.0
+    assert peak["ioe_value"] == 5.0
+
+
+def test_aggregate_progression_peak_ci_brackets_median_when_jittered():
+    # Years where the peak day jitters between 140 and 150 — the median
+    # peak should be in {140, 150} and the CI should bracket it.
+    payloads = []
+    for d in (140, 140, 140, 150, 150, 150, 150):
+        if d == 140:
+            curve = [5.0, 1.0, 0.5]   # peak at 140
+        else:
+            curve = [0.5, 5.0, 1.0]   # peak at 150
+        payloads.append(_make_progression_payload(
+            ioe_curve=curve, season_ioe=6.0, days=(140, 150, 160),
+        ))
+    out = aggregate_progression(payloads, n_resamples=500)
+    peak = out["peak"]
+    assert peak["ioe_doy"] in (140.0, 150.0)
+    assert peak["ioe_doy_ci_lo"] <= peak["ioe_doy"] <= peak["ioe_doy_ci_hi"]
+    # The CI must lie within the observed peak-DOY range.
+    assert peak["ioe_doy_ci_lo"] >= 140.0
+    assert peak["ioe_doy_ci_hi"] <= 150.0
+
+
 def test_aggregate_progression_iqr_and_ci_are_distinct_concepts():
     # With many years from a wide-spread distribution, the IQR (year-to-year
     # spread) should be wider than the CI (uncertainty in the median).

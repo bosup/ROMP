@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ROMP metrics API", version="0.3.0-progression-ci", lifespan=lifespan)
+app = FastAPI(title="ROMP metrics API", version="0.3.1-peak-doy", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
@@ -675,18 +675,13 @@ def compare(
             "init_idx": b0["init_idx"],
             "n_years": len(bundles),
             "years": [int(y) for y, _ in bundles],
-            "progression": {
-                "days": prog["days"],
-                "ioe_km2": prog["ioe_km2"],
-                "ioe_km2_q25": prog.get("ioe_km2_q25"),
-                "ioe_km2_q75": prog.get("ioe_km2_q75"),
-                "sps_km2": prog.get("sps_km2"),
-                "sps_km2_q25": prog.get("sps_km2_q25"),
-                "sps_km2_q75": prog.get("sps_km2_q75"),
-                "extent_km2": prog.get("extent_km2"),
-                "misplacement_km2": prog.get("misplacement_km2"),
-                "season": prog.get("season", {}),
-            },
+            # Pass the full progression block through so the frontend
+            # has access to all uncertainty layers (q25/q75, ci_lo/ci_hi)
+            # plus the peak-DOY diagnostic. Hand-picking specific keys
+            # is brittle — earlier omission of ci_lo/ci_hi here meant
+            # the chart's CI bands silently never rendered through the
+            # /api/compare route.
+            "progression": prog,
             "crps": {
                 "mean": float(np.mean(crps_means)) if crps_means else None,
                 "median": float(np.median(crps_means)) if crps_means else None,

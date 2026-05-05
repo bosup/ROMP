@@ -86,7 +86,7 @@ def compute_displacement(fcst: xr.DataArray, obs: xr.DataArray, *, thresholds) -
 def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
                         obs: xr.DataArray, *, days) -> dict:
     from momp.metrics.progression import (
-        integrated_onset_error, spatial_probability_score,
+        integrated_onset_error, peak_doy, spatial_probability_score,
     )
     ioe = integrated_onset_error(fcst, obs, days=days)
     # Match the shape of aggregate_progression so single-year and multi-year
@@ -136,7 +136,27 @@ def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
     out["season"]["sps_km2_day_q75"] = None
     out["season"]["sps_km2_day_ci_lo"] = None
     out["season"]["sps_km2_day_ci_hi"] = None
+
+    # Peak-DOY diagnostic: the DOY at which IOE / SPS is maximised.
+    # Captures *when* the model's front is most wrong (lag bias is
+    # invisible in the season-integrated headline). Single-year payload
+    # carries no CI; aggregator fills CI keys for multi-year.
+    ioe_peak_d, ioe_peak_v = peak_doy(out["ioe_km2"], list(days))
+    sps_peak_d, sps_peak_v = peak_doy(out["sps_km2"], list(days))
+    out["peak"] = {
+        "ioe_doy":   _none_if_nan(ioe_peak_d),
+        "ioe_value": _none_if_nan(ioe_peak_v),
+        "ioe_doy_ci_lo": None, "ioe_doy_ci_hi": None,
+        "sps_doy":   _none_if_nan(sps_peak_d),
+        "sps_value": _none_if_nan(sps_peak_v),
+        "sps_doy_ci_lo": None, "sps_doy_ci_hi": None,
+    }
     return out
+
+
+def _none_if_nan(x):
+    fx = float(x)
+    return None if not np.isfinite(fx) else fx
 
 
 def compute_isochrones(fcst: xr.DataArray, obs: xr.DataArray, *, days) -> dict:
