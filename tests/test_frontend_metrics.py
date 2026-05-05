@@ -110,11 +110,22 @@ def test_single_and_multi_year_progression_share_season_schema():
 # Bootstrap CIs on the multi-year progression aggregate
 # ---------------------------------------------------------------------------
 
-def _make_progression_payload(*, ioe_curve, season_ioe, days=(140, 150, 160)):
+def _make_progression_payload(*, ioe_curve, season_ioe, days=(140, 150, 160),
+                              season_extent=None, season_misp=None):
     """Build a stub per-year progression payload with the schema shape that
-    aggregate_progression expects."""
+    aggregate_progression expects.
+
+    By default the payload represents pure misplacement (extent_season=0,
+    misp_season=ioe_season). Override season_extent / season_misp to test
+    other decompositions; the per-day curves do not need to match the
+    season scalars for the season-aggregator path.
+    """
     days = list(days)
     n = len(days)
+    if season_extent is None:
+        season_extent = 0.0
+    if season_misp is None:
+        season_misp = float(season_ioe)
     return {
         "days": days,
         "ioe_km2":          list(ioe_curve),
@@ -123,8 +134,8 @@ def _make_progression_payload(*, ioe_curve, season_ioe, days=(140, 150, 160)):
         "sps_km2":          list(ioe_curve),
         "season": {
             "ioe_km2_day":          float(season_ioe),
-            "extent_km2_day":       0.0,
-            "misplacement_km2_day": float(season_ioe),
+            "extent_km2_day":       float(season_extent),
+            "misplacement_km2_day": float(season_misp),
             "sps_km2_day":          float(season_ioe),
         },
     }
@@ -237,6 +248,86 @@ def test_aggregate_progression_peak_ci_brackets_median_when_jittered():
     # The CI must lie within the observed peak-DOY range.
     assert peak["ioe_doy_ci_lo"] >= 140.0
     assert peak["ioe_doy_ci_hi"] <= 150.0
+
+
+def test_aggregate_progression_misp_frac_pure_extent():
+    # Every year has IOE = 100 and extent = 100, misp = 0 -> pure extent.
+    payloads = [
+        _make_progression_payload(
+            ioe_curve=[100.0], season_ioe=100.0, days=(150,),
+            season_extent=100.0, season_misp=0.0,
+        ) for _ in range(5)
+    ]
+    out = aggregate_progression(payloads, n_resamples=200)
+    assert out["season"]["misp_frac"] == 0.0
+    assert out["season"]["misp_frac_ci_lo"] == 0.0
+    assert out["season"]["misp_frac_ci_hi"] == 0.0
+
+
+def test_aggregate_progression_misp_frac_pure_misplacement():
+    # Every year has IOE = 100 and misp = 100, extent = 0 -> pure misplacement.
+    payloads = [
+        _make_progression_payload(
+            ioe_curve=[100.0], season_ioe=100.0, days=(150,),
+            season_extent=0.0, season_misp=100.0,
+        ) for _ in range(5)
+    ]
+    out = aggregate_progression(payloads, n_resamples=200)
+    assert out["season"]["misp_frac"] == 1.0
+    assert out["season"]["misp_frac_ci_lo"] == 1.0
+    assert out["season"]["misp_frac_ci_hi"] == 1.0
+
+
+def test_aggregate_progression_misp_frac_brackets_median():
+    # Years with a mix of decomposition shapes; the bootstrap CI should
+    # bracket the realised median of misp/IOE ratios.
+    payloads = [
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=70.0,
+                                  season_misp=30.0),
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=50.0,
+                                  season_misp=50.0),
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=20.0,
+                                  season_misp=80.0),
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=40.0,
+                                  season_misp=60.0),
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=60.0,
+                                  season_misp=40.0),
+    ]
+    out = aggregate_progression(payloads, n_resamples=500)
+    s = out["season"]
+    # Realised ratios: [0.30, 0.50, 0.80, 0.60, 0.40]; median = 0.50.
+    assert s["misp_frac"] == pytest.approx(0.50, abs=1e-9)
+    assert s["misp_frac_ci_lo"] <= s["misp_frac"] + 1e-12
+    assert s["misp_frac"] <= s["misp_frac_ci_hi"] + 1e-12
+    # CI should lie within the observed-ratio range [0.3, 0.8].
+    assert 0.30 - 1e-12 <= s["misp_frac_ci_lo"]
+    assert s["misp_frac_ci_hi"] <= 0.80 + 1e-12
+
+
+def test_aggregate_progression_misp_frac_skips_zero_ioe_years():
+    # Years with IOE = 0 (perfect forecast) cannot contribute a finite
+    # ratio; they must be dropped before aggregation, not treated as 0/0.
+    payloads = [
+        _make_progression_payload(season_ioe=0.0, ioe_curve=[0.0],
+                                  days=(150,), season_extent=0.0,
+                                  season_misp=0.0),
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=20.0,
+                                  season_misp=80.0),
+        _make_progression_payload(season_ioe=100.0, ioe_curve=[100.0],
+                                  days=(150,), season_extent=40.0,
+                                  season_misp=60.0),
+    ]
+    out = aggregate_progression(payloads, n_resamples=200)
+    s = out["season"]
+    # Only 2 finite-ratio years contributed; ratios = [0.80, 0.60], median 0.70.
+    assert s["misp_frac_n_years"] == 2
+    assert s["misp_frac"] == pytest.approx(0.70, abs=1e-9)
 
 
 def test_aggregate_progression_iqr_and_ci_are_distinct_concepts():

@@ -5,6 +5,50 @@ import numpy as np
 import xarray as xr
 
 
+# Default verification-window upper bound (DOY). Used as the sentinel
+# placement for both CRPS censoring and the ensemble->deterministic
+# projection so the same cell can't be classed as a real onset by one
+# panel and "no onset" by another.
+DEFAULT_SEASON_END = 220
+
+
+def ensemble_deterministic(ens: xr.DataArray, *,
+                           season_end: int = DEFAULT_SEASON_END) -> xr.DataArray:
+    """Collapse an ensemble DOY field to a single deterministic DOY field
+    via *sentinel-substituted median*:
+
+    - Replace no-onset members (NaN) with a late sentinel (season_end+1).
+    - Take the median across members.
+    - If the resulting median lands on/above the sentinel (≥ 50% of
+      members saw no onset within the window) mark that cell as no-onset
+      again.
+
+    Honest deterministic projection: a cell gets a finite onset DOY iff
+    the *majority* of members agree on onset. ``ens.mean(skipna=True)``
+    silently drops no-onset members, so a cell where 1 of 51 members
+    fires early shows up with that one member's DOY as the "forecast"
+    and the deterministic isochrone gets dragged toward early-firing
+    outliers. Median-with-sentinel matches the treatment SPS gives
+    no-onset members (probability 0).
+
+    ``season_end`` controls the sentinel placement and the "majority
+    no-onset" cutoff; it must match the value used elsewhere in the
+    pipeline (CRPS sentinel, CORP threshold), or the same cell can be
+    classed as a real onset by one panel and "no onset" by another."""
+    sentinel = float(season_end) + 1.0
+    vals = np.asarray(ens.values, dtype=float)
+    vals = np.where(np.isfinite(vals), vals, sentinel)
+    median = np.median(vals, axis=0)
+    median = np.where(median >= sentinel - 0.5, np.nan, median)
+    return xr.DataArray(
+        median, dims=("lat", "lon"),
+        coords={"lat": ens["lat"].values, "lon": ens["lon"].values},
+        name="onset_doy",
+        attrs={"summary": "ensemble-median onset with sentinel for no-onset members",
+               "season_end": int(season_end)},
+    )
+
+
 def _as_list(a) -> list:
     arr = np.asarray(a, dtype=float)
     return [None if not np.isfinite(x) else float(x) for x in arr.ravel()]
@@ -136,6 +180,20 @@ def compute_progression(fcst: xr.DataArray, ens: xr.DataArray | None,
     out["season"]["sps_km2_day_q75"] = None
     out["season"]["sps_km2_day_ci_lo"] = None
     out["season"]["sps_km2_day_ci_hi"] = None
+
+    # Misplacement fraction at the season level: well-defined for a
+    # single year (no aggregation needed). 0 = pure extent error, 1 =
+    # pure misplacement, NaN if IOE_season is zero (perfect forecast).
+    ioe_s = out["season"]["ioe_km2_day"]
+    misp_s = out["season"]["misplacement_km2_day"]
+    out["season"]["misp_frac"] = (
+        float(misp_s) / float(ioe_s)
+        if ioe_s is not None and ioe_s > 0
+        and misp_s is not None and np.isfinite(misp_s) and np.isfinite(ioe_s)
+        else None
+    )
+    out["season"]["misp_frac_ci_lo"] = None
+    out["season"]["misp_frac_ci_hi"] = None
 
     # Peak-DOY diagnostic: the DOY at which IOE / SPS is maximised.
     # Captures *when* the model's front is most wrong (lag bias is

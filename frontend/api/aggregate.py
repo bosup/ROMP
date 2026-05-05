@@ -235,6 +235,40 @@ def aggregate_progression(
             season[f"{k}_ci_lo"] = _scalar_or_none(boot["ci_lo"])
             season[f"{k}_ci_hi"] = _scalar_or_none(boot["ci_hi"])
             season[f"{k}_n_years"] = int(arr.size)
+    # Misplacement fraction: fraction of season-integrated IOE that is
+    # misplacement (vs extent). 0 means pure size error (forecast region
+    # is too big or too small but in the right place); 1 means pure
+    # geographic-misplacement error (right area, wrong location). Per
+    # year compute the ratio, then bootstrap the median across years.
+    # Bootstrapping the ratio (rather than ratio of bootstraps) is
+    # important — numerator and denominator are correlated within a
+    # year and the wrong order would over-estimate the variance.
+    misp_fracs = []
+    for p in per_year:
+        s = p.get("season") or {}
+        ioe_y = s.get("ioe_km2_day")
+        misp_y = s.get("misplacement_km2_day")
+        if (ioe_y is None or misp_y is None
+                or not np.isfinite(ioe_y) or not np.isfinite(misp_y)
+                or ioe_y <= 0):
+            continue
+        misp_fracs.append(float(misp_y) / float(ioe_y))
+    if misp_fracs:
+        arr = np.asarray(misp_fracs, dtype=float)
+        boot = bootstrap_median_ci(
+            arr, axis=0, n_resamples=n_resamples,
+            ci_level=ci_level, rng=seed,
+        )
+        season["misp_frac"] = float(np.median(arr))
+        season["misp_frac_ci_lo"] = _scalar_or_none(boot["ci_lo"])
+        season["misp_frac_ci_hi"] = _scalar_or_none(boot["ci_hi"])
+        season["misp_frac_n_years"] = int(arr.size)
+    else:
+        season["misp_frac"] = None
+        season["misp_frac_ci_lo"] = None
+        season["misp_frac_ci_hi"] = None
+        season["misp_frac_n_years"] = 0
+
     # Backcompat alias
     season["n_years"] = season["ioe_km2_day_n_years"]
     season["ci_level"] = float(ci_level)

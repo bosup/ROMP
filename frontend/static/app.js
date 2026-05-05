@@ -575,10 +575,22 @@ function renderSummaryTable(compare) {
     // Bracket display shows the 95% bootstrap CI on the median when
     // available (multi-year), falling back to the IQR for single-year
     // panels where CIs are degenerate (point mass at the observed value).
+    // Below the headline number, a small "X% misp" subline shows what
+    // fraction of the season IOE is misplacement vs extent — the
+    // diagnostic for "wrong size" (low misp%) vs "wrong place" (high misp%).
     const ioeCell = document.createElement("div");
     ioeCell.className = "cell" + (idx === 0 ? " primary" : "");
     const ioe = season.ioe_km2_day;
-    ioeCell.innerHTML = fmtE6(ioe, 1) + bracketAnnotation(season, "ioe_km2_day");
+    let ioeHtml = fmtE6(ioe, 1) + bracketAnnotation(season, "ioe_km2_day");
+    if (season.misp_frac !== null && season.misp_frac !== undefined) {
+      const pct = Math.round(100 * season.misp_frac);
+      const lo = season.misp_frac_ci_lo, hi = season.misp_frac_ci_hi;
+      const ciTxt = (lo !== null && lo !== undefined && hi !== null && hi !== undefined && lo !== hi)
+        ? ` [${Math.round(100*lo)}–${Math.round(100*hi)}]`
+        : "";
+      ioeHtml += ` <div class="cell-sub" title="fraction of season IOE that is misplacement (vs extent)">${pct}%${ciTxt} misp</div>`;
+    }
+    ioeCell.innerHTML = ioeHtml;
     tbl.appendChild(ioeCell);
 
     const spsCell = document.createElement("div");

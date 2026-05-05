@@ -842,6 +842,14 @@ select {
   font-weight: 400;
   margin-left: 6px;
 }
+.cell-sub {
+  color: var(--paper-faint);
+  font-size: 10px;
+  font-weight: 400;
+  margin-top: 3px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 .summary-placeholder {
   font-family: var(--font-mono);
   color: var(--muted);
