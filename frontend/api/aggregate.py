@@ -121,9 +121,38 @@ def aggregate_crps(per_year: Sequence[dict]) -> dict:
     }
 
 
-def aggregate_fss(per_year: Sequence[dict]) -> dict:
+def aggregate_fss(
+    per_year: Sequence[dict],
+    *,
+    n_resamples: int = DEFAULT_N_RESAMPLES,
+    ci_level: float = DEFAULT_CI_LEVEL,
+    seed: int | None = PROGRESSION_BOOTSTRAP_SEED,
+) -> dict:
+    """Aggregate per-year FSS payloads with median + bootstrap CIs.
+
+    The previous version used the across-year mean, which is sensitive
+    to outlier years and inconsistent with the progression aggregator.
+    This version reports:
+
+    - per-(τ, n) median + percentile-method bootstrap CI on the median
+    - per-τ useful_scale (median + bootstrap CI on the useful scale,
+      computed per year then aggregated, NOT computed from the median
+      curve — bootstrapping the useful scale captures year-to-year
+      jiggle in the crossing position, which the median-curve approach
+      averages away)
+
+    Per-year payloads are expected to carry ``base_rate`` (one float per
+    threshold). If a payload is missing it, the useful-scale block is
+    set to None for that aggregate.
+    """
     if not per_year:
-        return {"thresholds": [], "neighborhoods": [], "fss": [], "n_years": 0}
+        return {
+            "thresholds": [], "neighborhoods": [], "fss": [],
+            "fss_ci_lo": [], "fss_ci_hi": [], "useful_scale": None,
+            "n_years": 0, "ci_level": float(ci_level),
+            "n_resamples": int(n_resamples),
+            "bootstrap_method": "percentile-pair-bootstrap-median",
+        }
     thr = per_year[0]["thresholds"]
     nbr = per_year[0]["neighborhoods"]
     Nt, Nn = len(thr), len(nbr)
@@ -136,13 +165,130 @@ def aggregate_fss(per_year: Sequence[dict]) -> dict:
                 v = row[c]
                 stack[i, r, c] = float(v) if v is not None else np.nan
     with np.errstate(invalid="ignore"):
-        mean_fss = np.nanmean(stack, axis=0)
-    out = [
-        [None if not np.isfinite(v) else float(v) for v in row]
-        for row in mean_fss
-    ]
-    return {"thresholds": thr, "neighborhoods": nbr, "fss": out,
-            "n_years": len(per_year)}
+        median_fss = np.nanmedian(stack, axis=0)
+
+    # Per-(τ, n) bootstrap CI on the median, with coherent year resampling
+    # across the (threshold, neighborhood) grid.
+    boot = bootstrap_median_ci(
+        stack, axis=0, n_resamples=n_resamples,
+        ci_level=ci_level, rng=seed,
+    )
+
+    def _to_2d_jsonable(arr2d):
+        return [[None if not np.isfinite(v) else float(v) for v in row]
+                for row in np.asarray(arr2d)]
+
+    out = {
+        "thresholds": thr,
+        "neighborhoods": nbr,
+        "fss": _to_2d_jsonable(median_fss),
+        "fss_ci_lo": _to_2d_jsonable(boot["ci_lo"]),
+        "fss_ci_hi": _to_2d_jsonable(boot["ci_hi"]),
+        "n_years": len(per_year),
+        "ci_level": float(ci_level),
+        "n_resamples": int(n_resamples),
+        "bootstrap_method": "percentile-pair-bootstrap-median",
+    }
+    out["useful_scale"] = _aggregate_useful_scales(
+        per_year, thr, nbr, n_resamples=n_resamples,
+        ci_level=ci_level, seed=seed,
+    )
+    return out
+
+
+def _aggregate_useful_scales(
+    per_year, thresholds, neighborhoods, *, n_resamples, ci_level, seed,
+):
+    """Compute median + bootstrap CI on the per-year useful scale, per τ."""
+    from momp.metrics.neighborhood import useful_scale
+
+    Nt = len(thresholds)
+    Nn = len(neighborhoods)
+    nbr_arr = np.asarray(neighborhoods, dtype=float)
+
+    # Per-year × per-threshold useful-scale matrix; NaN for years where the
+    # FSS curve never crossed the threshold for that τ.
+    n_years = len(per_year)
+    per_year_us = np.full((n_years, Nt), np.nan, dtype=float)
+    base_rates_per_year = np.full((n_years, Nt), np.nan, dtype=float)
+    any_base_rate = False
+    for i, p in enumerate(per_year):
+        rates = p.get("base_rate")
+        if rates is None or len(rates) != Nt:
+            continue
+        any_base_rate = True
+        rows = p.get("fss") or []
+        for r in range(Nt):
+            try:
+                p_r = float(rates[r])
+            except (TypeError, ValueError):
+                continue
+            if not np.isfinite(p_r):
+                continue
+            base_rates_per_year[i, r] = p_r
+            curve = rows[r] if r < len(rows) else None
+            if curve is None or len(curve) != Nn:
+                continue
+            curve_arr = np.array([np.nan if v is None else float(v) for v in curve],
+                                 dtype=float)
+            per_year_us[i, r] = useful_scale(curve_arr, nbr_arr, p=p_r)
+
+    if not any_base_rate:
+        return None
+
+    # Aggregate per-threshold across years.
+    out = {"thresholds": list(thresholds), "per_threshold": []}
+    for r in range(Nt):
+        col = per_year_us[:, r]
+        finite = col[np.isfinite(col)]
+        if finite.size == 0:
+            out["per_threshold"].append({
+                "threshold": float(thresholds[r]),
+                "useful_scale": None,
+                "ci_lo": None,
+                "ci_hi": None,
+                "n_years": 0,
+                "n_years_finite": 0,
+                "n_years_no_skill": int(np.sum(~np.isfinite(col)
+                                               & ~np.isnan(base_rates_per_year[:, r]))),
+            })
+            continue
+        median_us = float(np.median(finite))
+        if finite.size >= 2:
+            boot = bootstrap_median_ci(
+                finite, axis=0, n_resamples=n_resamples,
+                ci_level=ci_level, rng=seed,
+            )
+            ci_lo = _scalar_or_none(boot["ci_lo"])
+            ci_hi = _scalar_or_none(boot["ci_hi"])
+        else:
+            ci_lo = ci_hi = median_us
+        out["per_threshold"].append({
+            "threshold": float(thresholds[r]),
+            "useful_scale": median_us,
+            "ci_lo": ci_lo,
+            "ci_hi": ci_hi,
+            "n_years": int(col.size),
+            "n_years_finite": int(finite.size),
+            # How many years had a defined base_rate but never crossed
+            # the useful-skill threshold — i.e. "no useful skill at any
+            # tested scale" years. Different from "missing data" years.
+            "n_years_no_skill": int(np.sum(~np.isfinite(col)
+                                           & np.isfinite(base_rates_per_year[:, r]))),
+        })
+
+    # Single headline number: useful scale at the median threshold (the
+    # most populated cell of the FSS matrix in practice). Convenient for
+    # the bench summary table; full per-threshold detail is above.
+    headline_idx = Nt // 2
+    headline = out["per_threshold"][headline_idx]
+    out["headline"] = {
+        "threshold": headline["threshold"],
+        "useful_scale": headline["useful_scale"],
+        "ci_lo": headline["ci_lo"],
+        "ci_hi": headline["ci_hi"],
+    }
+    return out
 
 
 def aggregate_displacement(per_year: Sequence[dict]) -> dict:

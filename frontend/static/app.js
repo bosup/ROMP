@@ -191,6 +191,16 @@ function fmtKm(n) {
   return n.toFixed(1);
 }
 
+// Hex (#rrggbb) -> "rgba(r,g,b,a)" string. Module-level so panels can
+// share the same alpha-shaded color logic.
+function rgbaHex(hex, a) {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16),
+        g = parseInt(h.slice(2, 4), 16),
+        b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 // Format the bracketed uncertainty annotation for a season-scalar key.
 // Prefers the 95% bootstrap CI (ci_lo / ci_hi); falls back to IQR
 // (q25 / q75) when CIs are absent or degenerate (single year). Returns
@@ -874,13 +884,7 @@ function renderProgression(compare) {
   const rows = (compare && compare.rows) || [];
   const multiYear = (compare && compare.n_years > 1);
 
-  function rgba(hex, a) {
-    const h = hex.replace("#", "");
-    const r = parseInt(h.slice(0, 2), 16),
-          g = parseInt(h.slice(2, 4), 16),
-          b = parseInt(h.slice(4, 6), 16);
-    return `rgba(${r},${g},${b},${a})`;
-  }
+  const rgba = rgbaHex;   // local alias, hoisted helper at module scope
 
   rows.forEach((row) => {
     const color = colorForModel(row.model);
@@ -1309,6 +1313,25 @@ function renderFss(fss) {
   const noSkill    = fss.fss_no_skill || baseRate;     // FSS_random = base rate
   const useful     = fss.fss_useful   || baseRate.map(b => b == null ? null : 0.5 + 0.5 * b);
 
+  // Per-threshold useful-scale n* (the x-coordinate where FSS crosses the
+  // useful-skill threshold). Single-year: array of floats / null on
+  // `fss.useful_scale`. Multi-year: structured `fss.useful_scale.per_threshold`
+  // with median + bootstrap CI per threshold.
+  const usAgg = fss.useful_scale && fss.useful_scale.per_threshold
+    ? fss.useful_scale.per_threshold : null;
+  const usSingle = Array.isArray(fss.useful_scale) ? fss.useful_scale : null;
+  function usForThreshold(i) {
+    if (usAgg) {
+      const e = usAgg[i] || {};
+      return {n: e.useful_scale, lo: e.ci_lo, hi: e.ci_hi};
+    }
+    if (usSingle) {
+      const v = usSingle[i];
+      return {n: (v == null ? null : v), lo: null, hi: null};
+    }
+    return {n: null, lo: null, hi: null};
+  }
+
   // colors graded across the threshold dimension (early → late onset)
   const lineColors = ["#6eb7ff", "#86b97d", "#f0b264", "#e87b85", "#b697e0",
                       "#e8d06f", "#a8d6f0"];
@@ -1359,6 +1382,34 @@ function renderFss(fss) {
         hovertemplate: `no-skill (random=p) for DOY ${thr}: ${ns.toFixed(2)}<extra></extra>`,
       });
     }
+
+    // Vertical marker at the useful scale n* — the smallest neighborhood
+    // at which this threshold's FSS reaches the useful-skill cutoff.
+    // Drawn from y=0 up to the useful threshold so the eye lands on the
+    // crossing point. CI band shaded behind when multi-year.
+    const usInfo = usForThreshold(i);
+    if (usInfo.n != null && us != null) {
+      if (usInfo.lo != null && usInfo.hi != null && usInfo.lo !== usInfo.hi) {
+        traces.push({
+          type: "scatter", mode: "lines",
+          x: [usInfo.lo, usInfo.lo, usInfo.hi, usInfo.hi],
+          y: [0, us, us, 0],
+          fill: "toself",
+          fillcolor: rgbaHex(color, 0.10),
+          line: { width: 0 },
+          legendgroup: `thr-${thr}`, showlegend: false,
+          hoverinfo: "skip",
+        });
+      }
+      traces.push({
+        type: "scatter", mode: "lines",
+        x: [usInfo.n, usInfo.n], y: [0, us],
+        line: { color, width: 1.4, dash: "dash" },
+        opacity: 0.7,
+        legendgroup: `thr-${thr}`, showlegend: false,
+        hovertemplate: `useful scale for DOY ${thr}: n*=${usInfo.n.toFixed(1)} cells<extra></extra>`,
+      });
+    }
   });
 
   const layout = mergeLayout(PLOT_LAYOUT, {
@@ -1390,12 +1441,26 @@ function renderFss(fss) {
   Plotly.react(div, traces, layout, PLOT_CONFIG);
   rememberPlot(div);
 
-  // Per-threshold caption with computed numbers
+  // Per-threshold caption with useful-scale summary. Format depends on
+  // whether multi-year (CI available) or single-year.
   const cap = $("fss-caption");
   if (cap) {
-    cap.textContent = thresholds.length
+    const usParts = thresholds.map((thr, i) => {
+      const u = usForThreshold(i);
+      if (u.n == null) return `DOY ${thr}: no useful skill`;
+      const ciTxt = (u.lo != null && u.hi != null && u.lo !== u.hi)
+        ? ` [${u.lo.toFixed(1)}–${u.hi.toFixed(1)}]` : "";
+      return `DOY ${thr}: n*=${u.n.toFixed(1)}${ciTxt}`;
+    });
+    const headline = thresholds.length
       ? `${thresholds.length} thresholds · base rates ${baseRate.filter(b => b != null).map(b => b.toFixed(2)).join(", ")}`
       : "";
+    const usagg = fss.useful_scale && fss.useful_scale.bootstrap_method
+      ? "" : "";  // (bootstrap method note can go here later if useful)
+    cap.innerHTML = headline
+      + (usParts.length
+          ? ` <span class="caption-sub">· useful scales: ${usParts.join(" · ")}</span>`
+          : "");
   }
 }
 

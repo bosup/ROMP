@@ -137,3 +137,111 @@ def test_multi_year_basic():
     da = fss_multi_year(fby, oby, thresholds=[160, 180], neighborhoods=[1, 3])
     assert da.dims == ("year", "threshold", "neighborhood")
     assert list(da.year.values) == [2001, 2002, 2003]
+
+
+# ---------- base_rate / useful_skill_threshold / useful_scale -------------
+
+
+def test_base_rate_simple():
+    from momp.metrics.neighborhood import base_rate
+    obs = xr.DataArray(
+        np.array([[140.0, 150.0, 160.0, np.nan]]),
+        dims=("lat", "lon"),
+    )
+    # Threshold τ=155: cells {140, 150} on, {160} off, {NaN} skipped.
+    # base_rate = 2 finite-on / 3 finite = 0.6667
+    assert base_rate(obs, 155.0) == pytest.approx(2.0 / 3.0, abs=1e-12)
+    # τ very high → all finite cells on → 1.0
+    assert base_rate(obs, 1000.0) == pytest.approx(1.0)
+    # τ very low → none on → 0.0
+    assert base_rate(obs, 0.0) == 0.0
+
+
+def test_base_rate_all_nan_returns_zero():
+    from momp.metrics.neighborhood import base_rate
+    obs = xr.DataArray(
+        np.full((3, 3), np.nan), dims=("lat", "lon")
+    )
+    assert base_rate(obs, 150.0) == 0.0
+
+
+def test_useful_skill_threshold_formula():
+    from momp.metrics.neighborhood import useful_skill_threshold
+    assert useful_skill_threshold(0.0) == pytest.approx(0.50)
+    assert useful_skill_threshold(0.5) == pytest.approx(0.75)
+    assert useful_skill_threshold(1.0) == pytest.approx(1.00)
+
+
+def test_useful_skill_threshold_rejects_out_of_range():
+    from momp.metrics.neighborhood import useful_skill_threshold
+    with pytest.raises(ValueError):
+        useful_skill_threshold(-0.1)
+    with pytest.raises(ValueError):
+        useful_skill_threshold(1.5)
+
+
+def test_useful_scale_clean_crossing():
+    # FSS rises from 0 → 1; threshold 0.75 (p=0.5).
+    from momp.metrics.neighborhood import useful_scale
+    fss_curve = np.array([0.20, 0.50, 0.85, 0.95])
+    nbrs = [1, 3, 5, 7]
+    n_star = useful_scale(fss_curve, nbrs, p=0.5)
+    # Crossing between idx 1 (FSS=0.50, n=3) and idx 2 (FSS=0.85, n=5).
+    # frac = (0.75 - 0.50) / (0.85 - 0.50) = 0.7142...
+    # n* = 3 + 0.7142 * (5 - 3) = 4.4286
+    assert n_star == pytest.approx(3 + (0.75 - 0.50) / (0.85 - 0.50) * 2, abs=1e-12)
+
+
+def test_useful_scale_already_at_smallest_neighborhood():
+    from momp.metrics.neighborhood import useful_scale
+    # FSS already exceeds threshold at n=1.
+    fss_curve = np.array([0.85, 0.90, 0.95])
+    nbrs = [1, 3, 5]
+    assert useful_scale(fss_curve, nbrs, p=0.5) == 1.0
+
+
+def test_useful_scale_never_crosses_returns_nan():
+    from momp.metrics.neighborhood import useful_scale
+    fss_curve = np.array([0.10, 0.20, 0.30])
+    nbrs = [1, 3, 5]
+    assert np.isnan(useful_scale(fss_curve, nbrs, p=0.5))
+
+
+def test_useful_scale_exact_match_at_boundary():
+    from momp.metrics.neighborhood import useful_scale
+    # FSS exactly equals threshold at n=5 — useful scale is 5.
+    fss_curve = np.array([0.20, 0.50, 0.75])
+    nbrs = [1, 3, 5]
+    assert useful_scale(fss_curve, nbrs, p=0.5) == 5.0
+
+
+def test_useful_scale_higher_p_means_higher_threshold():
+    # Same FSS curve; higher p → higher useful-skill cutoff → larger n*.
+    from momp.metrics.neighborhood import useful_scale
+    fss_curve = np.array([0.40, 0.60, 0.80, 0.95])
+    nbrs = [1, 3, 5, 7]
+    n_low  = useful_scale(fss_curve, nbrs, p=0.2)   # threshold 0.60
+    n_high = useful_scale(fss_curve, nbrs, p=0.8)   # threshold 0.90
+    assert n_high > n_low
+
+
+def test_useful_scale_rejects_non_increasing_neighborhoods():
+    from momp.metrics.neighborhood import useful_scale
+    with pytest.raises(ValueError):
+        useful_scale(np.array([0.5, 0.6]), [3, 3], p=0.5)
+    with pytest.raises(ValueError):
+        useful_scale(np.array([0.5, 0.6]), [5, 3], p=0.5)
+
+
+def test_useful_scale_per_threshold_matches_loop():
+    from momp.metrics.neighborhood import useful_scale, useful_scale_per_threshold
+    matrix = np.array([
+        [0.10, 0.30, 0.60, 0.90],   # τ_0
+        [0.20, 0.55, 0.85, 0.99],   # τ_1
+        [0.50, 0.95, 0.99, 1.00],   # τ_2  (already useful at small n)
+    ])
+    nbrs = [1, 3, 5, 7]
+    p = [0.30, 0.40, 0.50]
+    out = useful_scale_per_threshold(matrix, nbrs, p)
+    expected = np.array([useful_scale(matrix[i], nbrs, p=p[i]) for i in range(3)])
+    np.testing.assert_allclose(out, expected, equal_nan=True)

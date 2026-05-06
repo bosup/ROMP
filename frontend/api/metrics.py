@@ -105,13 +105,22 @@ def compute_crps(ens: xr.DataArray, obs: xr.DataArray, *, season_end: int) -> di
 
 def compute_fss(fcst: xr.DataArray, obs: xr.DataArray, *,
                 thresholds, neighborhoods) -> dict:
-    from momp.metrics.neighborhood import fss
+    from momp.metrics.neighborhood import (
+        base_rate, fss, useful_scale_per_threshold,
+    )
     out = fss(fcst, obs, thresholds=thresholds, neighborhoods=neighborhoods)
     v = np.asarray(out.values, dtype=float)
+    # Per-threshold climatological base rate p(τ), needed for the
+    # Roberts-Lean useful-skill threshold downstream. Computed from
+    # obs (the authoritative reference), not the forecast.
+    rates = [base_rate(obs, float(t)) for t in thresholds]
+    us = useful_scale_per_threshold(v, list(neighborhoods), rates)
     return {
         "thresholds": list(thresholds),
         "neighborhoods": list(neighborhoods),
         "fss": [[None if not np.isfinite(x) else float(x) for x in row] for row in v],
+        "base_rate": [float(r) for r in rates],
+        "useful_scale": [None if not np.isfinite(x) else float(x) for x in us],
     }
 
 
@@ -246,7 +255,8 @@ def moran_i_2d(field) -> float:
 
     Returns Moran's I in [−1, +1]; higher ⇒ stronger positive spatial
     autocorrelation. Used to derive an effective sample size
-    ``n_eff = n · (1 − I) / (1 + I)`` (Dutilleul 1993 form) for pooled
+    ``n_eff = n · (1 − I) / (1 + I)`` (Clifford-Richardson 1989 /
+    Cressie 1993 form; see ``effective_sample_size``) for pooled
     statistics where neighbouring grid cells are not independent.
 
     NaN cells are excluded from the mean, deviations, and from any
@@ -285,9 +295,18 @@ def moran_i_2d(field) -> float:
 
 
 def effective_sample_size(n: int, moran_i: float) -> float:
-    """Dutilleul (1993) / Cressie (1993) effective-n correction for
-    spatially autocorrelated data. Returns `n` unchanged for I ≤ 0;
-    otherwise `n · (1 − I) / (1 + I)`. Floors at 1."""
+    """Effective-n correction for spatially autocorrelated data.
+
+    Returns ``n`` unchanged for ``I ≤ 0``; otherwise
+    ``n · (1 − I) / (1 + I)``, floored at 1.
+
+    The formula is the Clifford-Richardson (1989) / Cressie (1993, §1.4)
+    AR(1)-style variance-inflation approximation, applied with the
+    Moran's-I estimate of spatial autocorrelation. It is *not* the more
+    elaborate Dutilleul (1993) modified-t correction (which is a
+    correlation-test-specific construction). For our use — reporting an
+    honest effective-n alongside the raw cell count — the simpler
+    variance-inflation form is the standard first-order correction."""
     if moran_i is None or not (moran_i == moran_i):  # NaN check
         return float(n)
     if moran_i <= 0:
