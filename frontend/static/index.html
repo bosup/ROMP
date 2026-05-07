@@ -175,11 +175,35 @@
             inside the halo; where they diverge the circles sit in
             one place and the halo in another — unambiguous.
             <strong>Smaller gap = better spatial agreement.</strong>
+            <br>
+            Background shading is the <strong>obs "monsoon has
+            visited" region per DOY</strong>: each cell is tinted with
+            the colour of the *first* iso DOY by which obs onset
+            arrived there. Cells visited even later than the latest
+            iso DOY plotted still fall into the last band so every
+            land-and-onset cell gets shaded. A forecast contour is
+            doing well when its crisp line tracks the boundary
+            between its colour band and the next-later one. A forecast
+            line sitting *inside* the band of its colour means the
+            model thinks the front is further south than obs
+            (forecast late); *outside* the band means the model thinks
+            the front is further north (forecast early).
+            <br>
+            Obs contours can appear as <strong>closed loops</strong>
+            rather than single south-to-north arcs: this is geographically
+            correct, not a viz bug. Real obs has interior NaN cells
+            (where the detector didn't fire), and the level-set boundary
+            on a finite domain with internal holes is a closed curve.
+            Synthetic forecasts have monotone-in-lat onset fields →
+            their level sets are just horizontal arcs → open lines. Both
+            tell you the same thing about *where the visited region
+            ends*; the visual asymmetry is real-data signal, not noise.
+            <br>
             Hausdorff (worst-point) and Fréchet (path-aware) distances
-            per day below. Gray cells in the background are
-            <strong>no observed onset</strong> within the 1 May–30 Sep
-            window — the dashed contour traces the data/no-data boundary
-            in those regions, not a real DOY transition.
+            per day below. Gray cells are <strong>no observed onset</strong>
+            within the 1 May–30 Sep window; the dashed contour traces
+            the data/no-data boundary in those regions, not a real
+            DOY transition.
           </footer>
           <footer class="card-foot" id="iso-distances"></footer>
         </section>

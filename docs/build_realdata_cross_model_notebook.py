@@ -295,30 +295,65 @@ from momp.graphics.isochrone import extract_isochrone
 
 D_ISO = 175
 
+def top_k_segments(segs, k):
+    '''Keep the K longest contour segments and drop the rest. Real obs
+    fields have scattered NaN cells (undetected onset events); each one
+    creates a small closed loop in the level-set boundary that is a
+    detection-failure artefact, not a real front. The longest 1–2
+    segments capture the actual visited-region boundary.'''
+    if not segs:
+        return []
+    return sorted(segs, key=lambda s: -len(s))[:k]
+
 fig, ax = plt.subplots(figsize=(6.8, 5.2))
 
-# Obs contour (heavy black solid line).
-obs_segs = extract_isochrone(obs_da, float(D_ISO))
+# Obs "monsoon has visited by D_ISO" region as faint background fill.
+# A cell is in this region iff obs_DOY ≤ D_ISO. Without the fill, the
+# reader has to learn the convention "south of the line is the visited
+# side"; with it, the visited side is *visible*.
+visited_mask = (arr_obs <= D_ISO) & np.isfinite(arr_obs)
+ax.contourf(
+    lons_da, lats_da, visited_mask.astype(float),
+    levels=[0.5, 1.5], colors=["#7fb069"], alpha=0.20,
+)
+
+# Obs contour: only the longest segment, so the chart isn't cluttered
+# with closed-loop fragments around interior NaN cells. These fragments
+# are geographically correct (the level-set boundary closes around no-data
+# regions) but obscure the main front-position signal.
+obs_segs = top_k_segments(extract_isochrone(obs_da, float(D_ISO)), 1)
 for s in obs_segs:
     ax.plot(s[:, 0], s[:, 1], color="black", lw=2.4, label=None)
-# Add a single legend-only proxy for obs
-ax.plot([], [], color="black", lw=2.4, label="obs (IMD)")
+ax.plot([], [], color="black", lw=2.4, label="obs (IMD) front")
 
-# 4 forecast contours, each model its colour (dashed so they don't blend).
+# 4 forecast contours, each model its colour. Filter to top-2 segments
+# per model to drop noise loops without losing the real front.
 for mk in MODELS_TO_RUN:
     fcst_da = bundles[mk][DEMO_YEAR]["fcst_det"]
-    segs = extract_isochrone(fcst_da, float(D_ISO))
+    segs = top_k_segments(extract_isochrone(fcst_da, float(D_ISO)), 2)
     if not segs:
         continue
     for k, s in enumerate(segs):
         ax.plot(s[:, 0], s[:, 1], color=COLORS[mk], lw=1.6,
                 ls="--", label=LABELS[mk] if k == 0 else None)
 
+# Annotate the shaded vs unshaded sides directly on the figure so the
+# convention is visible at a glance, not buried in the caption.
+ax.text(0.04, 0.04, "obs says monsoon\\nhas visited (shaded)",
+        transform=ax.transAxes, va="bottom", ha="left",
+        fontsize=9, color="#3c5e30",
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#7fb069", alpha=0.85))
+ax.text(0.96, 0.96, "obs says monsoon\\nhas NOT yet arrived",
+        transform=ax.transAxes, va="top", ha="right",
+        fontsize=9, color="#666",
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#aaa", alpha=0.85))
+
 ax.set_xlim(lons_da.min(), lons_da.max())
 ax.set_ylim(lats_da.min(), lats_da.max())
 ax.set_xlabel("lon (°E)"); ax.set_ylabel("lat (°N)")
 ax.set_title(f"Onset isochrones at DOY {D_ISO} ({DEMO_YEAR})\\n"
-             "obs (black solid) vs 4 forecast models (dashed)")
+             "shaded = obs \\"monsoon visited\\"  ·  black = obs contour  ·  "
+             "dashed = forecast contours")
 ax.legend(loc="lower right", frameon=True, fontsize=9, framealpha=0.92)
 ax.grid(alpha=0.25)
 plt.tight_layout()
@@ -328,17 +363,22 @@ plt.show()
     (
         "markdown",
         """\
-**Reading the contours.** Each line is the boundary between "onset has
-arrived by DOY 175" (south of the line) and "onset has not arrived
-yet" (north of it). The black obs contour is the ground-truth front
-position on June 24, 2020. Forecast contours that sit **south of
-black** are *late* — they say the front hasn't reached as far north
-as it actually has — and ones that sit **north of black** are *early*.
+**Reading the chart.** The shaded green region is where obs (IMD) says
+the monsoon has arrived by DOY 175 — i.e. cells with `obs_DOY ≤ 175`.
+The black solid line is the boundary of that region (the obs onset
+contour). Each dashed coloured line is a forecast model's contour:
+its boundary between "model thinks the front has arrived" (south of
+the line) and "not yet" (north).
 
-The visual signature here is the most direct way to see the FuXi lag:
-its dashed red contour traces a noticeably more southerly path than
-the others, which is the same thing the error-map and peak-DOY
-diagnostic are reporting in different forms. Three views, one signal.
+A forecast line that sits **deep inside the shaded green region** is
+*late* — the model thinks the front hasn't reached as far north as it
+actually has. A forecast line **outside the green region** is *early*.
+
+The FuXi lag bias shows up directly: its dashed red line is the one
+sitting deepest inside the shaded region, several hundred km south of
+the black obs boundary at this DOY. The error-map, the peak-DOY dot
+plot, and this isochrone overlay are three different views of the
+same underlying phenomenon — late front position over central India.
 """,
     ),
     (

@@ -670,25 +670,61 @@ function rememberPlot(div) { state.plotDivs.add(div); }
 
 function renderIsochrones(state_, iso, primaryLabel) {
   const traces = [];
+  const MIN_SEG_VERTICES = 3;
+  const days = (iso && iso.isochrones) || [];
+  const labels = [];   // {x, y, text, color}
 
-  // Background: observed-onset DOY heatmap (dimmed; tooltip muted so it doesn't
-  // trigger over the whole pane while you're trying to read contours).
-  if (state_ && state_.obs_onset) {
+  // Background: a *discrete* per-iso-DOY band heatmap. Each cell is
+  // shaded with the colour of the *first* iso DOY by which obs onset
+  // has arrived there. This makes the "monsoon has visited" side of
+  // each contour visually obvious — the cells inside the contour are
+  // already shaded with that contour's colour. Without this shading
+  // the reader has to learn the convention "south of a south-to-north
+  // front means onset has arrived", which isn't visually self-evident.
+  //
+  // Ordering: the discrete heatmap is drawn first so contour lines
+  // and "no data" overlays sit on top of it.
+  if (state_ && state_.obs_onset && days.length) {
+    const isoDayNums = days.map(e => e.day);
+    // Discrete colorscale: one stop per iso DOY, mapping bin index i to
+    // ISO_DAY_PALETTE[i]. Plotly heatmap interpolates between stops, so
+    // we use stepwise stops [(t_i, c_i), (t_{i+1}, c_i)] to keep each
+    // band a single colour.
+    const N = isoDayNums.length;
+    const colors = isoDayNums.map((_, i) => ISO_DAY_PALETTE[i % ISO_DAY_PALETTE.length]);
+    const stops = [];
+    for (let i = 0; i < N; i++) {
+      const t0 = i / Math.max(1, N);
+      const t1 = (i + 1) / Math.max(1, N);
+      stops.push([t0, colors[i]]);
+      stops.push([t1, colors[i]]);
+    }
+    // Per-cell bin: smallest i such that obs ≤ isoDayNums[i]. Cells whose
+    // obs onset is later than every iso DOY plotted still fall into the
+    // last bin — the band semantically reads as "obs onset is at or after
+    // the second-to-last iso DOY, including cells visited even later in
+    // the season." Without this extension, cells with late obs onset
+    // would appear as unshaded "no data" gaps, which is misleading.
+    const binZ = state_.obs_onset.values.map(row =>
+      row.map(v => {
+        if (v === null || (typeof v === "number" && Number.isNaN(v))) return null;
+        for (let i = 0; i < N; i++) {
+          if (v <= isoDayNums[i]) return i + 0.5;  // centre of bin i
+        }
+        return N - 0.5;   // visited but later than all iso DOYs → last bin
+      })
+    );
     traces.push({
       type: "heatmap",
       x: state_.obs_onset.lon,
       y: state_.obs_onset.lat,
-      z: state_.obs_onset.values,
-      colorscale: "Viridis",
-      opacity: 0.32,
-      colorbar: {
-        title: { text: "obs DOY", font: { size: 10, color: "#a8a291" } },
-        thickness: 8, len: 0.55, x: 1.02,
-        tickfont: { size: 9, color: "#a8a291" },
-      },
+      z: binZ,
+      zmin: 0, zmax: N,
+      colorscale: stops,
+      showscale: false,
+      opacity: 0.30,
       hoverinfo: "skip",
-      showscale: true,
-      name: "obs DOY",
+      name: "obs visited bands",
     });
 
     // "No data" cells: render NaN cells as a single distinct gray so the
@@ -710,13 +746,6 @@ function renderIsochrones(state_, iso, primaryLabel) {
     });
   }
 
-  // Build per-day contour traces. Drop micro-segments (< 3 vertices) — they're
-  // typically isolated single-cell artifacts that visually pull a reader's
-  // eye to noise.
-  const MIN_SEG_VERTICES = 3;
-  const days = (iso && iso.isochrones) || [];
-  const labels = [];   // {x, y, text, color}
-
   days.forEach((entry, i) => {
     const color = ISO_DAY_PALETTE[i % ISO_DAY_PALETTE.length];
     const grp = `day-${entry.day}`;
@@ -733,7 +762,25 @@ function renderIsochrones(state_, iso, primaryLabel) {
     //                   (all three cues visible).
     // Divergence      → halo floats alone somewhere, circles floating alone
     //                   elsewhere — unambiguous.
-    const pushSegs = (segs, dash, tag) => {
+    // Keep only the top-K longest segments. Real obs onset fields have
+    // NaN cells scattered through the domain (cells where the detector
+    // didn't fire) — each one creates a small closed contour loop around
+    // it. Showing all of them clutters the chart with noise that has no
+    // physical interpretation. The "real" front is captured by the 1–2
+    // longest segments; the rest are detection-failure artefacts. We
+    // filter obs more aggressively (top-2) than forecast (top-4) since
+    // real obs is noisier than typical model forecasts.
+    const topK = (segs, k) => {
+      if (!segs) return [];
+      const filtered = segs.filter(s => s && s.length >= MIN_SEG_VERTICES);
+      if (filtered.length <= k) return filtered;
+      return filtered
+        .slice()
+        .sort((a, b) => b.length - a.length)
+        .slice(0, k);
+    };
+    const pushSegs = (rawSegs, dash, tag) => {
+      const segs = topK(rawSegs, dash === "dash" ? 2 : 4);
       let drawn = 0;
       (segs || []).forEach((seg) => {
         if (!seg || seg.length < MIN_SEG_VERTICES) return;
