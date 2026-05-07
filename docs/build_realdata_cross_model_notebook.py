@@ -150,6 +150,195 @@ for mk in MODELS_TO_RUN:
         for y in YEARS_TO_RUN
     }
 print("loaded.")
+
+# Cross-model labels + colour palette, hoisted here so the visualisations
+# below all share the same look. The colour assignment is deliberate —
+# AIFS=cool blue, NGCM=green, IFS=warm yellow-orange, FuXi=red — which
+# matches the dashboard palette so figures from this notebook line up
+# with screenshots from the live UI.
+LABELS = {
+    "aifs":     "AIFS (det)",
+    "ngcm51":   "NGCM-51 (51m ens)",
+    "ifs_s2s":  "IFS-S2S (11m ens)",
+    "fuxi_s2s": "FuXi-S2S (51m ens)",
+}
+COLORS = {
+    "aifs":     "#3a87a8",
+    "ngcm51":   "#86b97d",
+    "ifs_s2s":  "#f0b264",
+    "fuxi_s2s": "#c97356",
+}
+""",
+    ),
+    (
+        "markdown",
+        """\
+## 2½. What the onset fields actually look like
+
+Before any metric: a 5-up panel of obs vs the four forecast models for
+one demonstration year (2020). Same colormap, same DOY range, same
+geographic extent. This is the "look at the data first" cell — every
+metric below is some collapse of these fields, so it pays to see them.
+""",
+    ),
+    (
+        "code",
+        """\
+DEMO_YEAR = 2020
+DOY_MIN, DOY_MAX = 125, 220   # shared colour scale across panels
+
+fig, axes = plt.subplots(1, 5, figsize=(15, 3.4),
+                         sharey=True, constrained_layout=True)
+
+obs_da = bundles["aifs"][DEMO_YEAR]["obs"]
+arr_obs = obs_da.values
+lons_da = obs_da["lon"].values
+lats_da = obs_da["lat"].values
+
+panels = [("obs (IMD)", arr_obs, "#000000")]
+for mk in MODELS_TO_RUN:
+    panels.append((LABELS[mk], bundles[mk][DEMO_YEAR]["fcst_det"].values,
+                   COLORS[mk]))
+
+for ax, (title, arr, accent) in zip(axes, panels):
+    im = ax.pcolormesh(lons_da, lats_da, arr, cmap="viridis",
+                       vmin=DOY_MIN, vmax=DOY_MAX, shading="auto")
+    ax.set_title(title, fontsize=10, color=accent if title != "obs (IMD)" else "black")
+    ax.set_xlabel("lon (°E)")
+axes[0].set_ylabel("lat (°N)")
+fig.colorbar(im, ax=axes, fraction=0.014, pad=0.02, label="onset DOY")
+fig.suptitle(f"Onset DOY fields, {DEMO_YEAR} — obs and 4 forecast models",
+             fontsize=11, y=1.04)
+plt.show()
+""",
+    ),
+    (
+        "markdown",
+        """\
+**Reading the panels.** Obs (leftmost) shows the canonical
+south-to-north monsoon advance: blue/teal in Kerala (early-June onset),
+yellow/green in central India (mid-June to early-July), and bright
+yellow in the north (late-July). The four forecast panels are visually
+similar at this colour scale — the failure modes are *subtle* and
+won't pop out from a coarse heatmap. That's exactly why we need
+quantitative diagnostics. The next cell shows the differences directly.
+""",
+    ),
+    (
+        "markdown",
+        """\
+## 2¾. Forecast − obs error maps — *where* is each model wrong
+
+Subtract obs from each forecast (in days). Diverging colormap centred
+on zero: red = forecast onset is *late* relative to obs at that cell;
+blue = forecast is *early*. White ≈ correct timing. The spatial
+pattern of the error tells a story the season-integrated IOE scalar
+can't.
+""",
+    ),
+    (
+        "code",
+        """\
+fig, axes = plt.subplots(1, 4, figsize=(13, 3.4),
+                         sharey=True, constrained_layout=True)
+
+vmax = 25  # days; symmetric scale so red = late, blue = early
+for ax, mk in zip(axes, MODELS_TO_RUN):
+    fcst = bundles[mk][DEMO_YEAR]["fcst_det"].values
+    err = fcst - arr_obs   # forecast − obs (positive = late)
+    im = ax.pcolormesh(lons_da, lats_da, err, cmap="RdBu_r",
+                       vmin=-vmax, vmax=vmax, shading="auto")
+    ax.set_title(LABELS[mk], fontsize=10, color=COLORS[mk])
+    ax.set_xlabel("lon (°E)")
+    # mean error annotation in the corner
+    finite = err[np.isfinite(err)]
+    mu = float(np.mean(finite)) if finite.size else float("nan")
+    ax.text(0.02, 0.97, f"mean err = {mu:+.1f} d",
+            transform=ax.transAxes, va="top", ha="left", fontsize=9,
+            bbox=dict(boxstyle="round,pad=0.25", fc="white",
+                      ec="#888", alpha=0.8))
+axes[0].set_ylabel("lat (°N)")
+fig.colorbar(im, ax=axes, fraction=0.014, pad=0.02,
+             label="forecast − obs (days)\\nred = late, blue = early")
+fig.suptitle(f"Forecast onset error maps, {DEMO_YEAR}", fontsize=11, y=1.04)
+plt.show()
+""",
+    ),
+    (
+        "markdown",
+        """\
+**Now the failure modes are visible.** AIFS, NGCM-51, IFS-S2S have
+mostly mild errors with no strong spatial structure. FuXi-S2S shows a
+clear systematic *late* bias (predominantly red) over most of central
+and northern India — that's the spatial signature of its lag. The mean
+error annotations make it numeric: FuXi's mean cell error is several
+days higher than the others' for this year. **This is the spatial
+mechanism behind the peak-DOY anomaly we see in the metrics.**
+""",
+    ),
+    (
+        "markdown",
+        """\
+## 2⅞. The advancing front itself — isochrones at one peak-season DOY
+
+The progression view: rather than DOY-as-scalar-per-cell, show the
+**contour where onset = D** for one chosen calendar day, for every
+forecast plus obs, on the same map. Where a forecast's contour
+deviates from obs's is exactly where its leading edge is in the wrong
+geographic place at that date. Picking D=175 (~Jun 24, mid-monsoon).
+""",
+    ),
+    (
+        "code",
+        """\
+from momp.graphics.isochrone import extract_isochrone
+
+D_ISO = 175
+
+fig, ax = plt.subplots(figsize=(6.8, 5.2))
+
+# Obs contour (heavy black solid line).
+obs_segs = extract_isochrone(obs_da, float(D_ISO))
+for s in obs_segs:
+    ax.plot(s[:, 0], s[:, 1], color="black", lw=2.4, label=None)
+# Add a single legend-only proxy for obs
+ax.plot([], [], color="black", lw=2.4, label="obs (IMD)")
+
+# 4 forecast contours, each model its colour (dashed so they don't blend).
+for mk in MODELS_TO_RUN:
+    fcst_da = bundles[mk][DEMO_YEAR]["fcst_det"]
+    segs = extract_isochrone(fcst_da, float(D_ISO))
+    if not segs:
+        continue
+    for k, s in enumerate(segs):
+        ax.plot(s[:, 0], s[:, 1], color=COLORS[mk], lw=1.6,
+                ls="--", label=LABELS[mk] if k == 0 else None)
+
+ax.set_xlim(lons_da.min(), lons_da.max())
+ax.set_ylim(lats_da.min(), lats_da.max())
+ax.set_xlabel("lon (°E)"); ax.set_ylabel("lat (°N)")
+ax.set_title(f"Onset isochrones at DOY {D_ISO} ({DEMO_YEAR})\\n"
+             "obs (black solid) vs 4 forecast models (dashed)")
+ax.legend(loc="lower right", frameon=True, fontsize=9, framealpha=0.92)
+ax.grid(alpha=0.25)
+plt.tight_layout()
+plt.show()
+""",
+    ),
+    (
+        "markdown",
+        """\
+**Reading the contours.** Each line is the boundary between "onset has
+arrived by DOY 175" (south of the line) and "onset has not arrived
+yet" (north of it). The black obs contour is the ground-truth front
+position on June 24, 2020. Forecast contours that sit **south of
+black** are *late* — they say the front hasn't reached as far north
+as it actually has — and ones that sit **north of black** are *early*.
+
+The visual signature here is the most direct way to see the FuXi lag:
+its dashed red contour traces a noticeably more southerly path than
+the others, which is the same thing the error-map and peak-DOY
+diagnostic are reporting in different forms. Three views, one signal.
 """,
     ),
     (
@@ -249,19 +438,6 @@ N=3 — which is exactly the FuXi-vs-others signal we expect to see.
     (
         "code",
         """\
-LABELS = {
-    "aifs":     "AIFS (det)",
-    "ngcm51":   "NGCM-51 (51m ens)",
-    "ifs_s2s":  "IFS-S2S (11m ens)",
-    "fuxi_s2s": "FuXi-S2S (51m ens)",
-}
-COLORS = {
-    "aifs":     "#3a87a8",
-    "ngcm51":   "#86b97d",
-    "ifs_s2s":  "#f0b264",
-    "fuxi_s2s": "#c97356",
-}
-
 fig, ax = plt.subplots(figsize=(9, 4.6))
 for mk in MODELS_TO_RUN:
     color = COLORS[mk]
@@ -291,6 +467,72 @@ ax.set_title("Cross-model IOE curves — 2019–2021, India land mask\\n"
              "shaded: 95% bootstrap CI on median  ·  dashed lines: per-model peak DOY")
 ax.legend(frameon=False, fontsize=9, loc="upper right")
 plt.tight_layout()
+""",
+    ),
+    (
+        "markdown",
+        """\
+## 5½. Per-year peak DOYs — visual proof of the FuXi anomaly
+
+The hero figure above already shows the dashed peak-DOY lines, but
+they're easy to miss against the curves and CI bands. This dot plot
+strips everything back to *just* the peak-DOY values: one row per
+model, one dot per year (3 years), median marked with a heavy bar,
+95% bootstrap CI as a thin horizontal whisker.
+
+If the FuXi-vs-others lag is real and not a data artefact, FuXi's row
+of dots should sit visibly to the right of the other three.
+""",
+    ),
+    (
+        "code",
+        """\
+fig, ax = plt.subplots(figsize=(8.5, 3.4))
+y_positions = {mk: i for i, mk in enumerate(reversed(MODELS_TO_RUN))}
+
+for mk, y_pos in y_positions.items():
+    color = COLORS[mk]
+    pys = per_year[mk]
+    peaks = np.array([
+        peak_doy(pys[y]["ioe_km2"], DAYS)[0] for y in YEARS_TO_RUN
+    ])
+    finite = peaks[np.isfinite(peaks)]
+    if finite.size == 0:
+        continue
+    # CI whisker behind the dots
+    if finite.size >= 2:
+        boot = bootstrap_median_ci(finite, n_resamples=2000, rng=31)
+        ax.hlines(y_pos, float(boot["ci_lo"]), float(boot["ci_hi"]),
+                  color=color, lw=4.0, alpha=0.35)
+    # Per-year dots
+    ax.scatter(finite, np.full_like(finite, y_pos),
+               s=44, color=color, alpha=0.75, zorder=3,
+               edgecolor="white", linewidth=0.8)
+    # Median marker
+    ax.scatter([float(np.median(finite))], [y_pos],
+               s=140, color=color, marker="|", lw=3.2, zorder=4)
+
+ax.set_yticks(list(y_positions.values()))
+ax.set_yticklabels([LABELS[mk] for mk in reversed(MODELS_TO_RUN)])
+ax.set_xlabel("Peak DOY of IOE — when the front is most wrong")
+ax.set_xlim(135, 215)
+ax.set_title("Per-year peak DOYs across 4 S2S systems, 2019–2021\\n"
+             "dots: per-year values  ·  bars: median  ·  whiskers: 95% bootstrap CI")
+ax.grid(axis="x", alpha=0.25)
+ax.spines["left"].set_visible(False)
+plt.tight_layout()
+plt.show()
+""",
+    ),
+    (
+        "markdown",
+        """\
+**The signal is now visually undeniable.** Three of the four systems
+cluster their peak DOYs in the DOY 140–165 range; FuXi-S2S sits with
+all three of its yearly peaks at DOY 175–210. The CI whiskers
+overlap somewhat at N=3, but the *point estimates* are separated by
+~33–40 days — a temporal-error gap roughly equal to the entire span
+of the early-monsoon advance from Kerala to central India.
 """,
     ),
     (
