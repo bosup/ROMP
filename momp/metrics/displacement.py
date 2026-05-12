@@ -23,8 +23,7 @@ from typing import Sequence
 import numpy as np
 import xarray as xr
 
-
-EARTH_RADIUS_KM_DEFAULT = 6371.0088
+from momp.utils.spherical import EARTH_RADIUS_KM, _infer_spacing, cell_area_km2
 
 
 def _extract_coords(field: xr.DataArray, lat_coord: str, lon_coord: str):
@@ -51,15 +50,6 @@ def _cell_area_weights(lat: np.ndarray, lon: np.ndarray, *, area_weighted: bool)
     return np.ones((lat.size, lon.size), dtype=float)
 
 
-def _infer_spacing(coord: np.ndarray) -> float:
-    if coord.size < 2:
-        raise ValueError("need at least 2 values to infer spacing")
-    diffs = np.diff(coord)
-    if not np.allclose(diffs, diffs[0], rtol=1e-5, atol=1e-8):
-        raise ValueError("coordinate is not uniformly spaced")
-    return float(abs(diffs[0]))
-
-
 def _binary_mask(field: xr.DataArray, threshold: float) -> np.ndarray:
     vals = np.asarray(field.values, dtype=float)
     return ((vals <= threshold) & np.isfinite(vals)).astype(float)
@@ -71,12 +61,7 @@ def _area_km2(
     lon: np.ndarray,
     earth_radius_km: float,
 ) -> float:
-    dlat = _infer_spacing(lat)
-    dlon = _infer_spacing(lon)
-    R = earth_radius_km
-    cos_lat = np.cos(np.deg2rad(lat))
-    cell_area = (R**2 * np.deg2rad(dlat) * np.deg2rad(dlon)) * cos_lat
-    return float(np.sum(binary * cell_area[:, None]))
+    return float(np.sum(binary * cell_area_km2(lat, lon, earth_radius_km)))
 
 
 def _centroid(
@@ -115,7 +100,7 @@ def centroid_displacement(
     threshold: float,
     lat_coord: str = "lat",
     lon_coord: str = "lon",
-    earth_radius_km: float = EARTH_RADIUS_KM_DEFAULT,
+    earth_radius_km: float = EARTH_RADIUS_KM,
     area_weighted: bool = True,
 ) -> dict:
     """Return centroid displacement and area bias at a single threshold.
@@ -173,7 +158,7 @@ def displacement_bias_sweep(
     thresholds: Sequence[float],
     lat_coord: str = "lat",
     lon_coord: str = "lon",
-    earth_radius_km: float = EARTH_RADIUS_KM_DEFAULT,
+    earth_radius_km: float = EARTH_RADIUS_KM,
     area_weighted: bool = True,
 ) -> xr.Dataset:
     """Sweep centroid displacement and area bias over a set of DOY thresholds.

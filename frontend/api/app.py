@@ -16,6 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from momp.utils.land_mask import country_mask
+
 from . import aggregate as AGG
 from . import metrics as M
 from .catalog import load_catalog, model_by_key, obs_source, shared_years
@@ -203,9 +205,10 @@ _LAND_MASK_CACHE: dict = {}
 
 
 def _land_mask_for(da):
-    """Return a (lat, lon) boolean mask of land cells for the region set
-    via the ``ROMP_LAND_MASK`` env var (e.g. ``India``). False elsewhere
-    (ocean) so masked fields become NaN there. No-op if unset."""
+    """Return a (lat, lon) bool DataArray for the country named in
+    ``ROMP_LAND_MASK`` (e.g. ``India``), or ``None`` if the env var is unset
+    or the lookup fails. Cached per (region, grid) since the regionmask
+    rasterisation is the dominant cost on repeat requests."""
     import os
     region = os.environ.get("ROMP_LAND_MASK", "").strip()
     if not region:
@@ -215,55 +218,21 @@ def _land_mask_for(da):
     key = (region, lat_key, lon_key)
     if key in _LAND_MASK_CACHE:
         return _LAND_MASK_CACHE[key]
-    import numpy as np
     try:
-        import regionmask
-        # Use natural_earth's countries; region kwarg names the country.
-        # Exact case-insensitive match first so inputs like "Niger" don't
-        # silently pick up "Nigeria" (idx 99 vs 148) or "Korea" -> "South
-        # Korea" etc. Only fall back to unambiguous substring match.
-        countries = regionmask.defined_regions.natural_earth_v5_0_0.countries_10
-        names_lower = [nm.lower() for nm in countries.names]
-        target = region.lower()
-        idx = None
-        if target in names_lower:
-            idx = names_lower.index(target)
-        else:
-            hits = [i for i, nm in enumerate(names_lower) if target in nm]
-            if len(hits) == 1:
-                idx = hits[0]
-            elif len(hits) > 1:
-                matches = ", ".join(repr(countries.names[i]) for i in hits[:5])
-                raise ValueError(
-                    f"region {region!r} is ambiguous — matches {matches}"
-                    + (" and more" if len(hits) > 5 else "")
-                    + "; use an exact country name"
-                )
-        if idx is None:
-            raise ValueError(f"region {region!r} not found in natural_earth countries")
-        mask2d = countries.mask(da["lon"], da["lat"]) == idx
-        arr = np.asarray(mask2d.values, dtype=bool)
+        mask = country_mask(da, region)
     except Exception as exc:  # fall back to no mask on failure
         import sys
         print(f"[warn] land mask for {region!r} failed: {exc}", file=sys.stderr)
-        arr = None
-    _LAND_MASK_CACHE[key] = arr
-    return arr
+        mask = None
+    _LAND_MASK_CACHE[key] = mask
+    return mask
 
 
 def _apply_land_mask(da):
-    import numpy as np
     mask = _land_mask_for(da)
     if mask is None:
         return da
-    # Broadcast to extra dims and set non-land to NaN.
-    if "member" in da.dims:
-        mfull = mask[np.newaxis, :, :] | np.zeros(
-            (da.sizes["member"], 1, 1), dtype=bool
-        )
-    else:
-        mfull = mask
-    return da.where(mfull)
+    return da.where(mask)
 
 
 def _ensemble_deterministic(ens, season_end: int = 220):

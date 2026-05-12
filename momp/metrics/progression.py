@@ -32,20 +32,8 @@ import numpy as np
 import xarray as xr
 from scipy.integrate import trapezoid
 
-from momp.metrics.displacement import (
-    EARTH_RADIUS_KM_DEFAULT,
-    _extract_coords,
-    _infer_spacing,
-)
-
-
-def _cell_area_km2(lat: np.ndarray, lon: np.ndarray, R_km: float) -> np.ndarray:
-    """Per-cell area in km^2 on a regular lat/lon grid, shape (lat, lon)."""
-    dlat = _infer_spacing(lat)
-    dlon = _infer_spacing(lon)
-    cos_lat = np.cos(np.deg2rad(lat))
-    per_lat = (R_km**2) * np.deg2rad(dlat) * np.deg2rad(dlon) * cos_lat
-    return np.broadcast_to(per_lat[:, None], (lat.size, lon.size)).copy()
+from momp.metrics.displacement import _extract_coords
+from momp.utils.spherical import EARTH_RADIUS_KM, cell_area_km2
 
 
 def _binary_by_day(field_vals: np.ndarray, day: float) -> np.ndarray:
@@ -109,7 +97,7 @@ def integrated_onset_error(
     days: Sequence[int],
     lat_coord: str = "lat",
     lon_coord: str = "lon",
-    earth_radius_km: float = EARTH_RADIUS_KM_DEFAULT,
+    earth_radius_km: float = EARTH_RADIUS_KM,
 ) -> xr.Dataset:
     """Per-day IOE, extent-error, misplacement-error, and season-integrated totals.
 
@@ -139,7 +127,7 @@ def integrated_onset_error(
         extent_season_km2_day, misplacement_season_km2_day``.
     """
     lat, lon = _check_grids_match(forecast, observed, lat_coord, lon_coord)
-    A = _cell_area_km2(lat, lon, earth_radius_km)
+    A = cell_area_km2(lat, lon, earth_radius_km)
 
     fvals = np.asarray(forecast.values, dtype=float)
     ovals = np.asarray(observed.values, dtype=float)
@@ -193,7 +181,7 @@ def spatial_probability_score(
     member_dim: str = "member",
     lat_coord: str = "lat",
     lon_coord: str = "lon",
-    earth_radius_km: float = EARTH_RADIUS_KM_DEFAULT,
+    earth_radius_km: float = EARTH_RADIUS_KM,
 ) -> xr.Dataset:
     """Per-day Spatial Probability Score, plus season integral.
 
@@ -225,7 +213,7 @@ def spatial_probability_score(
             f"ensemble non-member dims {ens.dims[1:]} must match observed dims {observed.dims}"
         )
     lat, lon = _check_grids_match(ens.isel({member_dim: 0}), observed, lat_coord, lon_coord)
-    A = _cell_area_km2(lat, lon, earth_radius_km)
+    A = cell_area_km2(lat, lon, earth_radius_km)
 
     ens_vals = np.asarray(ens.values, dtype=float)
     obs_vals = np.asarray(observed.values, dtype=float)

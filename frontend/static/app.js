@@ -751,25 +751,14 @@ function renderIsochrones(state_, iso, primaryLabel) {
     const grp = `day-${entry.day}`;
     let bestSeg = null, bestLen = 0;
 
-    // Three-layer convention per DOY to keep both lines legible
-    // everywhere — including when they perfectly coincide:
+    // Forecast contours only. Observed onset is communicated via the
+    // per-DOY band heatmap above; drawing observed lines on top of it
+    // was visually redundant.
     //
-    //   obs:   wider soft dashed halo (bottom)     "lines", dash, width 6
-    //   obs:   hairline centered inside the halo   "lines", dash, width 1
-    //   fcst:  crisp solid with open-circle mark.  "lines+markers", size 4
-    //
-    // Exact agreement → crisp solid + open circles riding inside the halo
-    //                   (all three cues visible).
-    // Divergence      → halo floats alone somewhere, circles floating alone
-    //                   elsewhere — unambiguous.
-    // Keep only the top-K longest segments. Real obs onset fields have
-    // NaN cells scattered through the domain (cells where the detector
-    // didn't fire) — each one creates a small closed contour loop around
-    // it. Showing all of them clutters the chart with noise that has no
-    // physical interpretation. The "real" front is captured by the 1–2
-    // longest segments; the rest are detection-failure artefacts. We
-    // filter obs more aggressively (top-2) than forecast (top-4) since
-    // real obs is noisier than typical model forecasts.
+    // Keep only the top-K longest segments. Real onset fields have
+    // NaN cells scattered through the domain — each one creates a small
+    // closed contour loop. The "real" front is captured by the 1–2
+    // longest segments; the rest are detection-failure artefacts.
     const topK = (segs, k) => {
       if (!segs) return [];
       const filtered = segs.filter(s => s && s.length >= MIN_SEG_VERTICES);
@@ -779,64 +768,36 @@ function renderIsochrones(state_, iso, primaryLabel) {
         .sort((a, b) => b.length - a.length)
         .slice(0, k);
     };
-    const pushSegs = (rawSegs, dash, tag) => {
-      const segs = topK(rawSegs, dash === "dash" ? 2 : 4);
+    const pushSegs = (rawSegs, tag) => {
+      const segs = topK(rawSegs, 4);
       let drawn = 0;
       (segs || []).forEach((seg) => {
         if (!seg || seg.length < MIN_SEG_VERTICES) return;
         const xs = seg.map(pt => pt[0]);
         const ys = seg.map(pt => pt[1]);
-        if (dash === "dash") {
-          // Halo
-          traces.push({
-            type: "scatter", mode: "lines",
-            x: xs, y: ys,
-            line: { color, width: 6, dash: "solid" },
-            opacity: 0.28,
-            name: `DOY ${entry.day} · ${tag}`,
-            legendgroup: grp, showlegend: drawn === 0,
-            hoverinfo: "skip",
-          });
-          // Dashed centerline for clear "this is observed" pattern
-          traces.push({
-            type: "scatter", mode: "lines",
-            x: xs, y: ys,
-            line: { color, width: 1.2, dash: "dash" },
-            opacity: 0.9,
-            legendgroup: grp, showlegend: false,
-            hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
-          });
-        } else {
-          // Forecast: crisp solid line with open-circle markers at each
-          // contour vertex so the line is identifiable even when it
-          // lies exactly on the obs halo.
-          traces.push({
-            type: "scatter", mode: "lines+markers",
-            x: xs, y: ys,
-            line: { color, width: 2.2 },
-            marker: {
-              color: "rgba(0,0,0,0)",
-              size: 5,
-              line: { color, width: 1.4 },
-              symbol: "circle",
-            },
-            opacity: 1.0,
-            name: `DOY ${entry.day} · ${tag}`,
-            legendgroup: grp, showlegend: drawn === 0,
-            hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
-          });
-        }
+        traces.push({
+          type: "scatter", mode: "lines+markers",
+          x: xs, y: ys,
+          line: { color, width: 2.2 },
+          marker: {
+            color: "rgba(0,0,0,0)",
+            size: 5,
+            line: { color, width: 1.4 },
+            symbol: "circle",
+          },
+          opacity: 1.0,
+          name: `DOY ${entry.day} · ${tag}`,
+          legendgroup: grp, showlegend: drawn === 0,
+          hovertemplate: `DOY ${entry.day} ${tag}<br>lon %{x:.2f}, lat %{y:.2f}<extra></extra>`,
+        });
         drawn += 1;
-        if (dash !== "dash" && xs.length > bestLen) {
+        if (xs.length > bestLen) {
           bestLen = xs.length;
           bestSeg = { x: xs, y: ys };
         }
       });
     };
-    // Observed (wider, softer, dashed) drawn first -> bottom layer;
-    // forecast (crisp, solid) drawn second -> rides on top.
-    pushSegs(entry.observed, "dash", "obs");
-    pushSegs(entry.forecast, "solid", "fcst");
+    pushSegs(entry.forecast, "fcst");
 
     if (bestSeg) {
       // Anchor at the easternmost point of the longest forecast contour.

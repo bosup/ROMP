@@ -24,8 +24,7 @@ import shapely
 import shapely.geometry as sg
 import xarray as xr
 
-
-KM_PER_DEG = 111.19492664455873  # pi * R / 180, R = 6371.0088 km
+from momp.utils.spherical import KM_PER_DEG
 
 
 def _extract_segments(
@@ -85,9 +84,26 @@ def _segments_to_shapely(segments: list[np.ndarray]):
     return sg.MultiLineString(lines)
 
 
-def _midlat_km(a_mid_lat: float, b_mid_lat: float) -> float:
-    mean_lat = 0.5 * (a_mid_lat + b_mid_lat)
-    return KM_PER_DEG  # simple factor; callers scale separately for lon via cos(lat)
+def _project_segments_for_distance(
+    segments: list[np.ndarray], mean_lat_deg: float
+) -> list[np.ndarray]:
+    """Scale longitude by cos(mean_lat) so that one unit of either axis is
+    one meridional degree. shapely's hausdorff_distance treats coordinates
+    as Cartesian, so a raw (lon, lat) line at mid-latitude over-counts E-W
+    distance by 1/cos(lat). Pre-scaling lon yields a locally-isotropic
+    metric — Cartesian distance × KM_PER_DEG ≈ great-circle km within the
+    domain (equirectangular projection, accurate to ~1% over India-scale
+    spans, degrades poleward of ~70°).
+    """
+    scale = float(np.cos(np.deg2rad(mean_lat_deg)))
+    out: list[np.ndarray] = []
+    for s in segments:
+        if s.size == 0:
+            continue
+        proj = s.copy()
+        proj[:, 0] = proj[:, 0] * scale  # column 0 is lon
+        out.append(proj)
+    return out
 
 
 def extract_isochrone(
@@ -111,22 +127,32 @@ def isochrone_distance(
 ) -> dict:
     """Hausdorff and Fréchet distances between forecast and observed isochrones.
 
-    Returns a dict with the following keys (all in degrees; km equivalents
-    at the isochrones' mean latitude):
+    Distances are computed on a local equirectangular projection
+    ``(lon · cos(mean_lat), lat)`` so that one Cartesian unit is one
+    meridional degree in either direction; without that step shapely's
+    Cartesian Hausdorff treats one degree of longitude and one degree of
+    latitude as equal, over-counting E-W distance by ``1 / cos(lat)`` at
+    mid-latitudes (~7% at India mid-lat, ~22% at India north).
 
-    - ``hausdorff_deg``   : symmetric Hausdorff distance
-    - ``hausdorff_km``    : ditto, converted using KM_PER_DEG
-    - ``frechet_deg``     : discrete Fréchet distance
-    - ``frechet_km``      : ditto
+    Returns a dict with the following keys:
+
+    - ``hausdorff_deg``   : symmetric Hausdorff distance, in projected
+                            meridional-degree-equivalents
+    - ``hausdorff_km``    : ``hausdorff_deg * KM_PER_DEG``
+    - ``frechet_deg``     : discrete Fréchet distance, same units as above
+    - ``frechet_km``      : ditto in km
+    - ``mean_lat_deg``    : mean latitude of the contour vertices, used
+                            for the projection (raw degrees, not projected)
     - ``n_segments_fcst`` / ``n_segments_obs``
 
     If either isochrone is empty, numeric distances are NaN.
+
+    Caveats: equirectangular accuracy degrades poleward of ~70° and over
+    spans wider than ~30° of latitude. For India-scale isochrones the
+    error is sub-percent.
     """
     f_segs = extract_isochrone(forecast, day, lat_coord=lat_coord, lon_coord=lon_coord)
     o_segs = extract_isochrone(observed, day, lat_coord=lat_coord, lon_coord=lon_coord)
-
-    f_geom = _segments_to_shapely(f_segs)
-    o_geom = _segments_to_shapely(o_segs)
 
     result = {
         "n_segments_fcst": len(f_segs),
@@ -137,7 +163,22 @@ def isochrone_distance(
         "frechet_km": float("nan"),
         "mean_lat_deg": float("nan"),
     }
+    if not f_segs or not o_segs:
+        return result
+
+    all_pts = np.concatenate(
+        [np.asarray(s, dtype=float) for s in (f_segs + o_segs) if s.size]
+    )
+    if all_pts.size == 0:
+        return result
+    mean_lat = float(np.mean(all_pts[:, 1]))
+
+    f_proj = _project_segments_for_distance(f_segs, mean_lat)
+    o_proj = _project_segments_for_distance(o_segs, mean_lat)
+    f_geom = _segments_to_shapely(f_proj)
+    o_geom = _segments_to_shapely(o_proj)
     if f_geom is None or o_geom is None:
+        result["mean_lat_deg"] = mean_lat
         return result
 
     haus = float(f_geom.hausdorff_distance(o_geom))
@@ -145,11 +186,6 @@ def isochrone_distance(
         frechet = float(shapely.frechet_distance(f_geom, o_geom))
     except (shapely.errors.GEOSException, AttributeError):
         frechet = float("nan")
-
-    all_pts = np.concatenate(
-        [np.asarray(s, dtype=float) for s in (f_segs + o_segs) if s.size]
-    )
-    mean_lat = float(np.mean(all_pts[:, 1]))
 
     result.update(
         {

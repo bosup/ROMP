@@ -39,8 +39,21 @@ def _as_binary_mask(field, threshold: float) -> np.ndarray:
 def _fraction_field(binary: np.ndarray, neighborhood: int) -> np.ndarray:
     """Box-average binary over an ``neighborhood``-by-``neighborhood`` window.
 
-    ``neighborhood`` must be a positive odd integer. Cells outside the domain
-    are treated as 0 (Roberts-Lean convention).
+    ``neighborhood`` must be a positive odd integer.
+
+    Boundary convention: cells outside the domain are treated as 0
+    (zero-padding via ``mode='constant', cval=0.0``). This matches
+    pysteps and is the most common implementation choice, but it is
+    *not* exactly what Roberts & Lean (2008) describe — they compute
+    fractions only on fully-interior pixels, dividing by the window
+    area regardless of how many cells fall inside the domain.
+    Zero-padding biases boundary skill upward: a 1-cell shift at the
+    domain edge scores higher than the same shift in the interior
+    because the zero-padded fraction differences are smaller.
+
+    For India onset, the monsoon front frequently enters and exits at
+    the south and north of the domain — interpret edge FSS values
+    accordingly.
     """
     if neighborhood <= 0 or neighborhood % 2 == 0:
         raise ValueError(f"neighborhood must be a positive odd integer, got {neighborhood}")

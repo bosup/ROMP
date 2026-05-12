@@ -114,7 +114,7 @@ def test_ioe_advancing_front_analytical_value():
     # Linear front in latitude: onset = a + b*lat. Forecast leads obs by 10 days.
     # At each d the "onset-by-d" mask is an exact lat-strip, so IOE has a
     # closed form in terms of row areas; this is the §7 Milestone-2 check.
-    from momp.metrics.progression import _cell_area_km2
+    from momp.utils.spherical import cell_area_km2
 
     lats = np.arange(0.0, 11.0)
     lons = np.arange(0.0, 10.0)
@@ -128,7 +128,7 @@ def test_ioe_advancing_front_analytical_value():
     days = [100, 105, 110, 115, 120]
     ds = integrated_onset_error(f, o, days=days)
 
-    A = _cell_area_km2(lats, lons, 6371.0088)
+    A = cell_area_km2(lats, lons, 6371.0088)
     for d in days:
         fmask = (fvals <= d).astype(float)
         omask = (ovals <= d).astype(float)
@@ -202,9 +202,9 @@ def test_sps_nonnegative_and_matches_analytical_uniform_probability():
     ds = spatial_probability_score(ens, obs, days=[140, 200])
     # At d=140: P=0.5 everywhere, O=0 -> per-cell Brier = 0.25
     # SPS = 0.25 * total_area
-    from momp.metrics.progression import _cell_area_km2
+    from momp.utils.spherical import cell_area_km2
 
-    total_area = float(_cell_area_km2(lats, lons, 6371.0088).sum())
+    total_area = float(cell_area_km2(lats, lons, 6371.0088).sum())
     assert float(ds["sps_km2"].sel(day=140)) == pytest.approx(0.25 * total_area, rel=1e-12)
 
 

@@ -16,6 +16,7 @@ from momp.graphics.isochrone import (
     isochrone_distance_sweep,
     isochrone_overlay,
 )
+from momp.utils.spherical import KM_PER_DEG
 
 
 def _ramp_field(lats: np.ndarray, lons: np.ndarray, slope=1.0, intercept=120.0):
@@ -63,8 +64,30 @@ def test_km_conversion_consistent_with_degrees():
     obs = _ramp_field(lats, lons, slope=1.0, intercept=120.0)
     fcst = _ramp_field(lats, lons, slope=1.0, intercept=115.0)
     r = isochrone_distance(fcst, obs, day=140.0)
-    # KM_PER_DEG = 111.1949... so km should be ~5 deg * ~111 = ~556 km.
-    assert r["hausdorff_km"] == pytest.approx(r["hausdorff_deg"] * 111.19492664455873, rel=1e-6)
+    # KM_PER_DEG ≈ 111.195 so km should be ~5 deg * ~111 = ~556 km.
+    assert r["hausdorff_km"] == pytest.approx(r["hausdorff_deg"] * KM_PER_DEG, rel=1e-6)
+
+
+def test_pure_eastward_offset_uses_local_longitude_scale():
+    # Two synthetic isochrones that are vertical lines (run N-S), one at
+    # lon=80 and the other at lon=85, over an India-like latitude band.
+    # Naïve (lon, lat) Cartesian Hausdorff would report 5 deg * KM_PER_DEG
+    # ≈ 556 km; the equirectangular-projected distance correctly reports
+    # 5 * cos(mean_lat) * KM_PER_DEG. At mean_lat≈21.5° this is ~517 km.
+    lats = np.linspace(8.0, 35.0, 28)
+    lons = np.linspace(68.0, 97.0, 30)
+    obs_vals = np.broadcast_to(np.where(lons < 80.0, 145.0, 155.0),
+                               (lats.size, lons.size)).astype(float)
+    fcst_vals = np.broadcast_to(np.where(lons < 85.0, 145.0, 155.0),
+                                (lats.size, lons.size)).astype(float)
+    obs = xr.DataArray(obs_vals, coords={"lat": lats, "lon": lons}, dims=("lat", "lon"))
+    fcst = xr.DataArray(fcst_vals, coords={"lat": lats, "lon": lons}, dims=("lat", "lon"))
+    r = isochrone_distance(fcst, obs, day=150.0)
+    mean_lat = r["mean_lat_deg"]
+    expected_km = 5.0 * KM_PER_DEG * np.cos(np.deg2rad(mean_lat))
+    assert r["hausdorff_km"] == pytest.approx(expected_km, rel=1e-3)
+    # Reported deg is now in projected meridional-deg, not raw.
+    assert r["hausdorff_deg"] == pytest.approx(5.0 * np.cos(np.deg2rad(mean_lat)), rel=1e-3)
 
 
 def test_sweep_shape():
