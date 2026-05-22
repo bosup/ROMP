@@ -8,8 +8,8 @@
 # 1. CORE STRUCTURE & DIMENSIONS
 # ------------------------------------------------------------------------------
 project_name = "test ROMP run with sample data"
-work_dir = "~/Code/benchmarking/test_romp_project/"
-pkg_dir = "~/Code/benchmarking/momp/" # package dir where the momp/ folder is
+work_dir = '/Users/charlieeden/Desktop/Spring 2026/ds_clinic/ROMP/docs'
+pkg_dir = "/Users/charlieeden/Desktop/Spring 2026/ds_clinic/ROMP/momp/" # package dir where the momp/ folder is
 
 # Internal data layout (e.g., dimensions in the processed case).
 # Frozen with major ROMP version
@@ -27,7 +27,7 @@ model_list = ("AIFS",)
 obs = "CHIRPS_IMERG"
 
 # Root directory for observational NetCDF files.
-obs_dir = "data/CHIRPS_IMERG"
+obs_dir = '/Users/charlieeden/Desktop/Spring 2026/ds_clinic/CHIRPS_IMERG'
 
 # Pattern to find files. {} is replaced by date/year components.
 obs_file_pattern = ("{}.nc",)
@@ -45,7 +45,7 @@ obs_unit_cvt = None
 ref_model = "climatology"
 
 # Directory for the reference model data.
-ref_model_dir = "data/CHIRPS_IMERG"
+ref_model_dir = '/Users/charlieeden/Desktop/Spring 2026/ds_clinic/CHIRPS_IMERG'
 
 # File naming pattern for the reference model.
 ref_model_file_pattern = "{}.nc"
@@ -60,7 +60,7 @@ ref_model_unit_cvt = None
 # 4. FORECAST MODEL SETTINGS
 # ------------------------------------------------------------------------------
 # List of directories corresponding to the 'model_list'.
-model_dir_list = ("data/AIFS", )
+model_dir_list = ('/Users/charlieeden/Downloads/aifs 2/0p25',)
 
 # Variable names for rainfall in each forecast model (e.g., 'tp' for Total Precip).
 model_var_list = ("tp", )
@@ -78,7 +78,7 @@ file_pattern_list = ("{}.nc", )
 region = "Ethiopia"
 
 # regional mask in .NetCDF format with 1s and 0s
-nc_mask = "demo/data/jjas_seasonal_mask_0p25.nc"
+nc_mask = None
 
 # shapefile to define region boundary, None if not drawing boundary using shapefile
 shpfile_dir = None
@@ -121,8 +121,8 @@ onset_percentage_threshold = 0.5
 # 7. TEMPORAL SETTINGS (Dates & Years)
 # ------------------------------------------------------------------------------
 # Date range for the evaluation period.
-start_date = (2019, 5, 1)
-end_date = (2024, 7, 31)
+start_date = (2012, 5, 1)
+end_date = (2018, 7, 31)
 
 # Start and end years for calculating long-term climatology.
 start_year_clim = 1998
@@ -172,7 +172,7 @@ skill_score = True  # Generic Skill Score calculation
 # 10. OUTPUT & GRAPHICS SETTINGS
 # ------------------------------------------------------------------------------
 # Folders for output data and plots
-dir_out = "demo/et/output"
+dir_out = "/Users/charlieeden/Desktop/Spring 2026/ds_clinic/ROMP/docs/demo/et/output"
 dir_fig = "demo/et/figure"
 
 # Save file and figure options
