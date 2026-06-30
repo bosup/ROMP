@@ -1,5 +1,39 @@
 import pandas as pd
 
+
+# Standard dimension order: time-like dims first, then spatial
+_STANDARD_DIM_ORDER = ["init_time", "time", "member", "step", "lat", "lon"]
+
+def dim_order_fmt(ds):
+    """
+    Transpose all variables in ds so their dimensions follow the standard order:
+        (init_time, time, member, step, lat, lon)
+
+    Only the dimensions actually present in each variable are used — missing ones
+    are skipped.  For example, a variable with dims (lat, lon, init_time, step)
+    becomes (init_time, step, lat, lon).
+
+    Any dimension not listed in _STANDARD_DIM_ORDER is appended at the end in
+    their original relative order, so unknown dims are never dropped.
+    """
+    new_vars = {}
+    for var in ds.data_vars:
+        da = ds[var]
+        current_dims = list(da.dims)
+
+        # Build target order: known dims in standard order, then any unknown dims
+        ordered = [d for d in _STANDARD_DIM_ORDER if d in current_dims]
+        remainder = [d for d in current_dims if d not in _STANDARD_DIM_ORDER]
+        target_dims = ordered + remainder
+
+        if target_dims != current_dims:
+            da = da.transpose(*target_dims)
+
+        new_vars[var] = da
+
+    return ds.assign(new_vars)
+
+
 def dim_fmt(ds):
     """Standardize dimension names"""
     coord_list = list(ds.coords.keys())
@@ -28,7 +62,8 @@ def dim_fmt(ds):
         ][0]
         ds = ds.rename({time_coords: "time"})
 
-    return ds
+    #return ds
+    return dim_order_fmt(ds)
 
 
 def dim_fmt_model(ds):
@@ -60,7 +95,8 @@ def dim_fmt_model(ds):
     if isinstance(ds.indexes["step"], pd.TimedeltaIndex):
         ds = ds.assign_coords(step=ds.step.dt.days)
 
-    return ds
+    #return ds
+    return dim_order_fmt(ds)
 
 
 def dim_fmt_model_ensemble(ds):
@@ -79,7 +115,8 @@ def dim_fmt_model_ensemble(ds):
         ][0]
         ds = ds.rename({ensemble_coords: "member"})
 
-    return ds
+    #return ds
+    return dim_order_fmt(ds)
 
 
 
