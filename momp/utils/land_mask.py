@@ -357,6 +357,15 @@ def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
     xr.Dataset or xr.DataArray
         Masked data (values where mask is False become NaN).
     """
+#    ds = ds.assign_coords({k: ds.coords[k] for k in ds.coords}).copy(deep=False)
+#    for var in ds.data_vars:
+#        ds[var] = xr.DataArray(
+#            ds[var].values,          # <-- forces materialization here, cleanly
+#            dims=ds[var].dims,
+#            coords=ds[var].coords,
+#            attrs=ds[var].attrs,
+#        )
+
 
     mask_ds = xr.open_dataset(nc_mask)
     #print("mask_ds = ", mask_ds)
@@ -364,6 +373,9 @@ def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
     #print("\nmask_ds = ", mask_ds)
 
     mask_ds = mask_ds.sel(lat=ds.lat, lon=ds.lon, method="nearest")
+#    lat_idx = [int(np.argmin(np.abs(mask_ds.lat.values - v))) for v in ds.lat.values]
+#    lon_idx = [int(np.argmin(np.abs(mask_ds.lon.values - v))) for v in ds.lon.values]
+#    mask_ds = mask_ds.isel(lat=lat_idx, lon=lon_idx)
 
     # subset mask_ds according to ds region bounds
     #mask_ds, _ = xr.align(mask_ds, ds, join="inner")
@@ -388,9 +400,16 @@ def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
         
         #print("\n mask_bool = ", mask_bool)
         #print("\n ds = ", ds)
+#        print("mask_bool dims/coords BEFORE align:", mask_bool.dims, dict(mask_bool.coords))
+#        print("ds dims/coords BEFORE align:", ds.dims, {k: ds.coords[k].values for k in ds.coords})
+        #import sys
+        #sys.exit()
 
         # align to prevent accidental broadcasting (and catch mismatched grids)
-        mask_bool, ds_aligned = xr.align(mask_bool, ds, join="exact")
+#        mask_bool, ds_aligned = xr.align(mask_bool, ds, join="exact")
+
+        # Replace the xr.align block entirely:
+        ds_aligned = ds
 
         #print("\n mask_bool = ", mask_bool)
         #print("\n ds_aligned = ", ds_aligned)
@@ -408,7 +427,16 @@ def apply_nc_mask(ds, nc_mask, mask_var=None, keep_value=1):
 
         for var in ds_aligned.data_vars:
             # This uses numpy's broadcasting which is very fast
-            ds_aligned[var].values = np.where(mask_bool.values, ds_aligned[var].values, np.nan)
+            #print(ds_aligned[var].dims)
+            #print(ds_aligned[var].shape)
+#            print("mask_bool.dims = ", mask_bool.dims)
+#            print("mask_bool.shape = ", mask_bool.shape)
+#            print("var = ", var)
+#            print("ds_aligned[var].shape = ", ds_aligned[var].shape)
+#            print("ds_aligned[var].dims= ", ds_aligned[var].dims)
+#            ds_aligned[var].values = np.where(mask_bool.values, ds_aligned[var].values, np.nan)
+            ds_aligned[var] = ds_aligned[var].where(mask_bool)
+#            ds_aligned[var] = ds_aligned[var].load().where(mask_bool)
 
         #return ds_masked
         return ds_aligned
