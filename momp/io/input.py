@@ -211,9 +211,12 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     # Load data using xarray
     ds = xr.open_dataset(file_path)
 
+    ds.load()
 #    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
 #    print("XXXX", ds)
     ds = dim_fmt_model_ensemble(ds)
+
+#    print("1. after dim_fmt_model_ensemble:", type(list(ds.data_vars.values())[0].variable._data))
 
 #    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
 #    print("\n\nYYYYY ds raw ", ds.tp[0,0,0,...].values)
@@ -229,6 +232,7 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     # Select only the matching initialization times
     ds = ds.sel(init_time=matching_times)
 
+#    print("2. after init_time isel:", type(list(ds.data_vars.values())[0].variable._data))
 #    print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
 #    print("ZZZZZ", ds)
 #    if "total_precipitation_24hr" in ds.data_vars:
@@ -242,6 +246,7 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     else:
         raise KeyError("'step' dimension not found in dataset")
 
+#    print("3. after step sel:", type(list(ds.data_vars.values())[0].variable._data))
     #ds = ds.isel(member =slice(0, mem_num))  # limit to first mem_num members (0-mem_num)
 
     #print("\n\n\n members = ", members)
@@ -250,10 +255,25 @@ def get_forecast_probabilistic_twice_weekly(year, *, model_dir, model_var, date_
     if members:
         #ds = ds.isel(member = members)
         #ds = ds.isel(member = list(members) )
+
         ds = ds.sel(member = list(members) )
+
+#        print("members type:", type(members), "values:", list(members))
+#        member_arr = ds.member.values
+#        member_idx = [int(np.where(member_arr == m)[0][0]) for m in list(members)]
+#        ds = ds.isel(member=member_idx)
+#        print("4. after member isel:", type(list(ds.data_vars.values())[0].variable._data))
+#        print("backing type after member isel:", type(list(ds.data_vars.values())[0].variable._data))
+
+#    else:
+#        print("4. members is falsy, skipped. members =", members)
 
     #print("\n\nYYYYY ds raw ", ds.tp[1,1,1,...].values)
     #print("\n\n\n ds = ", ds)
+
+#    import numpy as np
+#    print("backing type before region_select:", type(list(ds.data_vars.values())[0].variable._data))
+
     ds = region_select(ds, **kwargs)
 
     #print("\n\n\n ds = ", ds)
